@@ -1,0 +1,141 @@
+name: hr-system
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      # Consumed by ops/postgres/init/00-roles.sh on first cluster init. Without
+      # them the init script creates no roles at all and the API can never
+      # connect — the cluster comes up healthy holding nothing but a superuser.
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      POSTGRES_MIGRATOR_USER: ${POSTGRES_MIGRATOR_USER}
+      POSTGRES_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD}
+      KEYCLOAK_DB: ${KEYCLOAK_DB}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # Deterministic collation. Do not change after first init -- index
+      # ordering depends on it and a change silently corrupts index validity.
+      LANG: C.UTF-8
+    command:
+      - postgres
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host network. The DB is reachable only from the
+    # compose network; admin access goes through an SSH session on the host.
+    expose:
+      - "5432"
+
+  keycloak:
+    # Built, not pulled: KC_DB and KC_HTTP_RELATIVE_PATH are build-time options.
+    # Setting them as environment variables against the stock image does nothing
+    # under `--optimized` — see ops/keycloak/Dockerfile.
+    build:
+      context: ./ops/keycloak
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: start --optimized --http-enabled=true --proxy-headers=xforwarded
+    environment:
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # Must include the /auth path. KC_HOSTNAME sets the base of every URL
+      # Keycloak advertises, and a bare origin drops the relative path — so
+      # discovery announces an issuer of https://host/realms/hr while the
+      # endpoints actually live under /auth/realms/hr. Caddy does not route the
+      # former, and the API rejects tokens whose issuer does not match exactly.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL}/auth
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # KC 26 serves health on the management port (9000), not 8080 — and
+      # KC_HTTP_RELATIVE_PATH applies there too, so the path is /auth/health/ready.
+      # The image is UBI-micro: no curl, no wget, no grep. Hence bash's /dev/tcp
+      # and pattern matching rather than any of the usual tools.
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/9000; printf "GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3; r=$$(cat <&3); [[ "$$r" == *\"UP\"* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    expose:
+      - "8080"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # Application role -- NOT the superuser. RLS is bypassed by superusers
+      # and table owners, so the API must never connect as either (D-003).
+      DATABASE_URL: postgres://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      OIDC_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL}/auth/realms/${KEYCLOAK_REALM}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE}
+      # Fetch signing keys over the compose network. The public hostname need
+      # not resolve inside this container, and Caddy's internally-issued
+      # certificate need not be in its trust store. Issuer validation is
+      # unaffected — it still asserts OIDC_ISSUER_URL above.
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_URL}/api
+        VITE_OIDC_ISSUER: ${KEYCLOAK_PUBLIC_URL}/auth/realms/${KEYCLOAK_REALM}
+        VITE_OIDC_CLIENT_ID: ${OIDC_AUDIENCE}
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+      - keycloak
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

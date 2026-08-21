@@ -1,0 +1,46 @@
+# Overlay for the hosted demo. Apply on top of the production file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+# The demo differs from an on-prem install in exactly two ways: it is reachable
+# from the internet, so it gets a publicly-validated certificate instead of
+# Caddy's internal CA; and it is expected to hold synthetic data only.
+#
+# It is NOT a second product. Everything else — the schema, RLS, the roles, the
+# review logic — is the same stack, which is the point: what the demo proves is
+# what the customer gets.
+
+services:
+  caddy:
+    volumes:
+      - ./ops/caddy/Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      # Let's Encrypt sends expiry warnings here. An address nobody reads is how
+      # a demo silently goes dark 90 days later.
+      ACME_EMAIL: ${ACME_EMAIL}
+
+  # A demo box is small and shared. Without limits a runaway query in Postgres
+  # or a Keycloak full-sync can starve the other containers and take the whole
+  # demo down mid-presentation.
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  keycloak:
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  api:
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    environment:
+      LOG_LEVEL: debug

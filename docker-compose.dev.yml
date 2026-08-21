@@ -1,0 +1,64 @@
+# LOCAL DEVELOPMENT ONLY. Not the on-prem deployment -- that is
+# docker-compose.yml (see decisions.md D-001).
+#
+# Differences that make this unsuitable for anything but a laptop:
+#   * Keycloak runs in start-dev mode (no TLS, in-memory-ish, dev cache)
+#   * fixed weak passwords, committed to the repo
+#   * Postgres port published to the host
+#   * the realm ships with six users who all share one password
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+name: hr-system-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hr
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      LANG: C.UTF-8
+    ports:
+      - "55432:5432"
+    volumes:
+      - devdata:/var/lib/postgresql/data
+      - ./ops/postgres/init-dev:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hr"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    # start-dev serves plain HTTP on 8080 with no relative path, so the issuer
+    # is http://localhost:8080/realms/hr -- note the absence of the /auth
+    # prefix that the production compose file sets.
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./ops/keycloak:/opt/keycloak/data/import:ro
+
+  # Stands in for the office SMTP relay. Accepts everything on 1025 and shows
+  # it at http://localhost:8025 — so notification delivery is verifiable end to
+  # end locally instead of "it should work".
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web UI + REST API
+
+volumes:
+  devdata:

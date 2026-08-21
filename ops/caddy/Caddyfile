@@ -1,0 +1,47 @@
+# Single origin for SPA, API, and Keycloak. Same-origin means no CORS surface
+# and no third-party cookie concerns on the office LAN.
+#
+# TLS: `tls internal` uses Caddy's built-in CA. Its root must be distributed to
+# staff machines (Group Policy) or browsers will warn — and a workforce trained
+# to click through certificate warnings is a workforce that will click through a
+# real one. If the office already has an internal PKI, replace this with the
+# issued cert/key pair instead.
+
+{$PUBLIC_HOST} {
+	tls internal
+
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /auth/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 50MiB
+			roll_keep 14
+		}
+	}
+}
+
+# Plain HTTP redirects to HTTPS. No exceptions for "internal only" — the LAN is
+# not a trust boundary.
+http://{$PUBLIC_HOST} {
+	redir https://{$PUBLIC_HOST}{uri} permanent
+}

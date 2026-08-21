@@ -1,0 +1,38 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets. The example file is committed; the real one never is.
+.env
+.env.*
+!.env.example
+
+# Operator artefacts that may contain employee data
+*.dump
+*.dump.gpg
+*.sha256
+/db/seeds/*.csv
+!/db/seeds/*.example.csv
+# The 27-person simulated org the README cites as a worked example. Invented
+# people, no real employee data — it has to survive the rule above.
+!/db/seeds/devcore-201.csv
+
+*.log
+.DS_Store
+.vscode/
+.idea/
+coverage/
+
+# Development-only config for `pnpm dev`. Contains throwaway container
+# credentials that are already public in docker-compose.dev.yml — never a secret.
+!apps/api/.env.development
+!apps/web/.env.development
+
+# Playwright artefacts
+.auth/
+test-results/
+playwright-report/
+
+# Playwright sign-in state — a real session token, not a fixture
+.auth/

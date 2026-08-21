@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-66d7beb0-9e47-4546-8eff-68cfcb6425eb/styles.css">
+<script src="_ds/industry-66d7beb0-9e47-4546-8eff-68cfcb6425eb/_ds_bundle.js"></script>
+</helmet>
+
+<div style="display:flex;min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);">
+
+<aside style="width:250px;flex:none;border-right:1px solid var(--color-divider);padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-6);position:sticky;top:0;height:100vh;overflow-y:auto;">
+
+  <div style="display:flex;align-items:center;gap:9px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    <span style="font-family:var(--font-heading);font-weight:600;font-size:19px;">Performance</span>
+  </div>
+
+  <div class="field">
+    <label>Viewing as</label>
+    <div class="seg" style="width:100%;">
+      <label class="seg-opt" style="flex:1;justify-content:center;"><input type="radio" name="role" checked="{{ roleIsEmployee }}" onChange="{{ setRoleEmployee }}"><span>Employee</span></label>
+      <label class="seg-opt" style="flex:1;justify-content:center;"><input type="radio" name="role" checked="{{ roleIsManager }}" onChange="{{ setRoleManager }}"><span>Manager</span></label>
+      <label class="seg-opt" style="flex:1;justify-content:center;"><input type="radio" name="role" checked="{{ roleIsHr }}" onChange="{{ setRoleHr }}"><span>HR</span></label>
+    </div>
+  </div>
+
+  <nav style="display:flex;flex-direction:column;gap:var(--space-6);font-size:14px;">
+
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.55;padding:0 10px;margin-bottom:4px;">Mine</div>
+
+      <sc-if value="{{ onMyGoals }}" hint-placeholder-val="{{ true }}">
+        <a href="#" onClick="{{ goToMyGoals }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>My goals</a>
+      </sc-if>
+      <sc-if value="{{ notOnMyGoals }}" hint-placeholder-val="{{ false }}">
+        <a href="#" onClick="{{ goToMyGoals }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>My goals</a>
+      </sc-if>
+
+      <sc-if value="{{ onReviewForm }}" hint-placeholder-val="{{ false }}">
+        <a href="#" onClick="{{ goToReviewForm }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>Reviews</a>
+      </sc-if>
+      <sc-if value="{{ notOnReviewForm }}" hint-placeholder-val="{{ true }}">
+        <a href="#" onClick="{{ goToReviewForm }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>Reviews</a>
+      </sc-if>
+      <sc-if value="{{ onCompetencies }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToCompetencies }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><circle cx="12" cy="17" r="5"/></svg>Competencies</a></sc-if>
+      <sc-if value="{{ notOnCompetencies }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToCompetencies }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><circle cx="12" cy="17" r="5"/></svg>Competencies</a></sc-if>
+
+      <sc-if value="{{ onDevelopment }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToDevelopment }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>Development</a></sc-if>
+      <sc-if value="{{ notOnDevelopment }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToDevelopment }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>Development</a></sc-if>
+
+      <sc-if value="{{ onFeedback }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToFeedback }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Feedback</a></sc-if>
+      <sc-if value="{{ notOnFeedback }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToFeedback }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Feedback</a></sc-if>
+    </div>
+
+    <sc-if value="{{ showTeamGroup }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.55;padding:0 10px;margin-bottom:4px;">My team</div>
+        <sc-if value="{{ onTeam }}" hint-placeholder-val="{{ false }}">
+          <a href="#" onClick="{{ goToTeam }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Team</a>
+        </sc-if>
+        <sc-if value="{{ notOnTeam }}" hint-placeholder-val="{{ true }}">
+          <a href="#" onClick="{{ goToTeam }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Team</a>
+        </sc-if>
+        <sc-if value="{{ onMonitoring }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToMonitoring }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Monitoring</a></sc-if>
+        <sc-if value="{{ notOnMonitoring }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToMonitoring }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Monitoring</a></sc-if>
+
+        <sc-if value="{{ onPips }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToPips }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>PIPs</a></sc-if>
+        <sc-if value="{{ notOnPips }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToPips }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>PIPs</a></sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showCompanyGroup }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.55;padding:0 10px;margin-bottom:4px;">Company</div>
+        <sc-if value="{{ onHrConsole }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToHrConsole }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>HR console</a></sc-if>
+        <sc-if value="{{ notOnHrConsole }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToHrConsole }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>HR console</a></sc-if>
+
+        <sc-if value="{{ onReviewAdmin }}" hint-placeholder-val="{{ false }}">
+          <a href="#" onClick="{{ goToReviewAdmin }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Review cycles</a>
+        </sc-if>
+        <sc-if value="{{ notOnReviewAdmin }}" hint-placeholder-val="{{ true }}">
+          <a href="#" onClick="{{ goToReviewAdmin }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Review cycles</a>
+        </sc-if>
+
+        <sc-if value="{{ onAnalytics }}" hint-placeholder-val="{{ false }}">
+          <a href="#" onClick="{{ goToAnalytics }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a>
+        </sc-if>
+        <sc-if value="{{ notOnAnalytics }}" hint-placeholder-val="{{ true }}">
+          <a href="#" onClick="{{ goToAnalytics }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a>
+        </sc-if>
+        <sc-if value="{{ onKpiLibrary }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToKpiLibrary }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/></svg>KPI library</a></sc-if>
+        <sc-if value="{{ notOnKpiLibrary }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToKpiLibrary }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/></svg>KPI library</a></sc-if>
+
+        <sc-if value="{{ onSetup }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ goToSetup }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>Setup</a></sc-if>
+        <sc-if value="{{ notOnSetup }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ goToSetup }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);text-decoration:none;color:inherit;" style-hover="background: var(--color-accent-100); color: var(--color-accent-800);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>Setup</a></sc-if>
+      </div>
+    </sc-if>
+
+  </nav>
+</aside>
+
+<div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+
+  <header style="display:flex;align-items:center;gap:var(--space-4);padding:var(--space-3) var(--space-6);border-bottom:1px solid var(--color-divider);">
+    <span style="font-size:13px;opacity:0.65;">2026 H2 review period</span>
+    <span style="margin-left:auto;font-size:13px;">Acting as <strong>{{ roleLabel }}</strong></span>
+    <button type="button" class="btn btn-ghost btn-icon" aria-label="Notifications" onClick="{{ goToNotifications }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg></button>
+  </header>
+
+  <main style="padding:var(--space-8) var(--space-6);display:flex;flex-direction:column;gap:var(--space-8);max-width:1240px;">
+
+    <section style="display:flex;flex-direction:column;gap:var(--space-2);max-width:760px;">
+      <span class="tag tag-accent">Design proposal — full app</span>
+      <h1 style="font-size:29px;margin:0;">Every screen, on one design system</h1>
+      <p style="font-size:14px;opacity:0.85;">Industry's wireframe language — hairline cards, corner registration marks, one steel accent — fits this brief: calm, technical, and with no spare hue to misuse as a status color. State (goal state, check-in health, cycle phase, rating scale) is carried by icon, tag and ramp step, never a new hue.</p>
+      <p style="font-size:14px;opacity:0.85;">The sidebar groups navigation into <strong>Mine / My team / Company</strong>, replacing the flat 13-tab row. The role switch above stands in for "which hat am I wearing" — flip it to see items appear and disappear. All 21 screens now use this system; the nine outside the brief's original six (Competencies, Development, Feedback, Notifications, Monitoring, PIPs, HR console, KPI library, Setup) are lighter passes — their exact data shapes weren't in the brief's API appendix, so treat their specifics as provisional.</p>
+    </section>
+
+    <sc-if value="{{ onMyGoalsScreen }}" hint-placeholder-val="{{ true }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <div style="display:flex;align-items:baseline;gap:var(--space-3);">
+          <h2 style="margin:0;">My goals</h2>
+          <div class="seg">
+            <label class="seg-opt"><input type="radio" name="mgview" checked="{{ mgIsPopulated }}" onChange="{{ setMgPopulated }}"><span>Populated</span></label>
+            <label class="seg-opt"><input type="radio" name="mgview" checked="{{ mgIsEmpty }}" onChange="{{ setMgEmpty }}"><span>Empty account</span></label>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);">
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Goals this period</div>
+            <div style="font-family:var(--font-heading);font-size:30px;font-weight:600;">{{ mg.totalGoals }}</div>
+          </div>
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Total weight</div>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <div style="font-family:var(--font-heading);font-size:30px;font-weight:600;">{{ mg.weightDisplay }}</div>
+              <sc-if value="{{ mg.weightBad }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">must total 100%</span></sc-if>
+              <sc-if value="{{ mg.weightGood }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent">complete</span></sc-if>
+            </div>
+          </div>
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Weighted attainment</div>
+            <div style="font-family:var(--font-heading);font-size:30px;font-weight:600;">{{ mg.attainmentDisplay }}</div>
+            <p class="card-body" style="font-size:11px;">{{ mg.attainmentNote }}</p>
+          </div>
+          <div class="card blueprint" style="{{ mg.checkinCardStyle }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Needs check-in</div>
+            <div style="font-family:var(--font-heading);font-size:30px;font-weight:600;">{{ mg.needsCheckinCount }}</div>
+          </div>
+        </div>
+
+        <sc-if value="{{ mg.showNeedsCheckin }}" hint-placeholder-val="{{ false }}">
+          <div class="card blueprint elev-sm" style="border-color:var(--color-accent);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Needs your attention</div>
+            <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:4px;">
+              <sc-for list="{{ mg.needsCheckin }}" as="item" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:1px solid var(--color-divider);">
+                  <sc-if value="{{ item.neverCheckedIn }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5" style="flex:none;"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/></svg></sc-if>
+                  <sc-if value="{{ item.offTrack }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-900)" stroke-width="1.5" style="flex:none;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></sc-if>
+                  <div style="flex:1;">
+                    <div style="font-size:14px;font-weight:500;">{{ item.title }}</div>
+                    <div style="font-size:12px;opacity:0.65;">{{ item.checkinNote }}</div>
+                  </div>
+                  <button type="button" class="btn btn-secondary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Check in</button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ mg.isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div class="card blueprint" style="align-items:center;text-align:center;padding:var(--space-8) var(--space-4);gap:var(--space-3);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <div class="card-title">No goals set for this period yet</div>
+            <p class="card-body" style="max-width:40ch;">Your manager will help set these, or start a draft yourself. Nothing here is overdue — there's simply nothing yet.</p>
+            <button type="button" class="btn btn-primary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>New goal</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ mg.showList }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <sc-for list="{{ mg.goals }}" as="g" hint-placeholder-count="3">
+              <div class="card blueprint" style="flex-direction:row;align-items:center;gap:var(--space-4);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="card-title" style="font-size:16px;">{{ g.title }}</span>
+                    <sc-if value="{{ g.isDraft }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral">Draft</span></sc-if>
+                    <sc-if value="{{ g.isPending }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">Pending approval</span></sc-if>
+                    <sc-if value="{{ g.isActive }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent">Active</span></sc-if>
+                    <sc-if value="{{ g.isAchieved }}" hint-placeholder-val="{{ false }}"><span class="tag" style="background:var(--color-accent-800);color:var(--color-bg);">Achieved</span></sc-if>
+                    <sc-if value="{{ g.isMissed }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral">Missed</span></sc-if>
+                    <sc-if value="{{ g.isCancelled }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral" style="opacity:0.7;">Cancelled</span></sc-if>
+                  </div>
+                  <div style="font-size:12px;opacity:0.65;margin-top:4px;">Weight {{ g.weight }}% · Due {{ g.dueDisplay }}</div>
+                </div>
+                <div style="width:150px;flex:none;">
+                  <sc-if value="{{ g.hasAttainment }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size:12px;opacity:0.65;margin-bottom:4px;">{{ g.attainmentPct }}% attained</div>
+                    <div style="height:6px;background:var(--color-neutral-200);border-radius:3px;overflow:hidden;"><div style="height:100%;background:var(--color-accent);width:{{ g.attainmentPct }}%;"></div></div>
+                  </sc-if>
+                  <sc-if value="{{ g.noAttainment }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:12px;opacity:0.5;">Not yet measured</div>
+                  </sc-if>
+                </div>
+                <div style="width:130px;flex:none;display:flex;align-items:center;gap:6px;font-size:12px;">
+                  <sc-if value="{{ g.statusOnTrack }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg><span>On track</span></sc-if>
+                  <sc-if value="{{ g.statusAtRisk }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-800)" stroke-width="1.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span style="font-weight:600;">At risk</span></sc-if>
+                  <sc-if value="{{ g.statusOffTrack }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-900)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="font-weight:600;">Off track</span></sc-if>
+                  <sc-if value="{{ g.statusNever }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/></svg><span>Never checked in</span></sc-if>
+                  <sc-if value="{{ g.statusNone }}" hint-placeholder-val="{{ true }}"><span style="opacity:0.4;">—</span></sc-if>
+                </div>
+                <button type="button" class="btn btn-ghost btn-icon" aria-label="Open" onClick="{{ g.onOpen }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>Six goal states get distinct icon + tag pairs, not one color scheme reused six ways.</li>
+            <li>"Never checked in" (null status) reads as more urgent than "on track" — dashed-circle icon, listed above at-risk in the attention card.</li>
+            <li>Empty account: no amber warning on a rule nobody has broken yet. The weight tag only appears once a goal exists.</li>
+            <li>Dependencies: none — all fields map to the documented API shape.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onGoalDetailScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:900px;">
+        <a href="#" onClick="{{ goToMyGoals }}" style="font-size:13px;color:var(--color-accent-700);text-decoration:none;">&larr; Back to My goals</a>
+        <div class="card blueprint elev-sm"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <h2 style="margin:0;">Reduce escaped defects by 30%</h2>
+            <span class="tag tag-accent">Active</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-900)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style="font-size:13px;font-weight:600;">Off track</span>
+          </div>
+          <div style="display:flex;gap:var(--space-8);margin-top:var(--space-3);font-size:13px;flex-wrap:wrap;">
+            <div><div style="opacity:0.6;">Weight</div><div style="font-weight:600;">40%</div></div>
+            <div><div style="opacity:0.6;">Due</div><div style="font-weight:600;">Sep 30, 2026</div></div>
+            <div><div style="opacity:0.6;">Approved by</div><div style="font-weight:600;">Kevin Ong · Aug 2, 2026</div></div>
+          </div>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Measures</div>
+          <table class="table">
+            <thead><tr><th>Measure</th><th>Baseline</th><th>Target</th><th>Actual</th><th>Attainment</th></tr></thead>
+            <tbody>
+              <tr><td>Escaped defects / release <span style="opacity:0.5;font-size:11px;">↓ lower is better</span></td><td>18</td><td>12</td><td>14 <span style="opacity:0.5;font-size:11px;">as of Aug 10</span></td><td style="width:120px;"><div style="height:6px;background:var(--color-neutral-200);border-radius:3px;overflow:hidden;"><div style="height:100%;background:var(--color-accent-900);width:67%;"></div></div></td></tr>
+              <tr><td>Regression suite pass rate <span style="opacity:0.5;font-size:11px;">↑ higher is better</span></td><td>82%</td><td>95%</td><td>91% <span style="opacity:0.5;font-size:11px;">as of Aug 10</span></td><td style="width:120px;"><div style="height:6px;background:var(--color-neutral-200);border-radius:3px;overflow:hidden;"><div style="height:100%;background:var(--color-accent);width:69%;"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Check-ins</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+            <div style="border-bottom:1px solid var(--color-divider);padding-bottom:var(--space-3);">
+              <div style="display:flex;justify-content:space-between;font-size:13px;"><strong>Period ending Aug 10</strong><span style="opacity:0.6;">Logged Aug 12</span></div>
+              <p style="font-size:13px;margin:6px 0 0;opacity:0.85;">Defect count improved but the regression suite still misses a class of API errors — adding coverage next sprint.</p>
+            </div>
+            <div>
+              <label class="field" style="display:block;"><label style="opacity:0.6;">New check-in</label><textarea class="input" placeholder="What changed since the last check-in?"></textarea></label>
+              <button type="button" class="btn btn-primary blueprint" style="margin-top:var(--space-2);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Log check-in</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>A goal can carry several targets with different directions — the measures table keeps baseline → target → actual and states the direction inline rather than assuming "higher is better".</li>
+            <li>periodEnding and createdAt are shown separately per check-in; collapsing them was misleading users per the brief.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onTeamScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">Team</h2>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);align-items:start;">
+          <div class="card blueprint" style="{{ team.approvalStyle }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Awaiting my approval</div>
+            <div style="font-family:var(--font-heading);font-size:26px;font-weight:600;">{{ team.awaitingCount }}</div>
+            <sc-if value="{{ team.hasAwaiting }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+                <sc-for list="{{ team.awaiting }}" as="a" hint-placeholder-count="2">
+                  <div style="font-size:13px;border-top:1px solid var(--color-divider);padding-top:6px;"><strong>{{ a.name }}</strong> — {{ a.title }}</div>
+                </sc-for>
+              </div>
+              <button type="button" class="btn btn-secondary blueprint" style="margin-top:8px;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Review queue</button>
+            </sc-if>
+          </div>
+          <div class="card blueprint elev-sm" style="border-color:var(--color-accent);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Needs attention</div>
+            <div style="font-family:var(--font-heading);font-size:26px;font-weight:600;">{{ team.attentionCount }}</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+              <sc-for list="{{ team.attention }}" as="a" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;border-top:1px solid var(--color-divider);padding-top:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-900)" stroke-width="1.5" style="flex:none;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span><strong>{{ a.name }}</strong> — {{ a.title }}</span>
+                  <span class="tag tag-outline" style="margin-left:auto;">{{ a.flag }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Team roll-up</div>
+          <table class="table">
+            <thead><tr><th>Employee</th><th>Goals</th><th>Weight</th><th>Attainment</th><th>Flags</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ team.rows }}" as="t" hint-placeholder-count="5">
+                <tr>
+                  <td>{{ t.name }}</td>
+                  <td>{{ t.goalCount }}</td>
+                  <td>{{ t.weightDisplay }}</td>
+                  <td style="width:140px;">
+                    <sc-if value="{{ t.hasAttainment }}" hint-placeholder-val="{{ false }}"><div style="height:6px;background:var(--color-neutral-200);border-radius:3px;overflow:hidden;"><div style="height:100%;background:var(--color-accent);width:{{ t.attainment }}%;"></div></div></sc-if>
+                    <sc-if value="{{ t.noAttainment }}" hint-placeholder-val="{{ true }}"><span style="opacity:0.5;">Not measured</span></sc-if>
+                  </td>
+                  <td>
+                    <sc-if value="{{ t.offTrack }}" hint-placeholder-val="{{ false }}"><span class="tag" style="background:var(--color-accent-800);color:var(--color-bg);margin-right:4px;">Off track</span></sc-if>
+                    <sc-if value="{{ t.atRisk }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline" style="margin-right:4px;">At risk</span></sc-if>
+                    <sc-if value="{{ t.awaiting }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral">Awaiting approval</span></sc-if>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>An empty approval queue no longer competes for attention: it stays quiet (thin border) while a non-empty "Needs attention" card gets the accent border and elevation.</li>
+            <li>Row-level security means this table only ever shows the manager's own subtree — no org-wide picker is implied anywhere here.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onReviewFormScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:820px;">
+        <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
+          <h2 style="margin:0;">My self review</h2>
+          <span style="font-size:13px;opacity:0.65;">2026 H2 Performance Review</span>
+          <div class="seg" style="margin-left:auto;">
+            <label class="seg-opt"><input type="radio" name="rfview" checked="{{ rf.isInProgress }}" onChange="{{ rf.setInProgress }}"><span>In progress</span></label>
+            <label class="seg-opt"><input type="radio" name="rfview" checked="{{ rf.isReturned }}" onChange="{{ rf.setReturned }}"><span>Returned</span></label>
+          </div>
+        </div>
+
+        <sc-if value="{{ rf.isReturned }}" hint-placeholder-val="{{ false }}">
+          <div class="card blueprint elev-sm" style="border-color:var(--color-accent);flex-direction:row;align-items:center;gap:10px;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-800)" stroke-width="1.5" style="flex:none;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <div><strong>Returned by your manager.</strong> "Please add specific examples for the Collaboration rating before resubmitting."</div>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px;opacity:0.7;">
+          <div style="flex:1;height:6px;background:var(--color-neutral-200);border-radius:3px;overflow:hidden;"><div style="height:100%;background:var(--color-accent);width:62%;"></div></div>
+          <span>5 of 8 fields answered</span>
+        </div>
+
+        <details open="">
+          <summary style="cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:18px;padding:var(--space-2) 0;">Goals achieved <span style="font-size:12px;font-weight:400;opacity:0.6;font-family:var(--font-body);">2 of 2</span></summary>
+          <div class="card blueprint" style="background:transparent;margin-bottom:var(--space-3);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-title" style="font-size:15px;">Reduce escaped defects by 30%</div>
+            <p class="card-body">62% attained, weight 40% — carried over from goal tracking.</p>
+          </div>
+          <div class="field"><label>Reflect on your performance against this goal</label><textarea class="input" defaultValue="Defect rate improved steadily but the target wasn't fully reached; the new regression suite should close the remaining gap next quarter."></textarea></div>
+        </details>
+
+        <details>
+          <summary style="cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:18px;padding:var(--space-2) 0;">Core competencies <span style="font-size:12px;font-weight:400;opacity:0.6;font-family:var(--font-body);">2 of 3</span></summary>
+          <div class="field">
+            <label>Collaboration</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <sc-for list="{{ rf.ratingPoints }}" as="p" hint-placeholder-count="5">
+                <span class="tag" style="{{ p.style }}">{{ p.value }} — {{ p.label }}</span>
+              </sc-for>
+            </div>
+            <p style="font-size:12px;opacity:0.65;margin:6px 0 0;">{{ rf.selectedDescription }}</p>
+          </div>
+          <div class="field" style="margin-top:var(--space-3);"><label>Supporting comments</label><textarea class="input" placeholder="Optional — add examples"></textarea></div>
+        </details>
+
+        <details>
+          <summary style="cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:18px;padding:var(--space-2) 0;">Overall comments <span style="font-size:12px;font-weight:400;opacity:0.6;font-family:var(--font-body);">1 of 3</span></summary>
+          <div class="field"><label>Anything else you'd like your manager to know?</label><textarea class="input" placeholder="Optional"></textarea></div>
+        </details>
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;border-top:1px solid var(--color-divider);padding-top:var(--space-3);">
+          <button type="button" class="btn btn-secondary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Save draft</button>
+          <button type="button" class="btn btn-primary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Submit</button>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>Sections are native &lt;details&gt; — collapsible with no script, each carrying its own answered-field count so length is visible before opening.</li>
+            <li>Rating scale renders whatever ratingPoints the cycle sends, with each point's label and description visible, not a hardcoded 1–5.</li>
+            <li>A returned review leads with the reason, not buried under the form.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onAnalyticsScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">Analytics</h2>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Rating distribution by department</div>
+          <p class="card-body">The shape matters more than the average — a department with everyone at "Meets" looks very different from one split between extremes, even if both average to the same number.</p>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-2);">
+            <sc-for list="{{ an.distribution }}" as="d" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:var(--space-3);">
+                <div style="width:90px;font-size:13px;flex:none;">{{ d.dept }}</div>
+                <div style="flex:1;display:flex;height:22px;border-radius:2px;overflow:hidden;">
+                  <sc-for list="{{ d.bars }}" as="b" hint-placeholder-count="5">
+                    <div style="height:100%;{{ b.style }}" title="{{ b.title }}"></div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:var(--space-3);font-size:11px;opacity:0.7;flex-wrap:wrap;">
+            <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-accent-200);margin-right:4px;"></span>1 — Does not meet</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-accent-400);margin-right:4px;"></span>2–3</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-accent-600);margin-right:4px;"></span>4</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-accent-900);margin-right:4px;"></span>5 — Outstanding</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 280px;gap:var(--space-4);align-items:start;">
+          <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Nine-box</div>
+            <div style="display:grid;grid-template-columns:auto repeat(3,1fr);grid-template-rows:repeat(3,90px) auto;gap:4px;font-size:11px;margin-top:8px;">
+              <div></div>
+              <div style="text-align:center;opacity:0.6;">Growth</div><div style="text-align:center;opacity:0.6;">Solid</div><div style="text-align:center;opacity:0.6;">High potential</div>
+              <sc-for list="{{ an.grid }}" as="row" hint-placeholder-count="3">
+                <div style="writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;opacity:0.6;">{{ row.label }}</div>
+                <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="3">
+                  <div class="blueprint" style="padding:6px;display:flex;flex-direction:column;gap:3px;overflow:auto;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+                    <sc-for list="{{ cell.names }}" as="n" hint-placeholder-count="1"><span style="font-size:11px;">{{ n }}</span></sc-for>
+                  </div>
+                </sc-for>
+              </sc-for>
+            </div>
+          </div>
+          <div class="card blueprint elev-sm" style="border-color:var(--color-accent);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">Not shown on the grid</div>
+            <p class="card-body">2 with no rating, 1 with no potential — counted here, not silently dropped.</p>
+          </div>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>This screen was already the best-designed part of the product; the change here is tokens (Industry accent ramp, Barlow) and layout rhythm, not the underlying chart logic.</li>
+            <li>Distribution bars use the accent ramp's own light→dark steps for rating 1→5 instead of a new hue — same discipline as the goal-state icons.</li>
+            <li>Unplaced count stays a visible card, not a footnote, matching the brief.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onCompetenciesScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:820px;">
+        <h2 style="margin:0;">Competencies</h2>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Assessed vs. required, by competency</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:6px;">
+            <sc-for list="{{ comp.rows }}" as="c" hint-placeholder-count="4">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>{{ c.name }}</span><sc-if value="{{ c.gap }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">Below required</span></sc-if></div>
+                <div style="position:relative;height:10px;background:var(--color-neutral-200);border-radius:3px;">
+                  <div style="position:absolute;top:0;left:0;height:100%;background:var(--color-accent-300);border-radius:3px;width:{{ c.requiredPct }}%;"></div>
+                  <div style="position:absolute;top:-3px;height:16px;width:3px;background:var(--color-accent-900);left:{{ c.assessedPct }}%;"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <p style="font-size:11px;opacity:0.6;margin-top:var(--space-2);">Light bar = required level. Dark marker = your latest assessment.</p>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <p class="card-body">Exact assessment source (self, manager, 360) wasn't specified in the brief's API appendix — flagging as a dependency to confirm before build.</p>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onDevelopmentScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:820px;">
+        <h2 style="margin:0;">Development</h2>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Gap report</div>
+          <p class="card-body">Two competencies sit below the required level for your role — Systems design and Public speaking. Resources below target those gaps first.</p>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Learning resources</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:4px;">
+            <sc-for list="{{ dev.resources }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--color-divider);padding-top:8px;font-size:13px;">
+                <span>{{ r.title }}</span><span class="tag tag-neutral">{{ r.type }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Career path</div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            <span class="tag tag-accent">Senior Engineer (you)</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span class="tag tag-outline">Staff Engineer</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span class="tag tag-neutral">Principal Engineer</span>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onFeedbackScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:760px;">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+          <h2 style="margin:0;">Feedback</h2>
+          <button type="button" class="btn btn-primary blueprint" style="margin-left:auto;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Request feedback</button>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Received</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:4px;">
+            <sc-for list="{{ fb.received }}" as="f" hint-placeholder-count="2">
+              <div style="border-top:1px solid var(--color-divider);padding-top:8px;">
+                <div style="font-size:13px;font-weight:600;">{{ f.from }}</div>
+                <p style="font-size:13px;margin:4px 0 0;opacity:0.85;">{{ f.note }}</p>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <p class="card-body">Visibility follows the three feedback channels in the architecture notes (requested / given / anonymous-eligible); this pass only shows the "received" channel as proof of the card pattern.</p>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onNotificationsScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);max-width:640px;">
+        <h2 style="margin:0;">Notifications</h2>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;flex-direction:column;gap:0;">
+            <sc-for list="{{ notif.items }}" as="n" hint-placeholder-count="4">
+              <div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--color-divider);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5" style="flex:none;margin-top:2px;"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+                <div style="flex:1;"><div style="font-size:13px;">{{ n.text }}</div><div style="font-size:11px;opacity:0.55;margin-top:2px;">{{ n.time }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <p class="card-body">No read/unread state is returned by the API — this list is deliberately ordered newest-first with no "unread" treatment, rather than faking a state the backend can't back up.</p>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onMonitoringScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">Monitoring</h2>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Check-in cadence, last 6 weeks</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+            <sc-for list="{{ mon.rows }}" as="m" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+                <div style="width:120px;flex:none;">{{ m.name }}</div>
+                <div style="display:flex;gap:4px;">
+                  <sc-for list="{{ m.weeks }}" as="w" hint-placeholder-count="6">
+                    <div style="{{ w.style }}"></div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ m.trending }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">Trending badly</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <p style="font-size:11px;opacity:0.6;margin-top:var(--space-2);">Dark = checked in that week. Light = missed.</p>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onPipsScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">PIPs</h2>
+        <sc-for list="{{ pips.items }}" as="p" hint-placeholder-count="2">
+          <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-title" style="font-size:16px;">{{ p.name }}</div><span class="tag tag-outline">{{ p.status }}</span><span style="margin-left:auto;font-size:12px;opacity:0.6;">Started {{ p.started }} · Ends {{ p.ends }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">
+              <sc-for list="{{ p.milestones }}" as="ms" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                  <sc-if value="{{ ms.done }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></sc-if>
+                  <sc-if value="{{ ms.notDone }}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" stroke-width="1.5" opacity="0.4"><circle cx="12" cy="12" r="10"/></svg></sc-if>
+                  <span style="{{ ms.textStyle }}">{{ ms.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onHrConsoleScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">HR console</h2>
+        <div class="card blueprint elev-sm" style="border-color:var(--color-accent);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Weight gate — not at 100%</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
+            <sc-for list="{{ hr.weightGate }}" as="w" hint-placeholder-count="2">
+              <div style="display:flex;justify-content:space-between;font-size:13px;border-top:1px solid var(--color-divider);padding-top:6px;"><span>{{ w.name }}</span><span class="tag tag-outline">{{ w.weight }}%</span></div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Goal approval queue</div>
+          <table class="table">
+            <thead><tr><th>Employee</th><th>Goal</th><th>Weight</th><th></th></tr></thead>
+            <tbody>
+              <sc-for list="{{ hr.approvalQueue }}" as="q" hint-placeholder-count="2">
+                <tr><td>{{ q.name }}</td><td>{{ q.title }}</td><td>{{ q.weight }}%</td><td><button type="button" class="btn btn-secondary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Approve</button></td></tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onKpiLibraryScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <h2 style="margin:0;">KPI library</h2>
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <table class="table">
+            <thead><tr><th>Code</th><th>Name</th><th>Measure type</th><th>Version</th><th>Status</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ kpi.rows }}" as="k" hint-placeholder-count="4">
+                <tr><td>{{ k.code }}</td><td>{{ k.name }}</td><td>{{ k.measureType }}</td><td>v{{ k.version }}</td><td><span class="tag tag-accent">{{ k.status }}</span></td></tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onSetupScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;gap:var(--space-4);">
+        <div style="width:180px;flex:none;display:flex;flex-direction:column;gap:2px;">
+          <div style="padding:8px 10px;border-radius:var(--radius-md);background:var(--color-accent-100);color:var(--color-accent-800);font-weight:600;font-size:14px;">Rating scales</div>
+          <div style="padding:8px 10px;border-radius:var(--radius-md);opacity:0.5;font-size:14px;">Departments</div>
+          <div style="padding:8px 10px;border-radius:var(--radius-md);opacity:0.5;font-size:14px;">Competency framework</div>
+          <div style="padding:8px 10px;border-radius:var(--radius-md);opacity:0.5;font-size:14px;">Form builder</div>
+          <div style="padding:8px 10px;border-radius:var(--radius-md);opacity:0.5;font-size:14px;">Notification templates</div>
+          <div style="padding:8px 10px;border-radius:var(--radius-md);opacity:0.5;font-size:14px;">General</div>
+        </div>
+        <div style="flex:1;">
+          <div class="card blueprint" style="background:transparent;max-width:520px;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div class="card-kicker">2026 H2 rating scale</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+              <sc-for list="{{ setup.scale }}" as="s" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;border-top:1px solid var(--color-divider);padding-top:6px;">
+                  <span style="width:18px;font-weight:600;">{{ s.value }}</span><span style="flex:1;">{{ s.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ onReviewAdminScreen }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
+          <h2 style="margin:0;">Review admin</h2>
+          <span style="font-size:14px;opacity:0.7;">2026 H2 Performance Review</span>
+          <div style="display:flex;gap:4px;margin-left:8px;">
+            <span class="tag tag-neutral" style="opacity:0.5;">Draft</span>
+            <span class="tag tag-neutral" style="opacity:0.5;">Open</span>
+            <span class="tag" style="background:var(--color-accent-800);color:var(--color-bg);">Calibration</span>
+            <span class="tag tag-neutral" style="opacity:0.5;">Closed</span>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:var(--space-2);">
+            <button type="button" class="btn btn-secondary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Export calibration</button>
+            <button type="button" class="btn btn-secondary blueprint" disabled="{{ ra.closeDisabled }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Advance to closed</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);">
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div class="card-kicker">Subjects</div><div style="font-family:var(--font-heading);font-size:28px;font-weight:600;">{{ ra.subjects }}</div></div>
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div class="card-kicker">Submitted</div><div style="font-family:var(--font-heading);font-size:28px;font-weight:600;">{{ ra.submittedDisplay }}</div></div>
+          <div class="card blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div class="card-kicker">Calibrated</div><div style="font-family:var(--font-heading);font-size:28px;font-weight:600;">{{ ra.calibratedDisplay }}</div></div>
+          <div class="card blueprint" style="border-color:var(--color-accent);"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div class="card-kicker">Signed off</div><div style="font-family:var(--font-heading);font-size:28px;font-weight:600;">{{ ra.signedOffDisplay }}</div></div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Employee</th><th>Progress</th><th>Attainment</th><th>Overall</th><th>Calibrated</th><th>Potential</th><th>Sign-off</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ ra.rows }}" as="r" hint-placeholder-count="8">
+                <tr>
+                  <td><div style="font-weight:500;">{{ r.name }}</div><div style="font-size:12px;opacity:0.6;">{{ r.dept }}</div></td>
+                  <td>{{ r.progressDisplay }}</td>
+                  <td>{{ r.attainmentDisplay }}</td>
+                  <td>{{ r.overallDisplay }}</td>
+                  <td style="display:flex;align-items:center;gap:6px;">
+                    <input class="input" type="number" defaultValue="{{ r.calibratedValue }}" style="width:56px;" disabled="{{ r.locked }}">
+                    <sc-if value="{{ r.movedUp }}" hint-placeholder-val="{{ false }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="2"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></sc-if>
+                    <sc-if value="{{ r.movedDown }}" hint-placeholder-val="{{ false }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-900)" stroke-width="2"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></sc-if>
+                  </td>
+                  <td>
+                    <select class="input" defaultValue="{{ r.potential }}" disabled="{{ r.locked }}" style="width:110px;">
+                      <option>—</option><option>Low</option><option>Medium</option><option>High</option>
+                    </select>
+                  </td>
+                  <td>
+                    <sc-if value="{{ r.alreadySignedOff }}" hint-placeholder-val="{{ false }}"><span class="tag" style="background:var(--color-accent-800);color:var(--color-bg);">Signed off</span></sc-if>
+                    <sc-if value="{{ r.canSignOff }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ r.onSignOff }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Sign off</button></sc-if>
+                    <sc-if value="{{ r.blockedSignOff }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-secondary blueprint" disabled><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Sign off</button></sc-if>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card blueprint" style="background:transparent;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="card-kicker">Design notes</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;opacity:0.85;display:flex;flex-direction:column;gap:4px;">
+            <li>Sign-off is disabled per-row until submittedCount === instanceCount, and locked entirely once signed — no un-sign-off path.</li>
+            <li>Sign-off asks for confirmation (irreversible action) before writing.</li>
+            <li>Calibrated rating shows an up/down arrow only when it differs from the overall rating, so movement is visible without a separate column.</li>
+            <li>Lourdes Santos: goal attainment reads "not measured" — the demo cycle isn't linked to her goal period. That's a data state the design has to show plainly, not a bug to hide.</li>
+          </ul>
+        </div>
+      </section>
+    </sc-if>
+
+  </main>
+</div>
+</div>
+
+<sc-if value="{{ ra.dialogOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="dialog-backdrop">
+    <div class="dialog blueprint elev-lg"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="dialog-title">Sign off {{ ra.dialogName }}'s review?</div>
+      <div class="dialog-body">This releases the calibrated rating and locks the row. Sign-off cannot be reversed from this screen.</div>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" onClick="{{ ra.cancelSignOff }}">Cancel</button>
+        <button type="button" class="btn btn-primary blueprint" onClick="{{ ra.confirmSignOff }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Confirm sign-off</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    role: 'hr',
+    screen: 'mygoals',
+    mgView: 'populated',
+    rows: null,
+    dialogFor: null,
+    rfSelectedRating: 3,
+    rfReturned: false,
+  };
+
+  baseRows() {
+    return [
+      { id: 1, name: 'Ana Villanueva', dept: 'Engineering', overall: 4, calibrated: 4, attainment: 92, potential: 'High', submitted: 2, instances: 2, signedOff: false },
+      { id: 2, name: 'Marco Dela Cruz', dept: 'Engineering', overall: 3, calibrated: null, attainment: 78, potential: 'Medium', submitted: 2, instances: 2, signedOff: false },
+      { id: 3, name: 'Grace Tan', dept: 'Sales', overall: 5, calibrated: 4, attainment: 105, potential: 'High', submitted: 2, instances: 2, signedOff: false },
+      { id: 4, name: 'Paolo Ramirez', dept: 'QA', overall: 2, calibrated: 2, attainment: 61, potential: 'Low', submitted: 1, instances: 2, signedOff: false },
+      { id: 5, name: 'Lourdes Santos', dept: 'Finance', overall: null, calibrated: null, attainment: null, potential: '—', submitted: 0, instances: 2, signedOff: false },
+      { id: 6, name: 'Ramon Aquino', dept: 'Engineering', overall: 4, calibrated: 4, attainment: 88, potential: 'Medium', submitted: 2, instances: 2, signedOff: false },
+      { id: 7, name: 'Bea Fernandez', dept: 'Sales', overall: 3, calibrated: 3, attainment: 95, potential: 'Medium', submitted: 2, instances: 2, signedOff: true },
+      { id: 8, name: 'Jun Bautista', dept: 'Finance', overall: 4, calibrated: 5, attainment: 90, potential: 'High', submitted: 2, instances: 2, signedOff: false },
+    ];
+  }
+
+  componentDidMount() {
+    if (!this.state.rows) this.setState({ rows: this.baseRows() });
+  }
+
+  goalsPopulated() {
+    return [
+      { title: 'Reduce escaped defects by 30%', weight: 40, state: 'active', dueOn: 'Sep 30', attainmentPct: 62, latestStatus: 'off_track', daysSinceCheckin: 9 },
+      { title: 'Ship onboarding revamp', weight: 35, state: 'active', dueOn: 'Oct 15', attainmentPct: null, latestStatus: null, daysSinceCheckin: 41 },
+      { title: 'Complete AWS certification', weight: 25, state: 'pending_approval', dueOn: 'Nov 1', attainmentPct: null, latestStatus: null, daysSinceCheckin: null },
+      { title: 'Launch API rate limiting', weight: 0, state: 'achieved', dueOn: 'Jun 30', attainmentPct: 100, latestStatus: 'on_track', daysSinceCheckin: null },
+      { title: 'Reduce build time by 20%', weight: 0, state: 'missed', dueOn: 'Jun 30', attainmentPct: 40, latestStatus: null, daysSinceCheckin: null },
+      { title: 'Migrate legacy auth', weight: 0, state: 'cancelled', dueOn: '—', attainmentPct: null, latestStatus: null, daysSinceCheckin: null },
+    ];
+  }
+
+  flagGoal(g) {
+    return {
+      ...g,
+      isDraft: g.state === 'draft', isPending: g.state === 'pending_approval', isActive: g.state === 'active',
+      isAchieved: g.state === 'achieved', isMissed: g.state === 'missed', isCancelled: g.state === 'cancelled',
+      hasAttainment: g.attainmentPct != null, noAttainment: g.attainmentPct == null,
+      statusOnTrack: g.latestStatus === 'on_track', statusAtRisk: g.latestStatus === 'at_risk',
+      statusOffTrack: g.latestStatus === 'off_track',
+      statusNever: g.latestStatus == null && (g.state === 'active'),
+      statusNone: g.latestStatus == null && g.state !== 'active',
+      dueDisplay: g.dueOn,
+      onOpen: () => this.setState({ screen: 'goaldetail' }),
+    };
+  }
+
+  teamData() {
+    return {
+      awaiting: [
+        { name: 'Paolo Ramirez', title: 'Reduce escaped defects by 30%' },
+        { name: 'Grace Tan', title: 'Expand APAC accounts' },
+      ],
+      attention: [
+        { name: 'Paolo Ramirez', title: 'Reduce escaped defects by 30%', flag: 'Off track' },
+        { name: 'Marco Dela Cruz', title: 'Improve deploy frequency', flag: 'At risk' },
+      ],
+      rows: [
+        { name: 'Ana Villanueva', goalCount: 3, weight: 100, attainment: 92, offTrack: false, atRisk: false, awaiting: false },
+        { name: 'Marco Dela Cruz', goalCount: 3, weight: 100, attainment: 78, offTrack: false, atRisk: true, awaiting: false },
+        { name: 'Paolo Ramirez', goalCount: 2, weight: 80, attainment: 61, offTrack: true, atRisk: false, awaiting: true },
+        { name: 'Grace Tan', goalCount: 3, weight: 80, attainment: null, offTrack: false, atRisk: false, awaiting: true },
+        { name: 'Ramon Aquino', goalCount: 3, weight: 100, attainment: 88, offTrack: false, atRisk: false, awaiting: false },
+      ],
+    };
+  }
+
+  ratingPointsData() {
+    return [
+      { value: 1, label: 'Does not meet', description: 'Consistently below expectations.' },
+      { value: 2, label: 'Partially meets', description: 'Below expectations in some areas.' },
+      { value: 3, label: 'Meets expectations', description: 'Solid, consistent performance.' },
+      { value: 4, label: 'Exceeds', description: 'Regularly goes beyond what is expected.' },
+      { value: 5, label: 'Outstanding', description: 'Exceptional impact across the period.' },
+    ];
+  }
+
+  analyticsData() {
+    return {
+      distribution: [
+        { dept: 'Engineering', counts: [1, 2, 5, 4, 1] },
+        { dept: 'Sales', counts: [0, 1, 3, 3, 2] },
+        { dept: 'Finance', counts: [0, 0, 2, 1, 0] },
+        { dept: 'QA', counts: [1, 1, 2, 0, 0] },
+      ],
+      grid: [
+        { label: 'Exceeds', cells: [['Jun B.'], ['Grace T.', 'Ana V.'], ['Ramon A.']] },
+        { label: 'Meets', cells: [['Marco D.'], ['Bea F.'], ['Lourdes S.']] },
+        { label: 'Below', cells: [['Paolo R.'], [], []] },
+      ],
+    };
+  }
+
+  competenciesData() {
+    return [
+      { name: 'Systems design', required: 4, assessed: 3 },
+      { name: 'Communication', required: 3, assessed: 4 },
+      { name: 'Collaboration', required: 3, assessed: 3 },
+      { name: 'Public speaking', required: 3, assessed: 2 },
+    ];
+  }
+
+  developmentData() {
+    return {
+      resources: [
+        { title: 'Designing Data-Intensive Systems (course)', type: 'Course' },
+        { title: 'Internal: Systems design review clinic', type: 'Workshop' },
+        { title: 'Toastmasters chapter — Thu evenings', type: 'External' },
+      ],
+    };
+  }
+
+  feedbackData() {
+    return {
+      received: [
+        { from: 'Kevin Ong (manager)', note: 'Good ownership on the defect-reduction push this quarter — the regression suite work was well scoped.' },
+        { from: 'Marco Dela Cruz (peer)', note: 'Appreciated the code review turnaround during the sprint crunch.' },
+      ],
+    };
+  }
+
+  notificationsData() {
+    return [
+      { text: 'Your self-review for 2026 H2 was returned with comments.', time: '2 hours ago' },
+      { text: 'Kevin Ong approved your goal "Ship onboarding revamp".', time: 'Yesterday' },
+      { text: 'Check-in reminder: "Reduce escaped defects by 30%" is 9 days overdue.', time: '2 days ago' },
+      { text: '2026 H2 review cycle opened for self-review.', time: '1 week ago' },
+    ];
+  }
+
+  monitoringData() {
+    return [
+      { name: 'Ana Villanueva', pattern: [1, 1, 1, 1, 1, 1], trending: false },
+      { name: 'Marco Dela Cruz', pattern: [1, 1, 0, 1, 0, 1], trending: false },
+      { name: 'Paolo Ramirez', pattern: [1, 0, 0, 0, 0, 0], trending: true },
+      { name: 'Grace Tan', pattern: [1, 1, 1, 0, 1, 1], trending: false },
+      { name: 'Ramon Aquino', pattern: [1, 1, 1, 1, 1, 1], trending: false },
+    ];
+  }
+
+  pipsData() {
+    return [
+      {
+        name: 'Paolo Ramirez', status: 'Active', started: 'Jul 1', ends: 'Sep 30',
+        milestones: [
+          { text: 'Weekly 1:1 check-ins with manager', done: true },
+          { text: 'Complete escaped-defects goal at 90%+', done: false },
+          { text: 'Peer-reviewed code for every PR', done: true },
+        ],
+      },
+    ];
+  }
+
+  hrConsoleData() {
+    return {
+      weightGate: [
+        { name: 'Grace Tan', weight: 80 },
+        { name: 'Paolo Ramirez', weight: 80 },
+      ],
+      approvalQueue: [
+        { name: 'Paolo Ramirez', title: 'Reduce escaped defects by 30%', weight: 40 },
+        { name: 'Grace Tan', title: 'Expand APAC accounts', weight: 30 },
+      ],
+    };
+  }
+
+  kpiLibraryData() {
+    return [
+      { code: 'DEF-RATE', name: 'Escaped defect rate', measureType: 'Ratio', version: 3, status: 'Active' },
+      { code: 'REV-GROWTH', name: 'Revenue growth', measureType: 'Percentage', version: 2, status: 'Active' },
+      { code: 'NPS', name: 'Customer NPS', measureType: 'Numeric', version: 1, status: 'Active' },
+      { code: 'BUILD-TIME', name: 'Build time', measureType: 'Numeric', version: 4, status: 'Deprecated' },
+    ];
+  }
+
+  renderVals() {
+    const role = this.state.role;
+    const rows = this.state.rows || this.baseRows();
+
+    // navigation / role
+    const showTeamGroup = role === 'manager' || role === 'hr';
+    const showCompanyGroup = role === 'hr';
+    const roleLabel = role === 'employee' ? 'Employee' : role === 'manager' ? 'Manager' : 'HR admin';
+
+    const setRole = (r) => this.setState((s) => ({ role: r, screen: r === 'hr' ? s.screen : 'mygoals' }));
+
+    // My goals data
+    const isEmpty = this.state.mgView === 'empty';
+    const rawGoals = this.goalsPopulated().map((g) => this.flagGoal(g));
+    const periodGoals = isEmpty ? [] : rawGoals.filter((g) => g.weight > 0);
+    const totalWeight = periodGoals.reduce((s, g) => s + g.weight, 0);
+    const needsCheckinRaw = isEmpty ? [] : rawGoals.filter((g) => g.state === 'active' && (g.latestStatus == null || g.latestStatus === 'off_track' || g.latestStatus === 'at_risk'));
+    const needsCheckin = needsCheckinRaw
+      .map((g) => ({
+        title: g.title,
+        neverCheckedIn: g.latestStatus == null,
+        offTrack: g.latestStatus === 'off_track' || g.latestStatus === 'at_risk',
+        checkinNote: g.latestStatus == null ? `Never checked in — ${g.daysSinceCheckin} days since goal was set` : `${g.latestStatus === 'off_track' ? 'Off track' : 'At risk'} — last check-in ${g.daysSinceCheckin} days ago`,
+      }))
+      .sort((a, b) => (a.neverCheckedIn === b.neverCheckedIn ? 0 : a.neverCheckedIn ? -1 : 1));
+
+    const mg = {
+      totalGoals: periodGoals.length,
+      weightDisplay: periodGoals.length ? `${totalWeight}%` : '—',
+      weightBad: periodGoals.length > 0 && totalWeight !== 100,
+      weightGood: periodGoals.length > 0 && totalWeight === 100,
+      attainmentDisplay: isEmpty ? '—' : '34%',
+      attainmentNote: isEmpty ? '' : 'Based on 1 of 3 goals measured so far',
+      needsCheckinCount: needsCheckin.length,
+      checkinCardStyle: needsCheckin.length ? 'border-color:var(--color-accent);' : '',
+      showNeedsCheckin: needsCheckin.length > 0,
+      needsCheckin,
+      isEmpty,
+      showList: !isEmpty,
+      goals: rawGoals,
+    };
+
+    // Review admin data
+    const dialogRow = rows.find((r) => r.id === this.state.dialogFor);
+    const raRows = rows.map((r) => {
+      const complete = r.submitted === r.instances;
+      const locked = r.signedOff;
+      return {
+        name: r.name,
+        dept: r.dept,
+        progressDisplay: `${r.submitted}/${r.instances} submitted`,
+        attainmentDisplay: r.attainment == null ? 'Not measured' : `${r.attainment}%`,
+        overallDisplay: r.overall == null ? '—' : r.overall,
+        calibratedValue: r.calibrated == null ? '' : r.calibrated,
+        movedUp: r.calibrated != null && r.overall != null && r.calibrated > r.overall,
+        movedDown: r.calibrated != null && r.overall != null && r.calibrated < r.overall,
+        potential: r.potential,
+        locked,
+        alreadySignedOff: r.signedOff,
+        canSignOff: !r.signedOff && complete,
+        blockedSignOff: !r.signedOff && !complete,
+        onSignOff: () => this.setState({ dialogFor: r.id }),
+      };
+    });
+
+    const ra = {
+      subjects: rows.length,
+      submittedDisplay: `${rows.filter((r) => r.submitted === r.instances).length}/${rows.length}`,
+      calibratedDisplay: `${rows.filter((r) => r.calibrated != null).length}/${rows.length}`,
+      signedOffDisplay: `${rows.filter((r) => r.signedOff).length}/${rows.length}`,
+      closeDisabled: !rows.every((r) => r.signedOff),
+      rows: raRows,
+      dialogOpen: !!dialogRow,
+      dialogName: dialogRow ? dialogRow.name : '',
+      cancelSignOff: () => this.setState({ dialogFor: null }),
+      confirmSignOff: () => this.setState((s) => ({
+        rows: s.rows.map((r) => (r.id === s.dialogFor ? { ...r, signedOff: true } : r)),
+        dialogFor: null,
+      })),
+    };
+
+    // Team
+    const t = this.teamData();
+    const team = {
+      awaitingCount: t.awaiting.length,
+      hasAwaiting: t.awaiting.length > 0,
+      awaiting: t.awaiting,
+      approvalStyle: t.awaiting.length ? '' : 'opacity:0.6;',
+      attentionCount: t.attention.length,
+      attention: t.attention,
+      rows: t.rows.map((r) => ({
+        name: r.name, goalCount: r.goalCount, weightDisplay: `${r.weight}%`,
+        hasAttainment: r.attainment != null, noAttainment: r.attainment == null, attainment: r.attainment,
+        offTrack: r.offTrack, atRisk: r.atRisk, awaiting: r.awaiting,
+      })),
+    };
+
+    // Review form
+    const rp = this.ratingPointsData();
+    const selected = this.state.rfSelectedRating;
+    const rf = {
+      isInProgress: !this.state.rfReturned, isReturned: this.state.rfReturned,
+      setInProgress: () => this.setState({ rfReturned: false }), setReturned: () => this.setState({ rfReturned: true }),
+      ratingPoints: rp.map((p) => ({
+        value: p.value, label: p.label,
+        style: p.value === selected ? 'background:var(--color-accent-800);color:var(--color-bg);cursor:pointer;' : 'background:var(--color-neutral-100);color:var(--color-text);cursor:pointer;opacity:0.75;',
+      })),
+      selectedDescription: rp.find((p) => p.value === selected).description,
+    };
+
+    // Analytics
+    const ad = this.analyticsData();
+    const rampSteps = ['var(--color-accent-200)', 'var(--color-accent-400)', 'var(--color-accent-500)', 'var(--color-accent-600)', 'var(--color-accent-900)'];
+    const ratingLabels = ['1 — Does not meet', '2 — Partially meets', '3 — Meets', '4 — Exceeds', '5 — Outstanding'];
+    const an = {
+      distribution: ad.distribution.map((d) => {
+        const total = d.counts.reduce((s, c) => s + c, 0) || 1;
+        return {
+          dept: d.dept,
+          bars: d.counts.map((c, i) => ({
+            style: `flex:${c || 0.0001};background:${rampSteps[i]};`,
+            title: `${ratingLabels[i]}: ${c}`,
+          })),
+        };
+      }),
+      grid: ad.grid,
+    };
+
+    return {
+      roleIsEmployee: role === 'employee', roleIsManager: role === 'manager', roleIsHr: role === 'hr',
+      setRoleEmployee: () => setRole('employee'), setRoleManager: () => setRole('manager'), setRoleHr: () => setRole('hr'),
+      roleLabel, showTeamGroup, showCompanyGroup,
+      onMyGoals: this.state.screen === 'mygoals', notOnMyGoals: this.state.screen !== 'mygoals',
+      onReviewAdmin: this.state.screen === 'reviewadmin', notOnReviewAdmin: this.state.screen !== 'reviewadmin',
+      onReviewForm: this.state.screen === 'reviewform', notOnReviewForm: this.state.screen !== 'reviewform',
+      onTeam: this.state.screen === 'team', notOnTeam: this.state.screen !== 'team',
+      onAnalytics: this.state.screen === 'analytics', notOnAnalytics: this.state.screen !== 'analytics',
+      onMyGoalsScreen: this.state.screen === 'mygoals', onReviewAdminScreen: this.state.screen === 'reviewadmin',
+      onGoalDetailScreen: this.state.screen === 'goaldetail', onTeamScreen: this.state.screen === 'team',
+      onReviewFormScreen: this.state.screen === 'reviewform', onAnalyticsScreen: this.state.screen === 'analytics',
+      goToMyGoals: (e) => { e.preventDefault(); this.setState({ screen: 'mygoals' }); },
+      goToReviewAdmin: (e) => { e.preventDefault(); this.setState({ screen: 'reviewadmin' }); },
+      goToReviewForm: (e) => { e.preventDefault(); this.setState({ screen: 'reviewform' }); },
+      goToTeam: (e) => { e.preventDefault(); this.setState({ screen: 'team' }); },
+      goToAnalytics: (e) => { e.preventDefault(); this.setState({ screen: 'analytics' }); },
+      mgIsPopulated: this.state.mgView === 'populated', mgIsEmpty: this.state.mgView === 'empty',
+      setMgPopulated: () => this.setState({ mgView: 'populated' }), setMgEmpty: () => this.setState({ mgView: 'empty' }),
+      mg, ra, team, rf, an,
+      ...this.extraScreens(),
+    };
+  }
+
+  extraScreens() {
+    const s = this.state.screen;
+    const mk = (name) => ({
+      [`on${name[0].toUpperCase()}${name.slice(1)}`]: s === name,
+      [`notOn${name[0].toUpperCase()}${name.slice(1)}`]: s !== name,
+      [`on${name[0].toUpperCase()}${name.slice(1)}Screen`]: s === name,
+      [`goTo${name[0].toUpperCase()}${name.slice(1)}`]: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ screen: name }); },
+    });
+    const names = ['competencies', 'development', 'feedback', 'notifications', 'monitoring', 'pips', 'hrConsole', 'kpiLibrary', 'setup'];
+    let out = {};
+    names.forEach((n) => { out = { ...out, ...mk(n) }; });
+
+    const comp = {
+      rows: this.competenciesData().map((c) => ({
+        name: c.name, requiredPct: (c.required / 5) * 100, assessedPct: (c.assessed / 5) * 100, gap: c.assessed < c.required,
+      })),
+    };
+    const dev = this.developmentData();
+    const fb = this.feedbackData();
+    const notif = { items: this.notificationsData() };
+    const mon = {
+      rows: this.monitoringData().map((m) => ({
+        name: m.name, trending: m.trending,
+        weeks: m.pattern.map((v) => ({ style: `width:14px;height:14px;background:${v ? 'var(--color-accent-800)' : 'var(--color-neutral-200)'};` })),
+      })),
+    };
+    const pips = {
+      items: this.pipsData().map((p) => ({
+        ...p,
+        milestones: p.milestones.map((m) => ({ text: m.text, done: m.done, notDone: !m.done, textStyle: m.done ? 'opacity:0.6;text-decoration:line-through;' : '' })),
+      })),
+    };
+    const hr = this.hrConsoleData();
+    const kpi = { rows: this.kpiLibraryData() };
+    const setup = { scale: this.ratingPointsData() };
+
+    return { ...out, comp, dev, fb, notif, mon, pips, hr, kpi, setup, goToNotifications: () => this.setState({ screen: 'notifications' }) };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+{
+  "realm": "hr",
+  "enabled": true,
+  "displayName": "HR System",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 1800,
+  "ssoSessionIdleTimeout": 7200,
+  "clients": [
+    {
+      "clientId": "hr-system",
+      "name": "HR System SPA",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:4173/*",
+        "http://localhost:5273/*",
+        "http://127.0.0.1:5273/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://localhost:5273",
+        "http://127.0.0.1:5273"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5273/*##http://127.0.0.1:5273/*##http://localhost:5173/*##http://localhost:4173/*"
+      },
+      "fullScopeAllowed": true,
+      "description": "SPA client. The 'basic' default scope is REQUIRED: since Keycloak 24 it carries the 'sub' claim, and the API resolves employees by token subject. Dropping it yields tokens with no subject and every request 401s.",
+      "defaultClientScopes": [
+        "basic",
+        "acr",
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "hr-system-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "hr-system",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "maria",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "maria.reyes@acme.test",
+      "firstName": "Maria",
+      "lastName": "Reyes",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "jose",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "jose.bautista@acme.test",
+      "firstName": "Jose",
+      "lastName": "Bautista",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ana",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "ana.villanueva@acme.test",
+      "firstName": "Ana",
+      "lastName": "Villanueva",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "paolo",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "paolo.mendoza@acme.test",
+      "firstName": "Paolo",
+      "lastName": "Mendoza",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "grace",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "grace.aquino@acme.test",
+      "firstName": "Grace",
+      "lastName": "Aquino",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "ramon",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "ramon.navarro@acme.test",
+      "firstName": "Ramon",
+      "lastName": "Navarro",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test1234",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

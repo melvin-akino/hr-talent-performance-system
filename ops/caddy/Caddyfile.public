@@ -1,0 +1,43 @@
+# Public (internet-facing) variant, used by docker-compose.demo.yml.
+#
+# The only difference from the on-prem Caddyfile is the certificate: a public
+# host can be validated by Let's Encrypt, so there is no internal CA to
+# distribute and no certificate warning to train people to click through.
+#
+# This is for the hosted DEMO. A demo is internet-reachable by definition, so it
+# must never hold real employee data — see docs/pilot-runbook.md.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_HOST} {
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /auth/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 50MiB
+			roll_keep 14
+		}
+	}
+}

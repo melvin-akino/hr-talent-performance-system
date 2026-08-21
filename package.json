@@ -1,0 +1,22 @@
+{
+  "name": "hr-system",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "concurrently -n api,web -c blue,magenta \"pnpm --filter @hr/api dev\" \"pnpm --filter @hr/web dev\"",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @hr/api db:migrate",
+    "hr": "pnpm --filter @hr/api hr",
+    "e2e": "playwright test --config e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "concurrently": "^9.2.4"
+  }
+}

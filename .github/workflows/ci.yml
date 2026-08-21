@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # Testcontainers starts a real PostgreSQL. RLS policies are the security
+      # boundary (decisions.md D-003) and cannot be verified against mocks, so
+      # a green build without these tests means nothing.
+      - name: Test
+        run: pnpm test
+
+  # The deploy scripts run once, on a customer's server, usually with nobody
+  # watching who can debug them. Static analysis is the only cheap check there
+  # is — an unquoted variable here is a failed installation on site.
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint shell scripts
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck ops/deploy/*.sh ops/postgres/init/*.sh
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Migrations are immutable once applied (enforced by checksum in
+      # migrate.ts). This catches an edit to an already-merged migration at
+      # review time rather than on the production box during a restore.
+      - name: Reject edits to existing migrations
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only --diff-filter=MD \
+            "origin/${{ github.base_ref }}"...HEAD -- db/migrations/ || true)
+          if [ -n "$CHANGED" ]; then
+            echo "::error::Existing migrations were modified or deleted:"
+            echo "$CHANGED"
+            echo "Write a new migration instead."
+            exit 1
+          fi
+          echo "No existing migrations were altered."

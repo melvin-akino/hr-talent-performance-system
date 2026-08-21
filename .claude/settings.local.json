@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -a \"/c/Users/Windows/.claude/\" | head -40; echo \"---CLAUDE.md---\"; cat \"/c/Users/Windows/.claude/CLAUDE.md\" 2>/dev/null | head -50; echo \"---MEMORY.md---\"; cat \"/c/Users/Windows/.claude/projects/C--Projects-hr-system/memory/MEMORY.md\" 2>/dev/null)"
+    ]
+  }
+}

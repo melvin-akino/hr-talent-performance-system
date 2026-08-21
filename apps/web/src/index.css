@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+/*
+ * Internal line-of-business UI. Dense, legible, and boring on purpose --
+ * this screen is used to run a review cycle, not to impress anyone.
+ */
+@theme {
+  --color-brand-50: oklch(0.97 0.02 250);
+  --color-brand-100: oklch(0.93 0.04 250);
+  --color-brand-600: oklch(0.52 0.16 250);
+  --color-brand-700: oklch(0.45 0.15 250);
+}
+
+html {
+  /* The Industry system is light-only; it defines no dark palette. */
+  color-scheme: light;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Background, text colour, font stack and focus rings now come from
+ * styles/industry.css, which is imported after this file. Setting them here as
+ * well would mean two sources of truth for the same properties, and the loser
+ * would be whichever import order someone changed last.
+ */
+
+@media print {
+  .no-print { display: none !important; }
+}

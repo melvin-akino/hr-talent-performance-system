@@ -1,0 +1,9 @@
+employee_no,first_name,middle_name,last_name,work_email,hired_on,department_code,position_title,job_family,job_level,employment_type_code,employment_status,supervisor_employee_no
+00001,Maria,Santos,Reyes,maria.reyes@acme.test,2018-03-05,EXEC,Chief Executive Officer,Executive,E1,REG,regular,
+00002,Jose,Cruz,Bautista,jose.bautista@acme.test,2019-07-15,ENG,Engineering Director,Engineering,L6,REG,regular,00001
+00003,Ana,Lim,Villanueva,ana.villanueva@acme.test,2021-01-11,ENG,Engineering Manager,Engineering,L5,REG,regular,00002
+00004,Paolo,,Mendoza,paolo.mendoza@acme.test,2023-06-01,ENG,Senior Software Engineer,Engineering,L4,REG,regular,00003
+00005,Grace,Tan,Aquino,grace.aquino@acme.test,2024-09-16,ENG,Software Engineer,Engineering,L2,REG,probationary,00003
+00006,Miguel,Reyes,Dela Cruz,miguel.delacruz@acme.test,2020-02-03,SALES,Sales Director,Sales,L6,REG,regular,00001
+00007,Liza,,Ocampo,liza.ocampo@acme.test,2022-11-07,SALES,Account Executive,Sales,L3,REG,regular,00006
+00008,Ramon,Diaz,Navarro,ramon.navarro@acme.test,2021-05-24,HR,HR Business Partner,Human Resources,L4,REG,regular,00001

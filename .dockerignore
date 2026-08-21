@@ -1,0 +1,29 @@
+# Without this file `COPY apps/api ./apps/api` copies the host's node_modules —
+# a pnpm symlink farm built for the host OS — over the tree just installed
+# inside the image, breaking it. The failure surfaces later as a missing module
+# during the build, which points nowhere near the cause.
+node_modules
+**/node_modules
+
+# Secrets must never enter the build context, let alone an image layer.
+.env
+.env.*
+!.env.example
+
+# Build output — regenerated in the image, and stale copies shadow the fresh build.
+dist
+**/dist
+apps/web/dist
+apps/api/dist
+
+# Nothing here belongs in a runtime image.
+.git
+.github
+.claude
+docs
+test
+**/test
+**/*.spec.ts
+**/coverage
+docker-compose*.yml
+README.md
