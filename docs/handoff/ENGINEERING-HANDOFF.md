@@ -19,36 +19,51 @@ exists because breaking it caused real damage that surfaced late.
 
 ---
 
-## 1. Before anything else: this is not a git repository
+## 1. Source control — read before your first commit
 
 ```
-$ git rev-parse --is-inside-work-tree
-fatal: Not a git repository
+origin  https://github.com/melvin-akino/hr-talent-performance-system.git
+main    117641f  Import HR talent & performance system   (217 files)
 ```
 
-There is **no version control**. No history, no branches, no way to see what
-changed when or to revert a bad change. Everything in this directory is the only
-copy.
+The repository was initialised and pushed at handoff time, so there is **one
+commit and no history before it**. Everything that came before — every fix
+described in §6, every decision in the ADRs — happened before version control
+existed and is recorded in the documents rather than in the log. Treat
+`docs/decisions.md` as the history for anything older than that commit.
 
-**Do this before writing any code:**
+### What is deliberately not committed
+
+`.gitignore` excludes `.env`, `node_modules/`, `dist/`, database dumps, and
+`.auth/` (Playwright's saved session state — a real token, not a fixture). The
+root `.env` holds generated secrets for the production compose stack and exists
+only on the machine that ran the installer; a fresh clone has no `.env` at all,
+which is why `ops/deploy/install.sh` generates one.
+
+Two deliberate exceptions, both verified before the import commit:
+
+- **`apps/api/.env.development` and `apps/web/.env.development` are committed.**
+  Every value in them is a throwaway credential for the containers in
+  `docker-compose.dev.yml`, already in plain text there. They are committed so
+  `pnpm dev` works from a clean checkout instead of failing with a configuration
+  error each new contributor has to debug once. Never add a real secret to either.
+- **`db/seeds/devcore-201.csv` is force-included.** `/db/seeds/*.csv` is ignored
+  because operator CSVs can hold real employee data, but this one is the
+  27-person *simulated* org the README cites as a worked example, and the link
+  would otherwise break in a fresh clone.
+
+**Before any commit that touches configuration**, confirm the real `.env` is not
+staged:
 
 ```bash
-cd C:/Projects/hr-system
-git init
-git add -A
-git status --short | grep -E "^A\s+\.env$" && echo "STOP: .env is staged"
-git commit -m "Import existing system"
+git status --short | grep -E "\.env$" && echo "STOP: .env is staged"
 ```
 
-`.gitignore` covers `.env`, `node_modules/`, `dist/`, database dumps, and — as of
-this handoff — `.auth/` (Playwright's saved session state, which is a real token,
-not a fixture). **Verify `.env` is not staged before the first commit**: it holds
-generated secrets for the production compose stack.
-
-One deliberate exception to know about: `/db/seeds/*.csv` is ignored because
-operator CSVs can contain real employee data, but `devcore-201.csv` is
-force-included — it is the 27-person *simulated* org the README cites as a worked
-example, and the link would otherwise break in a fresh clone.
+The dev fixture passwords in `ops/keycloak/realm-hr.json` and
+`docker-compose.dev.yml` are committed by design — they are local container
+credentials, and the files say so. If the repository is public they are visible to
+anyone, which is acceptable for exactly that category and nothing else. Anything
+outside it does not belong in the repository at all.
 
 ---
 
@@ -314,7 +329,7 @@ Five block work. Q3 (a worked scoring example) unlocks the most.
 
 | Item | State |
 |---|---|
-| **No version control** | §1. Fix first. |
+| **Single-commit history** | The repo starts at the import commit; anything older lives in the docs, not the log (§1). |
 | Active Directory federation | Configured, **never tested against a real directory**. Blocks pilot; needs LDAP values from customer IT. |
 | `ops/deploy/aws-demo.sh` | Written, shellcheck-clean, **never run** — needs AWS credentials and a domain. |
 | Mobile layout | Verified via Playwright at 375/390px, not by eye on a device. |
@@ -342,7 +357,7 @@ Five block work. Q3 (a worked scoring example) unlocks the most.
 
 ## 10. First hour checklist
 
-- [ ] `git init` and commit (§1)
+- [ ] `git clone`, then read §1 on what is deliberately not committed
 - [ ] Bring the stack up and sign in as `grace.ilagan` (§3)
 - [ ] `pnpm test` — expect 522 passing
 - [ ] Read `docs/decisions.md`, then `CONTRIBUTING.md`
