@@ -29,10 +29,10 @@ coverage/
 !apps/api/.env.development
 !apps/web/.env.development
 
-# Playwright artefacts
+# Playwright artefacts. .auth/ holds a real session token, not a fixture.
 .auth/
 test-results/
 playwright-report/
 
-# Playwright sign-in state — a real session token, not a fixture
-.auth/
+# Word / Excel lock files, created while a document is open
+~$*
