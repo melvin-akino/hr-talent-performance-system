@@ -36,3 +36,7 @@ playwright-report/
 
 # Word / Excel lock files, created while a document is open
 ~$*
+
+# Client source workbooks and spreadsheets. Kept locally for reference; they
+# are the client's material and may hold staff names and targets.
+docs/handoff/*.xlsx

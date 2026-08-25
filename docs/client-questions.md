@@ -1,5 +1,9 @@
 # Questions on the performance management requirements
 
+> **Partly superseded.** The HCM KPI workbook (2026-08-19) answered Q3 outright
+> and changed Q4 and Q6. See **client-questions-round2.md**, which lists what is
+> settled and what replaced it — send that one alongside this, not instead of it.
+
 Thank you for the detailed requirements — they are unusually clear, and the point
 tables are internally consistent, which tells us they are settled. We checked the
 arithmetic and it holds:

@@ -1,8 +1,14 @@
 # Client requirements — cross-match and gap plan
 
-**Source:** client requirements received 2026-08-20 (5 pages: performance
-management types, KPI scoring, general features, user access, peer-review rules,
-promotion programmes, upload fields).
+**Sources:**
+
+1. Client requirements received 2026-08-20 (5 pages: performance management
+   types, KPI scoring, general features, user access, peer-review rules,
+   promotion programmes, upload fields). Referred to below as **the 5-pager**.
+2. `20260819 hcm kpi only.xlsx` — five sheets: `HCM TO`, `nomenclature`,
+   `20260616`, `hcm kpi`, `timeline`. Referred to below as **the workbook**. It
+   is the HCM department's own KPI system worked out in detail, and it supersedes
+   the 5-pager wherever the two disagree (see §0).
 
 **Purpose:** the working tracker for closing the distance between what this system
 does today and what the client described. Every requirement below carries a
@@ -20,11 +26,98 @@ work lands; the phase checklists in §10 are the progress view.
 
 ---
 
+## 0. Update from the workbook (2026-08-19)
+
+The workbook is a working document, not a summary: it contains the HCM
+department's actual scorecards, staff names, targets and routing rules. It is
+more concrete than the 5-pager and disagrees with it in three places. Where they
+conflict, assume the workbook is current and confirm.
+
+### What it settles
+
+| Was | Now known |
+|---|---|
+| Q3 — "score conversion" unreproducible | The weights **1 / 1.5 / 2 are the nature of the task**: Administrative 1, Field 1.5, Technical 2. Conversion is a banded lookup on the quarterly tally: 71–80 → 10, 81–90 → 20, 91–100 → 30, 100 up → 35. |
+| Peer selection rules, sketchy | Tier matrix per section (`HCM TO` rows 34–50): Tier 1 immediate supervisor, Tiers 2–3 peers, Tiers 4–5 client. Plus "Superior (up to 2 ranks above)". |
+| "What if too few reviewers respond?" | Notify **HCM C&B** — "for insufficient evaluation data gathered". |
+| Ranks as free text | Ranks are **numbered 6–11**. Rank 6 Dept Manager, 7 Asst Dept Manager, 10 Jr Supervisor, 11 Team Leader / Associate. An ordered ladder already exists in their world. |
+| Cadence unclear | Monthly task scores → quarterly tally (M1+M2+M3) → **PIP coaching at end of Q1** → two quarters averaged = the 40%. Whole evaluation runs **every 6 months**. |
+
+### What it changes
+
+- **The org taxonomy is six levels, not four.** `nomenclature` gives
+  Holdings → Group → Division → Departments/Area → Branch/Brands → **Region**,
+  with real values (AnyAuto, Motorcycle, Mobile Phone, Los Pedritos, TMHTC Hotel,
+  Excelsior Land, Shared Services) and coded areas `R1-A`…`R7-A`, `MP1`–`MP5`
+  carrying province coverage. Region reads as a cross-cutting attribute rather
+  than a parent of branch. §5.3 was written against the 5-pager and is too
+  shallow.
+- **The 40 points are composed differently.** The 5-pager says 40 = performance
+  from the competency library. The workbook says 40 = **30 task indicators + 10
+  manager's assessment**, and names the three dimensions Commitment (30,
+  attendance) / Competency (40) / Character (30, peer).
+- **Peer review is 360.** The `20260616` sheet routes to "peer, subordinate,
+  superior", and `HCM TO` T47 notes evaluating "the possibility of allowing
+  his/her subordinates to perform the evaluation". The 5-pager described peers
+  only.
+- **Peer count is now 2** ("2 colleagues will be required for averaging"),
+  against 3 on page 2 and 3–5 on page 4 of the 5-pager. Three figures now.
+
+### The arithmetic, and where it breaks
+
+The band table runs 71–100 while scorecards total 25–37 points. Those reconcile
+if the band is applied to the **quarterly tally**, which the sheet states: a
+33-point scorecard × 3 months ≈ 99 → band 91–100 → 30 points. That is why targets
+cluster near 33 and why "100 up" exists at all.
+
+It does not hold across the fifteen scorecards:
+
+| Scorecard | Target | × 3 months | Band | Score |
+|---|---|---|---|---|
+| Onboarding 1 | 37 | 111 | 100 up | 35 |
+| Screening | 33 | 99 | 91–100 | 30 |
+| **Onboarding 2** | **25** | **75** | 71–80 | **10** |
+| **Area Coordinator** | **81.5** | **244.5** | off the table | — |
+
+Identical performance against one's own target earns 35, 30 or 10 depending only
+on how the scorecard was drawn, and the Area Coordinators fall off the scale.
+Either the raw total is **normalised against each role's target** before the band
+lookup, or the scorecards need rebalancing to ~33. **Everything numeric in Type V
+depends on which** — it is the first question in the round-2 list.
+
+### Directly importable
+
+The workbook is not just specification; it is data we can load:
+
+| Asset | Sheet | Becomes |
+|---|---|---|
+| Org taxonomy with real units, areas, regions | `nomenclature` | The A1 org-unit tree — real values instead of a guess |
+| Rank ladder 6–11 | `HCM TO` | A2, with the client's own numbering |
+| Task-indicator library — ~57 indicators, 3 natures | `hcm kpi` rows 26–57 | The indicator catalogue behind scoring |
+| 15 role scorecards with points and written acceptance criteria | `hcm kpi` rows 61–481 | Role templates; the criteria are the evidence standard |
+| Tier 1–5 routing matrix | `HCM TO` rows 34–50 | The D2 peer-routing rules for the pilot |
+| Section / team structure, 27 staff | `HCM TO` | The pilot tenant's org chart |
+
+**Recommendation: make HCM the pilot.** The workbook is a near-complete
+specification for one department, with named people and real targets. Build for
+it, prove it against their own numbers, then generalise — materially lower risk
+than building the abstract system and discovering the mismatch at rollout.
+
+### Timeline
+
+`timeline` runs March–July in weeks: Concept Mapping (Mar W2) → Dissem 1
+(Mar W2–3) → Info Collation 1 (Mar W3–4) → Initial Drafts (Apr W1) → Program
+Prep 1 (Apr W3–May W2), with Dissem 2 and Info Collation 2 in parallel (Mar
+W3–Apr W2). **Testing & Devt, Initial Run and Program Prep 2 carry no bars**, so
+the back half is undated, and the sheet names no year.
+
+---
+
 ## 1. The short version
 
 The client is not describing a variant of what we built. They are describing **two
 scoring systems we do not have**, **a peer-review engine we do not have**, and **an
-organisational structure with four levels we do not model** — on a foundation that
+organisational structure we model only one level of** — on a foundation that
 does fit: RLS, effective-dated org chart, versioned forms, notifications,
 competencies, PIP, help.
 
@@ -38,9 +131,10 @@ Four things dominate the work:
    distance and org unit, with an eligibility question and an automatic re-draw on
    decline. Our feedback feature is named, voluntary and unsampled — a different
    thing that happens to share a word.
-3. **Division / Department / Area / Branch.** Peer-review parameters, branch
-   ranking and Area Head scoping all depend on these. We have a single
-   `department` tree with no notion of what level a node sits at.
+3. **A six-level org taxonomy** (§0): Holdings, Group, Division, Departments/Area,
+   Branch/Brands, Region. Peer-review routing, branch ranking and Area Head
+   scoping all depend on it. We have a single `department` tree with no notion of
+   what level a node sits at.
 4. **Attendance from payroll.** 30 of the 100 KPI points come from tardiness and
    absence data owned by the payroll system. This touches D-002 and D-014 and
    needs an explicit decision before anything is built (§5.4).
@@ -86,9 +180,9 @@ flows is the mistake to avoid.
 | 3.1 | Form fields carry **point values** (Mastery 10, Efficiency 15, …) | **Missing** | `formField` in `apps/api/src/reviews/forms.service.ts` is `key, label, type, required, helpText, options, maxLength` — no points, no weight. |
 | 3.2 | Score computed as Σ (rating ÷ scale max × field points) | **Missing** | `review_instance.overall_rating` is supplied by the reviewer, not calculated. |
 | 3.3 | Different point maps per classification (Admin vs Technical/Ops/Field) | **Partial** | `form_template_assignment` targets `employment_type_id` and `app_role_id`; classification is neither. |
-| 3.4 | **KPI composite**: 40 performance + 30 attendance + 30 peer = 100 | **Missing** | No composite entity; the three inputs live in three places and one of them does not exist. |
-| 3.5 | Competency scoring: Weight (1 / 1.5 / 2) × Accomplishment (0.5 / 1) | **Missing** | `position_competency_map.required_level` is a level, not a weight; accomplishment is not captured. |
-| 3.6 | Score conversion to the 40 / 30 / manager bearings | **Blocked** | Ambiguous as written — Q3. |
+| 3.4 | **KPI composite**: 30 Commitment (attendance) + 40 Competency (30 task + 10 manager) + 30 Character (peer) = 100, every 6 months | **Missing** | Composition per §0, which supersedes the 5-pager’s “40 from the competency library”. No composite entity; the three inputs live in three places and one does not exist. |
+| 3.5 | Task scoring: nature multiplier (Admin 1 / Field 1.5 / Technical 2) × accomplishment | **Missing** | Resolved by §0: the multiplier is the **nature of the task**, not an arbitrary weight. Needs a task-indicator catalogue with a nature, and per-role scorecards — both importable from the workbook. |
+| 3.6 | Conversion of task points to the KPI score | **Partial** | §0 gives the banded lookup (71–80 → 10, 81–90 → 20, 91–100 → 30, 100 up → 35) applied to the quarterly tally. Still blocked on whether the tally is **normalised against each role’s target** — see R1. |
 | 3.7 | Incentive bands (<70 nil, 71–80 → 20%, 81–90 → …, 91–100 → 50%) | **Blocked** | Two defects in the source: nothing covers exactly **70**, and the 81–90 row reads "80% or 30%" — Q1, Q2. |
 | 3.8 | Only HCM DM & CB PW may set/reset scoring parameters | **Missing** | Roles today are `employee`, `manager`, `hr_partner`, `hr_admin`. This is narrower than `hr_admin` and needs its own capability. |
 
@@ -118,7 +212,7 @@ flows is the mistake to avoid.
 |---|---|---|
 | Name (Last, First, Middle) | **Have** | `employee.first_name / middle_name / last_name` |
 | Job Title | **Have** | `position.title` |
-| **Rank** (Associate, Branch Head/OIC, Jr/Sr Supervisor, Dept Head, GM) | **Missing** | `position.job_level` is free text. Peer review needs an **ordered** ladder to express "1 rank up, 2 ranks up". |
+| **Rank** — numbered **6–11** in the workbook (6 Dept Manager, 7 Asst Dept Manager, 10 Jr Supervisor, 11 Team Leader / Associate); named in the 5-pager (Associate, Branch Head/OIC, Jr/Sr Supervisor, Dept Head, GM) | **Missing** | `position.job_level` is free text. Peer review needs the **ordered** ladder to express "1 rank up, 2 ranks up". The client already numbers ranks, so adopt their numbering rather than inventing one — confirm how the two schemes line up (R4). |
 | Status (Probationary, Regular) | **Have** | `employment_type` |
 | **Division** (MC, MP, Admin, Hosp-LP, Hosp-Hotel, AnyAuto, ES) | **Missing** | §5.3 |
 | Department | **Have** | `department` |
@@ -139,9 +233,14 @@ Client: **HCM**, **DH**, **Supervisor**, **RH/AH**, plus **GM** and the restrict
 `subtree` (optionally depth-limited), `department` subtree, and org-wide. What is
 missing is the role set, and for AH/RH a scope anchored to an **Area**.
 
-### 5.3 Division → Department → Area → Branch
+### 5.3 Holdings → Group → Division → Departments/Area → Branch/Brands (+ Region)
 
 **Status: Missing — and structural.**
+
+> Revised by §0. The 5-pager implied four levels; the workbook's `nomenclature`
+> sheet gives **six**, with real values, and Region behaving as a cross-cutting
+> attribute rather than a parent of branch. Sizing below is unchanged — it is the
+> same `unit_type` change — but the enum and the import mapping are larger.
 
 The good news: `department` is already a self-referencing, effective-dated tree,
 and `access_grant` scoping is **subtree-aware** (`db/migrations/0002_authorization.sql`).
@@ -185,6 +284,10 @@ unchanged: an aggregate carries no forbidden field, so it should.
 ## 6. Peer review
 
 **Status: Missing.** A new subsystem, not an extension of feedback.
+
+> Revised by §0: this is **360**, not peer-only — the workbook routes to peer,
+> **subordinate** and **superior** (up to 2 ranks above), and supplies a Tier 1–5
+> routing matrix for HCM that is directly importable as the rules table.
 
 | # | Requirement | Notes |
 |---|---|---|
@@ -238,14 +341,23 @@ evaluation results.
 |---|---|---|
 | **Q1** | The bands leave **exactly 70** uncovered ("Below 70 → not qualified", then "71–80"). Is 70 not qualified, or the bottom of the 20% band? | 3.7 |
 | **Q2** | The 81–90 band reads **"80% or 30%"**. Given 71–80 → 20% and 91–100 → 50%, we read it as **30%** — please confirm. | 3.7 |
-| **Q3** | The conversion — "4 → for 40 max bearing, 1.5 → for 30 max, 1.0 → manager scoring" — is not reproducible from the sample table. With 8 competencies at maximum (weight 2 × accomplishment 1) the raw total is 16; how does 16 become 40? **A worked example with real numbers would settle it.** | 3.5, 3.6, all of Type V |
-| **Q4** | Peer-review minimum: page 1 says **2 personnel**, page 2 says **min 3**, page 4 says **min 3, max 5**. Confirm 3–5. | 6.7 |
+| ~~**Q3**~~ | **Largely answered by the workbook** (§0): the 1 / 1.5 / 2 are task natures, and the conversion is a banded lookup on the quarterly tally. What remains is whether the tally is normalised against each role’s target — reissued as **R1**. | 3.5, 3.6 |
+| **Q4** | Peer-review minimum, now **three** conflicting figures: 5-pager p1 "min. 2", p2 "min 3", p4 "min 3, max 5" — and the workbook says **2 pax**. Reissued as **R2**. | 6.7 |
 | **Q5** | Are peer reviews **anonymous** — to the subject, to their supervisor, to HCM? This shapes the data model and cannot be retrofitted quietly. | 6.9 |
-| **Q6** | Confirm the exact roles and holders: **HCM DM**, **CB PW**, **RH vs AH**, **GM**. Which are individuals, which are groups? | 3.8, 5.2 |
+| **Q6** | Confirm the exact roles and holders: **HCM DM**, **CB PW**, **RH vs AH**, **GM**. Which are individuals, which are groups? *Partly answered:* the workbook’s `HCM TO` names post-holders and numbers ranks 6–11. | 3.8, 5.2 |
 | **Q7** | Probationary evaluations at the 3rd and 4th month — measured from **date hired**? What happens if regularisation moves? | 2.1 |
 | **Q8** | Attendance feed: which payroll system, what can it export, at what grain (counts per period, or a pre-computed score)? | 5.4 |
 | **Q9** | Branch ranking for annual bonuses — ranked on what? Average score of branch staff, or a branch-level scorecard? | 2.2 |
 | **Q10** | Does Type IV (project/term) use the 100-point default template, or its own instrument? | 2.4 |
+| **R1** | **Is the quarterly task tally normalised against each role’s own target before the band lookup?** As drawn, identical performance scores 35, 30 or 10 depending only on how the scorecard was written, and Area Coordinators (81.5 × 3) fall off the table entirely. | 3.6, all of Type V |
+| **R2** | Peer/360 count — the workbook says 2, the 5-pager says 3 and 3–5. Which governs, and does it differ by population (HCM vs branch)? | 6.7 |
+| **R3** | Which composition of the 40 governs: the 5-pager’s competency library, or the workbook’s 30 task indicators + 10 manager’s assessment? | 3.4 |
+| **R4** | How do the numbered ranks (6–11) map to the named ranks (Associate … GM), and do the numbers run group-wide or per division? | 5.1, 6.3 |
+| **R5** | Is **subordinate** evaluation in scope, or still under consideration? (`HCM TO` T47 reads as an open idea; `20260616` routes to it as settled.) | 6 |
+| **R6** | Task natures are **A / F / T** in the workbook but Admin / Technical / **Ops** / Field in the 5-pager. Is Ops missing, merged, or dropped? | 3.5 |
+| **R7** | "Selection of Subject … by **salary level**" — a pay grade, or an amount? We store no salary (D-009). | 5.4, D-009 |
+| **R8** | The band table starts at 71 and stops at "100 up". What happens at **70 and below**, and does "100 up → 35" push a total past 100? | 3.6, 3.7 |
+| **R9** | Timeline: which **year**, and what are the dates for Testing & Devt, Initial Run and Program Prep 2 (no bars drawn)? | planning |
 
 ---
 

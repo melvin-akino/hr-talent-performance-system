@@ -120,7 +120,8 @@ year's review is calibrated against last year's reporting line).
 | [feature-roadmap.md](docs/feature-roadmap.md) | Gap analysis for a full PH HR platform |
 | [design-handoff.md](docs/design-handoff.md) | UI redesign brief |
 | [client-requirements.md](docs/client-requirements.md) | Client requirements cross-matched to the build, with the gap plan |
-| [client-questions.md](docs/client-questions.md) | Open questions to send back to the client |
+| [client-questions.md](docs/client-questions.md) | Open questions sent to the client (round 1) |
+| [client-questions-round2.md](docs/client-questions-round2.md) | Round 2 — what the HCM workbook answered, and what it raised |
 | [handoff/ENGINEERING-HANDOFF.md](docs/handoff/ENGINEERING-HANDOFF.md) | Onboarding for a new engineer or agent — rules, gotchas, work queue |
 | [demo-logins.md](docs/demo-logins.md) | Dev logins for walkthroughs, and which tenant has which data |
 
