@@ -161,7 +161,7 @@ pnpm dev                                       # API :3000 and web :5273
 | API | http://localhost:3000/api | Global prefix is `/api`; unauthenticated calls return 401 |
 | Keycloak | http://localhost:8080 | realm `hr` |
 | Mailpit | http://localhost:8025 | catches all outbound email |
-| PostgreSQL | localhost:55432 | user `postgres` / `postgres`, db `hr` |
+| PostgreSQL | localhost:15432 | user `postgres` / `postgres`, db `hr` |
 
 Sign in with any account in [../demo-logins.md](../demo-logins.md); password
 `test1234` for all of them.
@@ -258,6 +258,17 @@ Five block work. Q3 (a worked scoring example) unlocks the most.
 
 **Environment**
 
+- **Postgres publishes 15432, and the reason matters on Windows.** It was 55432
+  until Windows reserved 55417–55516 for Hyper-V/WinNAT, at which point Docker
+  could no longer bind it: `ports are not available … bind: An attempt was made
+  to access a socket in a way forbidden by its access permissions`. The container
+  kept running with its port simply unpublished, so every API request died in the
+  auth guard with `ECONNREFUSED 127.0.0.1:55432` — a working database, a running
+  API, and nothing able to sign in. Diagnose with
+  `netsh int ipv4 show excludedportrange protocol=tcp`; the ranges shift on
+  reboot. 15432 sits **below** the ephemeral range, so it cannot be reserved out
+  from under us the same way. `net stop winnat && net start winnat` (elevated)
+  clears the reservation if you would rather keep a high port.
 - **Port 5273, not Vite's 5173.** 5173 is shared by every Vite project on a
   machine, and a PWA that once ran there leaves a service worker registered for
   the whole origin, which then serves *its* cached shell instead of this app. The

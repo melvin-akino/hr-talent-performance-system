@@ -22,15 +22,16 @@ Sign in at **http://localhost:5273**. Password for every account below:
 
 ## Which organisation to demo
 
-The dev database holds **two tenants**, and the account you sign in with decides
+The dev database holds **three tenants**, and the account you sign in with decides
 which one you land in — the employee is resolved from the token subject, never
 from a form. That makes it a genuine multi-tenancy demo, but it also means the
-two are not interchangeable:
+three are not interchangeable:
 
 | Tenant | People | Data | Use it for |
 |---|---|---|---|
 | **DEVCORE** | 27 | 69 goals, 110 check-ins, 54 competency assessments, 53 review instances (20 rated, 3 moved in calibration), 6 feedback threads, 5 development plans, 1 PIP | **Face-to-face walkthroughs.** A realistic IT company at realistic size. |
 | **ACME** | 8 | The same shape, smaller: 7 goals, one review cycle, 5 assessments | The small fixture the automated tests and `seed-demo` build. |
+| **GGCHCM** | 28 | 80 goals, 128 check-ins, 57 assessments, 55 review instances, 1 PIP | The client's own HCM structure, anonymised — see below. |
 
 Prefer **DEVCORE** for a demo. It is the 27-person IT-company simulation (CEO →
 CTO → tech leads → engineers, QA, DevOps, product, sales, HR, finance), and its
@@ -132,6 +133,65 @@ while `ramon.villanueva` is DEVCORE's CEO, and there is a Paolo Mendoza in each
 tenant. They are different people in different tenants and cannot see each other.
 
 ---
+
+---
+
+## GGCHCM — the client's HCM department, anonymised
+
+A third tenant, added 2026-08-26. The **structure is the client's**, taken from
+the `HCM TO` and `hcm kpi` sheets of their workbook: five sections, ranks 6–11,
+the real reporting lines, and role names matching their scorecards. **Every
+person is invented.** No real name from the workbook appears anywhere in the
+database, the seed file, or this repository, and the mapping between the two was
+never written down.
+
+That was deliberate. The workbook lists identifiable staff of a company that has
+not signed anything yet, and it would otherwise sit in a development database on
+a laptop. The structure is what makes the demo useful; the names are not.
+
+| | |
+|---|---|
+| Tenant code | `GGCHCM` |
+| People | 28, across 5 sections |
+| Ranks | R6 (Dept Manager) → R11 (Team Leader / Associate), using the client's own numbering |
+| Data | 80 goals, 128 check-ins, 57 competency assessments, 55 review instances, 6 feedback threads, 5 development plans, 1 PIP |
+| Source | `db/seeds/hcm-anonymised.example.csv` |
+
+Usernames are the local part of the work email, as everywhere else. Password
+`test1234`.
+
+| Login | Person | Role | Rank |
+|---|---|---|---|
+| **`alonzo.dimalanta`** | Alonzo Dimalanta | Department Manager — **`hr_admin`** | R6 |
+| `beatriz.katigbak` | Beatriz Katigbak | Assistant Department Manager (Hiring & Selection) | R7 |
+| `crisanto.rivera` | Crisanto Rivera | Section Head — Employee Relations | R7 |
+| `dalisay.zamora` | Dalisay Zamora | Section Head — Compensation & Benefits | R7 |
+| `emilio.bautista` | Emilio Bautista | Area Coordinator | R9 |
+| `gregorio.pagulayan` | Gregorio Pagulayan | Junior Supervisor — Wages & Benefits | R10 |
+| `ignacio.enriquez` | Ignacio Enriquez | Team Leader — Screening | R11 |
+| `josefina.gonzaga` | Josefina Gonzaga | Associate — Screening | R11 |
+
+All 28 exist in Keycloak. `alonzo.dimalanta` is the only HR administrator.
+
+### Rebuilding it
+
+```bash
+export ADMIN_DATABASE_URL="postgresql://postgres:postgres@localhost:15432/hr"
+pnpm --filter @hr/api hr provision-org --org GGCHCM --name "GGC Human Capital Management (anonymised pilot)"
+# the five sections must exist as departments first — HCM, and HS/CB/ER/OD beneath it
+pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv --dry-run
+pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv
+pnpm --filter @hr/api hr sync-roles   --org GGCHCM
+pnpm --filter @hr/api hr grant-admin  --org GGCHCM --employee-no HCM-001
+pnpm --filter @hr/api hr open-goal-period --org GGCHCM --name FY2026 --starts 2026-01-01 --ends 2026-12-31
+node ops/keycloak/seed-users.mjs db/seeds/hcm-anonymised.example.csv
+pnpm --filter @hr/api hr seed-activity --org GGCHCM --yes-i-mean-it
+```
+
+**What this tenant does not yet have** is the client's actual scoring model —
+task indicators, the 30/40/30 composite, the banded conversion. Those are the
+build work in `client-requirements.md`; this is their org shape running on the
+system as it exists today.
 
 ## First login binds the account
 

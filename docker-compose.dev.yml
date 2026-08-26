@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: postgres
       LANG: C.UTF-8
     ports:
-      - "55432:5432"
+      - "15432:5432"
     volumes:
       - devdata:/var/lib/postgresql/data
       - ./ops/postgres/init-dev:/docker-entrypoint-initdb.d:ro

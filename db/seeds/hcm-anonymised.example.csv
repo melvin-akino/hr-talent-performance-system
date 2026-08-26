@@ -1,0 +1,29 @@
+employee_no,first_name,middle_name,last_name,work_email,hired_on,department_code,position_title,job_family,job_level,employment_type_code,employment_status,supervisor_employee_no
+HCM-001,Alonzo,Cruz,Dimalanta,alonzo.dimalanta@ggc.example,2014-01-01,HCM,Department Manager,Human Capital Management,R6,REG,regular,
+HCM-002,Beatriz,Santos,Katigbak,beatriz.katigbak@ggc.example,2015-02-02,HS,Assistant Department Manager,Hiring & Selection,R7,REG,regular,HCM-001
+HCM-003,Crisanto,Reyes,Rivera,crisanto.rivera@ggc.example,2016-03-03,ER,Section Head - Employee Relations,Employee Relations & Communications,R7,REG,regular,HCM-001
+HCM-004,Dalisay,Garcia,Zamora,dalisay.zamora@ggc.example,2017-04-04,CB,Section Head - Compensation & Benefits,Compensation & Benefits,R7,REG,regular,HCM-001
+HCM-005,Emilio,Mendoza,Bautista,emilio.bautista@ggc.example,2018-05-05,ER,Area Coordinator,Employee Relations & Communications,R9,REG,regular,HCM-003
+HCM-006,Fatima,Torres,Ilagan,fatima.ilagan@ggc.example,2019-06-06,ER,Area Coordinator,Employee Relations & Communications,R9,REG,regular,HCM-003
+HCM-007,Gregorio,Flores,Pagulayan,gregorio.pagulayan@ggc.example,2020-07-07,CB,Junior Supervisor - Wages & Benefits,Compensation & Benefits,R10,REG,regular,HCM-004
+HCM-008,Herminia,Ramos,Wenceslao,herminia.wenceslao@ggc.example,2021-08-08,CB,Junior Supervisor - Socials,Compensation & Benefits,R10,REG,regular,HCM-004
+HCM-009,Ignacio,Aquino,Enriquez,ignacio.enriquez@ggc.example,2022-09-09,HS,Team Leader - Screening,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-010,Josefina,Castro,Gonzaga,josefina.gonzaga@ggc.example,2023-10-10,HS,Associate - Screening,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-011,Kidlat,Cruz,Nepomuceno,kidlat.nepomuceno@ggc.example,2014-11-11,HS,Associate - Screening,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-012,Lualhati,Santos,Urbano,lualhati.urbano@ggc.example,2015-12-12,HS,Associate - Screening,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-013,Maximo,Reyes,Cariaso,maximo.cariaso@ggc.example,2016-01-13,HS,Associate - Onboarding 1,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-014,Narcisa,Garcia,Escalona,narcisa.escalona@ggc.example,2017-02-14,HS,Associate - Onboarding 2,Hiring & Selection,R11,REG,regular,HCM-002
+HCM-015,Orlando,Mendoza,Lacson,orlando.lacson@ggc.example,2018-03-15,CB,Team Leader - Attendance & Payroll,Compensation & Benefits,R11,REG,regular,HCM-004
+HCM-016,Perlita,Torres,Sarmiento,perlita.sarmiento@ggc.example,2019-04-16,CB,Associate - Attendance & Payroll,Compensation & Benefits,R11,REG,regular,HCM-004
+HCM-017,Quirino,Flores,Arcega,quirino.arcega@ggc.example,2020-05-17,CB,Associate - Attendance & Payroll,Compensation & Benefits,R11,REG,regular,HCM-004
+HCM-018,Rosalinda,Ramos,Calderon,rosalinda.calderon@ggc.example,2021-06-18,CB,Associate - Attendance & Payroll,Compensation & Benefits,R11,REG,regular,HCM-004
+HCM-019,Salvador,Aquino,Jimenez,salvador.jimenez@ggc.example,2022-07-19,CB,Associate - Social Insurances,Compensation & Benefits,R11,REG,regular,HCM-007
+HCM-020,Teresita,Castro,Quiambao,teresita.quiambao@ggc.example,2023-08-20,CB,Associate - OSH & Health,Compensation & Benefits,R11,REG,regular,HCM-007
+HCM-021,Ulysses,Cruz,Ybanez,ulysses.ybanez@ggc.example,2014-09-21,ER,Team Leader - Communications,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-022,Veronica,Santos,Abellera,veronica.abellera@ggc.example,2015-10-22,ER,Associate - Communications,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-023,Wilfredo,Reyes,Hidalgo,wilfredo.hidalgo@ggc.example,2016-11-23,ER,Associate - Communications,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-024,Ximena,Garcia,Obispo,ximena.obispo@ggc.example,2017-12-24,ER,Associate - Communications,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-025,Yolanda,Mendoza,Villaflor,yolanda.villaflor@ggc.example,2018-01-25,ER,Team Leader - Comms Dissemination,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-026,Zacarias,Torres,Damaso,zacarias.damaso@ggc.example,2019-02-26,ER,Associate - Comms Dissemination,Employee Relations & Communications,R11,REG,regular,HCM-003
+HCM-027,Anastacio,Flores,Fabregas,anastacio.fabregas@ggc.example,2020-03-27,OD,Associate - Learning & Development,Organizational Development,R11,REG,regular,HCM-001
+HCM-028,Bienvenido,Ramos,Magpantay,bienvenido.magpantay@ggc.example,2021-04-01,OD,Associate - Special Programs,Organizational Development,R11,REG,regular,HCM-001
