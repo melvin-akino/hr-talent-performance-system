@@ -275,3 +275,14 @@ export interface EvaluationDetail {
   acknowledgedAt: string | null;
   lines: EvaluationLine[];
 }
+
+export type EvaluationOpenOutcome =
+  | 'opened' | 'already_open' | 'no_scorecard' | 'empty_scorecard' | 'not_permitted';
+
+export interface BatchOpenRow {
+  employeeId: string;
+  employeeName: string;
+  scorecardId: string | null;
+  evaluationId: string | null;
+  outcome: EvaluationOpenOutcome;
+}

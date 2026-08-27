@@ -105,10 +105,16 @@ async function seed(): Promise<void> {
   ids.supervisor = await emp('supervisor');
   ids.associate = await emp('assoc');
   ids.bystander = await emp('bystander');
+  // A colleague on the same scorecard, and somebody on none -- the batch has to
+  // report on both, and the second is the common case during the load.
+  ids.colleague = await emp('colleague');
+  ids.unloaded = await emp('unloaded');
 
   await admin.query(
     `INSERT INTO reporting_line (org_id,employee_id,supervisor_employee_id,effective_from)
-     VALUES ($1,$2,$3,'2020-01-01')`, [org, ids.associate, ids.supervisor]);
+     VALUES ($1,$2,$3,'2020-01-01'), ($1,$4,$3,'2020-01-01'),
+            ($1,$5,$3,'2020-01-01')`,
+    [org, ids.associate, ids.supervisor, ids.colleague, ids.unloaded]);
 
   await admin.query('SELECT app.seed_baseline_roles($1)', [org]);
   await admin.query('SELECT app.seed_phase1_grants($1)', [org]);
@@ -123,7 +129,8 @@ async function seed(): Promise<void> {
      VALUES ($1,$2,$3,'2020-01-01')`, [org, e, r]);
 
   const rEmp = await role('employee');
-  for (const e of [ids.hrAdmin, ids.supervisor, ids.associate, ids.bystander]) {
+  for (const e of [ids.hrAdmin, ids.supervisor, ids.associate, ids.bystander,
+                   ids.colleague, ids.unloaded]) {
     await assign(e, rEmp);
   }
   await assign(ids.hrAdmin, await role('hr_admin'));
@@ -156,7 +163,8 @@ async function seed(): Promise<void> {
 
   await admin.query(
     `INSERT INTO scorecard_assignment (org_id,scorecard_id,employee_id,effective_from)
-     VALUES ($1,$2,$3,'2026-01-01')`, [org, ids.scorecard, ids.associate]);
+     VALUES ($1,$2,$3,'2026-01-01'), ($1,$2,$4,'2026-01-01')`,
+    [org, ids.scorecard, ids.associate, ids.colleague]);
 }
 
 /** Opens a fresh evaluation over a period nothing else uses. */
@@ -426,5 +434,100 @@ describe('who can see an evaluation', () => {
     const seen = await one<{ c: string }>(ids.hrAdmin,
       `SELECT count(*)::int AS c FROM scorecard_evaluation`);
     expect(Number(seen!.c)).toBeGreaterThan(0);
+  });
+});
+
+describe('opening a whole section at once', () => {
+  const batch = (viewer: string, start: string, end: string) => as<{
+    employee_name: string; outcome: string; evaluation_id: string | null;
+  }>(viewer,
+    `SELECT employee_name, outcome::text AS outcome, evaluation_id
+       FROM app.open_evaluations_for_department($1, $2::date, $3::date)
+      ORDER BY employee_name`,
+    [ids.dept, start, end]);
+
+  it('reports on everybody in scope, not just the ones it opened', async () => {
+    const rows = await batch(ids.hrAdmin, '2032-01-01', '2032-03-31');
+
+    // Six people sit in the department. Two hold the scorecard; the rest do
+    // not. "Opened 2 of 6" is the number that tells HCM the load is unfinished,
+    // so all six have to come back.
+    expect(rows).toHaveLength(6);
+    const opened = rows.filter((r) => r.outcome === 'opened');
+    const none = rows.filter((r) => r.outcome === 'no_scorecard');
+    expect(opened).toHaveLength(2);
+    expect(none).toHaveLength(4);
+    expect(opened.every((r) => r.evaluation_id !== null)).toBe(true);
+    expect(none.every((r) => r.evaluation_id === null)).toBe(true);
+  });
+
+  it('hands each evaluation to the right supervisor, not to the caller',
+    async () => {
+      // HR opening the quarter is an administrative act. It must not make an HR
+      // administrator the author of assessments they did not write.
+      const rows = await as<{ evaluator: string }>(ids.hrAdmin,
+        `SELECT e.evaluator_employee_id AS evaluator
+           FROM scorecard_evaluation e
+          WHERE e.period_start = '2032-01-01' AND e.period_end = '2032-03-31'`);
+      expect(rows).toHaveLength(2);
+      expect(rows.every((r) => r.evaluator === ids.supervisor)).toBe(true);
+    });
+
+  it('is safe to run again', async () => {
+    // The realistic use: re-running after fixing the people it could not do.
+    const rows = await batch(ids.hrAdmin, '2032-01-01', '2032-03-31');
+    expect(rows.filter((r) => r.outcome === 'already_open')).toHaveLength(2);
+    expect(rows.filter((r) => r.outcome === 'opened')).toHaveLength(0);
+
+    const total = await one<{ c: string }>(ids.hrAdmin,
+      `SELECT count(*)::int AS c FROM scorecard_evaluation
+        WHERE period_start = '2032-01-01' AND period_end = '2032-03-31'`);
+    expect(Number(total!.c)).toBe(2);
+  });
+
+  it('covers only the people the caller can see', async () => {
+    // The batch walks `employee` under the caller's own identity, so RLS scopes
+    // the loop itself. A supervisor running it gets their three reports and
+    // themselves -- four of the department's six -- and never learns that the
+    // HR administrator and the bystander are in it at all.
+    //
+    // That is stronger than filtering afterwards: there is no point at which
+    // the names of people out of scope exist in the result to be leaked.
+    const rows = await batch(ids.supervisor, '2033-01-01', '2033-03-31');
+    expect(rows).toHaveLength(4);
+    expect(rows.filter((r) => r.outcome === 'opened')).toHaveLength(2);
+
+    // And HR, whose scope is the whole organization, sees all six.
+    expect(await batch(ids.hrAdmin, '2033-04-01', '2033-06-30')).toHaveLength(6);
+  });
+
+  it('refuses a period the wrong way round before touching anything', async () => {
+    await expect(batch(ids.hrAdmin, '2034-06-30', '2034-01-01'))
+      .rejects.toThrow(/starts after it ends/);
+    const none = await one<{ c: string }>(ids.hrAdmin,
+      `SELECT count(*)::int AS c FROM scorecard_evaluation
+        WHERE period_start = '2034-06-30'`);
+    expect(Number(none!.c)).toBe(0);
+  });
+
+  it('takes the scorecard the person held at the END of the period', async () => {
+    // The colleague moves off the scorecard mid-2035. A batch for the first
+    // half must still evaluate them; one for the second half must not.
+    const assignment = await one<{ id: string }>(ids.hrAdmin,
+      `SELECT id FROM scorecard_assignment
+        WHERE employee_id = $1 AND effective_to IS NULL`, [ids.colleague]);
+    await as(ids.hrAdmin,
+      `UPDATE scorecard_assignment SET effective_to = '2035-07-01' WHERE id = $1`,
+      [assignment!.id]);
+
+    const first = await batch(ids.hrAdmin, '2035-01-01', '2035-06-30');
+    const second = await batch(ids.hrAdmin, '2035-07-01', '2035-12-31');
+    expect(first.filter((r) => r.outcome === 'opened')).toHaveLength(2);
+    expect(second.filter((r) => r.outcome === 'opened')).toHaveLength(1);
+
+    // Put it back so later runs of this file are not order-dependent.
+    await as(ids.hrAdmin,
+      `UPDATE scorecard_assignment SET effective_to = NULL WHERE id = $1`,
+      [assignment!.id]);
   });
 });

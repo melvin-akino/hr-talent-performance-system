@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../auth';
 import type {
-  EvaluationDetail, EvaluationState, EvaluationSummary, TaskNature,
+  BatchOpenRow, EvaluationDetail, EvaluationOpenOutcome, EvaluationState,
+  EvaluationSummary, TaskNature,
 } from '../types';
 import { ErrorNote, Spinner } from '../components/ui';
 import { Btn, Card, EmptyState, PageHead, Stat, Tag } from '../components/ds';
@@ -46,8 +47,30 @@ function EvaluationStateTag({ state }: { state: EvaluationState }) {
   }
 }
 
+/** Why a person in a batch did or did not get an evaluation, in plain words. */
+const OUTCOME_LABEL: Record<EvaluationOpenOutcome, string> = {
+  opened: 'Opened',
+  already_open: 'Already open',
+  // The common one during the load, and not a failure — but it is the number
+  // that says the load is unfinished, so it is never hidden.
+  no_scorecard: 'On no scorecard',
+  empty_scorecard: 'Scorecard has no tasks yet',
+  not_permitted: 'Not yours to evaluate',
+};
+
+function currentQuarter(): { start: string; end: string } {
+  const now = new Date();
+  const q = Math.floor(now.getMonth() / 3);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return {
+    start: iso(new Date(Date.UTC(now.getFullYear(), q * 3, 1))),
+    end: iso(new Date(Date.UTC(now.getFullYear(), q * 3 + 3, 0))),
+  };
+}
+
 export default function Evaluations() {
   const [open, setOpen] = useState<string | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   const list = useQuery({
     queryKey: ['evaluations'],
@@ -63,7 +86,14 @@ export default function Evaluations() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <PageHead title="Evaluations" />
+      <PageHead title="Evaluations">
+        <Btn variant={batchOpen ? 'ghost' : 'primary'}
+             onClick={() => setBatchOpen(!batchOpen)}>
+          {batchOpen ? 'Cancel' : 'Open a period for a section'}
+        </Btn>
+      </PageHead>
+
+      {batchOpen && <BatchPanel onDone={() => setBatchOpen(false)} />}
 
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -299,6 +329,156 @@ function EvaluationPanel({ id, onClose }: { id: string; onClose: () => void }) {
             </tfoot>
           </table>
         </div>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Opening a period for a whole section.
+ *
+ * The dry run is not optional. Twenty evaluations is twenty rows of consequence,
+ * and the outcome that matters most is not an error — it is a person skipped for
+ * having no scorecard, which looks like nothing at all until the incentive run.
+ * So the preview runs first, every person in scope is listed with a reason, and
+ * only then is there something to confirm.
+ */
+function BatchPanel({ onDone }: { onDone: () => void }) {
+  const qc = useQueryClient();
+  const [departmentId, setDepartmentId] = useState('');
+  const [period, setPeriod] = useState(currentQuarter);
+  const [preview, setPreview] = useState<BatchOpenRow[] | null>(null);
+
+  const departments = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api<{ id: string; name: string; isCurrent: boolean }[]>('/departments'),
+  });
+
+  const body = () => ({
+    departmentId,
+    periodStart: period.start,
+    periodEnd: period.end,
+  });
+
+  const dryRun = useMutation({
+    mutationFn: () =>
+      api<BatchOpenRow[]>('/evaluations/department-preview', {
+        method: 'POST', body: body(),
+      }),
+    onSuccess: setPreview,
+  });
+
+  const run = useMutation({
+    mutationFn: () =>
+      api<BatchOpenRow[]>('/evaluations/department', { method: 'POST', body: body() }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['evaluations'] });
+      onDone();
+    },
+  });
+
+  // Any change to the inputs invalidates the preview: confirming a list that no
+  // longer describes what would happen is the whole failure this guards against.
+  const change = (fn: () => void) => { setPreview(null); fn(); };
+
+  const counts = (preview ?? []).reduce<Record<string, number>>((acc, r) => {
+    acc[r.outcome] = (acc[r.outcome] ?? 0) + 1;
+    return acc;
+  }, {});
+  const willOpen = counts.opened ?? 0;
+
+  return (
+    <Card kicker="Open a period for a section">
+      <div className="card-body" style={{ display: 'flex', flexDirection: 'column',
+                                          gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap',
+                      alignItems: 'flex-end' }}>
+          <label className="text-xs" style={{ display: 'flex', flexDirection: 'column',
+                                              gap: 'var(--space-1)', flex: '1 1 16rem' }}>
+            Section
+            <select className="input" value={departmentId}
+                    onChange={(e) => change(() => setDepartmentId(e.target.value))}>
+              <option value="">Choose a section…</option>
+              {(departments.data ?? [])
+                .filter((d) => d.isCurrent)
+                .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+          <label className="text-xs" style={{ display: 'flex', flexDirection: 'column',
+                                              gap: 'var(--space-1)' }}>
+            Period from
+            <input className="input" type="date" value={period.start}
+                   onChange={(e) => change(
+                     () => setPeriod({ ...period, start: e.target.value }))} />
+          </label>
+          <label className="text-xs" style={{ display: 'flex', flexDirection: 'column',
+                                              gap: 'var(--space-1)' }}>
+            to
+            <input className="input" type="date" value={period.end}
+                   onChange={(e) => change(
+                     () => setPeriod({ ...period, end: e.target.value }))} />
+          </label>
+          <Btn variant="secondary" disabled={!departmentId || dryRun.isPending}
+               onClick={() => dryRun.mutate()}>
+            {preview ? 'Check again' : 'Check what this would do'}
+          </Btn>
+        </div>
+
+        <p className="text-xs t-muted" style={{ margin: 0 }}>
+          Each evaluation goes to the person&rsquo;s own supervisor, not to you.
+          Sub-sections are included. Running it again later is safe — anyone
+          already open is left alone.
+        </p>
+
+        {dryRun.error ? <ErrorNote error={dryRun.error} /> : null}
+        {run.error ? <ErrorNote error={run.error} /> : null}
+
+        {preview && (
+          preview.length === 0 ? (
+            <p className="text-xs t-muted" style={{ margin: 0 }}>
+              Nobody is in that section for this period.
+            </p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr><th>Person</th><th>What would happen</th></tr>
+                  </thead>
+                  <tbody>
+                    {preview.map((r) => (
+                      <tr key={r.employeeId}
+                          className={r.outcome === 'opened' ? '' : 't-faint'}>
+                        <td>{r.employeeName}</td>
+                        <td className="text-xs">{OUTCOME_LABEL[r.outcome]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: 'var(--space-2)',
+                            alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="text-xs t-muted">
+                  {willOpen} of {preview.length} would be opened
+                  {counts.no_scorecard
+                    ? `; ${counts.no_scorecard} on no scorecard yet` : ''}
+                  {counts.already_open ? `; ${counts.already_open} already open` : ''}
+                  {counts.not_permitted
+                    ? `; ${counts.not_permitted} not yours to evaluate` : ''}
+                </span>
+                <span style={{ marginLeft: 'auto' }}>
+                  <Btn variant="primary" disabled={willOpen === 0 || run.isPending}
+                       onClick={() => run.mutate()}>
+                    {willOpen === 0
+                      ? 'Nothing to open'
+                      : `Open ${willOpen} evaluation${willOpen === 1 ? '' : 's'}`}
+                  </Btn>
+                </span>
+              </div>
+            </>
+          )
+        )}
       </div>
     </Card>
   );

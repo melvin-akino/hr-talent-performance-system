@@ -503,8 +503,43 @@ question, so it was built first.
       `/evaluations` on the API; **Evaluations** under My team, reachable from
       the *Evaluate* button beside anyone currently on a scorecard.
 
-- [ ] **T3** Evaluation on a schedule — opening a quarter's evaluations for a
-      whole section at once, rather than one person at a time. **M**
+- [x] **T3** Opening a period for a whole section — DONE (migration
+      `0034_batch_evaluations.sql`). `app.open_evaluations_for_department()`
+      opens one period's evaluations for everyone in a department and its
+      sub-sections.
+
+      **It reports on every person in scope, including the ones it did not
+      open, and why.** Done one at a time the failure mode is not an error —
+      it is somebody quietly missed, and nobody noticing until the incentive
+      run. The outcomes are `opened`, `already_open`, `no_scorecard`,
+      `empty_scorecard` and `not_permitted`; `no_scorecard` is the common one
+      during the load and is not a failure, but "opened 5 of 7" is exactly the
+      number that says the load is unfinished.
+
+      Three properties that fell out of doing it in the database:
+
+      - **Scope is resolved at the END of the period**, like everything else
+        here: Q1's evaluations cover the people who were in that section for
+        Q1, not whoever sits there now.
+      - **The loop is RLS-filtered.** It walks `employee` under the caller's
+        own identity, so a supervisor running it gets their own reports and
+        never learns who else is in the section. That is stronger than
+        filtering afterwards — the names out of scope never exist in the
+        result to be leaked.
+      - **Each evaluation goes to the person's own supervisor at the period
+        end**, not to the caller. HCM opening a quarter is an administrative
+        act and must not make an HR administrator the author of twenty
+        assessments they did not write. Verified live: five evaluations opened
+        by `alonzo.dimalanta` all went to Beatriz Katigbak.
+
+      Idempotent — re-running reports `already_open` rather than raising,
+      because the realistic use is running it again after fixing the people it
+      could not do the first time.
+
+      The UI requires a **dry run** before it will open anything: `POST
+      /evaluations/department-preview` runs the real function inside a
+      savepoint and rolls back, so the preview cannot drift from what it
+      previews and is subject to the same RLS.
 - [ ] **T4** Feeding the task score into the composite KPI model (B4). **M**
       *(depends on Q3 and the incentive bands)*
 

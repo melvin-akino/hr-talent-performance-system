@@ -36,6 +36,13 @@ export const scoreLine = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+export const openForDepartment = z.object({
+  departmentId: z.string().uuid(),
+  periodStart: isoDate,
+  periodEnd: isoDate,
+  includeSubtree: z.boolean().optional(),
+});
+
 export const scoreLines = z.object({
   lines: z.record(z.string().uuid(), scoreLine).refine(
     (v) => Object.keys(v).length > 0, 'No lines given'),
@@ -138,6 +145,56 @@ export class EvaluationsService {
       if (!id) throw new BadRequestException('Not permitted to evaluate that person');
       return { id };
     });
+  }
+
+  /**
+   * What a batch would do, without doing it.
+   *
+   * Opening a quarter for a section is twenty rows of consequence, and the
+   * common outcome is not an error but a person quietly skipped for having no
+   * scorecard. Showing that list first is the difference between a batch you
+   * can trust and one you run and hope about.
+   *
+   * Implemented by running the REAL function inside a savepoint and rolling
+   * back to it, so the preview cannot drift from the thing it previews — and so
+   * it is subject to exactly the same RLS. A rollback of the whole transaction
+   * would work too, but it would also discard the `SET LOCAL` identity, leaving
+   * anything added after this method silently unauthorised.
+   */
+  async previewDepartment(ctx: RequestContext,
+                          input: z.infer<typeof openForDepartment>) {
+    return this.db.withContext(ctx, async (client) => {
+      await client.query('SAVEPOINT preview');
+      try {
+        return await this.runBatch(client, input);
+      } finally {
+        await client.query('ROLLBACK TO SAVEPOINT preview');
+      }
+    });
+  }
+
+  async openForDepartment(ctx: RequestContext,
+                          input: z.infer<typeof openForDepartment>) {
+    return this.db.withContext(ctx, (client) => this.runBatch(client, input));
+  }
+
+  private async runBatch(client: PoolClient,
+                         input: z.infer<typeof openForDepartment>) {
+    const res = await client.query(
+      `SELECT employee_id AS "employeeId", employee_name AS "employeeName",
+              scorecard_id AS "scorecardId", evaluation_id AS "evaluationId",
+              outcome::text AS outcome
+         FROM app.open_evaluations_for_department($1, $2::date, $3::date, $4)`,
+      [input.departmentId, input.periodStart, input.periodEnd,
+       input.includeSubtree ?? true])
+      .catch((err: { code?: string; message?: string; hint?: string }) => {
+        if (err.code === 'P0001') {
+          throw new BadRequestException(
+            [err.message, err.hint].filter(Boolean).join(' '));
+        }
+        throw err;
+      });
+    return res.rows;
   }
 
   /**

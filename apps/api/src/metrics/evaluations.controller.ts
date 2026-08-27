@@ -2,7 +2,9 @@ import {
   Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
-import { EvaluationsService, openEvaluation, scoreLines } from './evaluations.service';
+import {
+  EvaluationsService, openEvaluation, openForDepartment, scoreLines,
+} from './evaluations.service';
 
 @Controller('evaluations')
 @UseGuards(AuthGuard)
@@ -22,6 +24,17 @@ export class EvaluationsController {
   @Post()
   open(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     return this.evaluations.open(req.auth, openEvaluation.parse(body));
+  }
+
+  /** Dry run: what opening the period for a whole section would do. */
+  @Post('department-preview')
+  previewDepartment(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    return this.evaluations.previewDepartment(req.auth, openForDepartment.parse(body));
+  }
+
+  @Post('department')
+  openDepartment(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    return this.evaluations.openForDepartment(req.auth, openForDepartment.parse(body));
   }
 
   @Post(':id/scores')
