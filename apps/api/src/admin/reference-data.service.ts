@@ -257,6 +257,8 @@ export class ReferenceDataService {
     return this.db.withContext(ctx, async (client) => {
       const res = await client.query(
         `SELECT p.id, p.title, p.job_family AS "jobFamily", p.job_level AS "jobLevel",
+                p.rank_id AS "rankId", r.code AS "rankCode", r.name AS "rankName",
+                r.rank_no AS "rankNo",
                 d.name AS "departmentName", p.is_active AS "isActive",
                 (SELECT count(*)::int
                    FROM employment em
@@ -265,7 +267,26 @@ export class ReferenceDataService {
                     AND e.deleted_at IS NULL) AS "headcount"
            FROM position p
            LEFT JOIN department d ON d.id = p.department_id
+           LEFT JOIN job_rank r ON r.id = p.rank_id
           ORDER BY p.title`);
+      return res.rows;
+    });
+  }
+
+  /**
+   * The rank ladder, most senior first.
+   *
+   * Ordered by rank_no ascending because the client's numbering puts the lower
+   * number at the top (6 = Department Manager). Sorting "descending because
+   * bigger is better" would silently invert every picker.
+   */
+  async listRanks(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT r.id, r.code, r.name, r.rank_no AS "rankNo", r.is_active AS "isActive",
+                (SELECT count(*)::int FROM position p WHERE p.rank_id = r.id) AS "positionCount"
+           FROM job_rank r
+          ORDER BY r.rank_no`);
       return res.rows;
     });
   }
@@ -276,6 +297,7 @@ export class ReferenceDataService {
       title?: string | undefined;
       jobFamily?: string | null | undefined;
       jobLevel?: string | null | undefined;
+      rankId?: string | null | undefined;
     },
   ) {
     return this.db.withContext(ctx, async (client) => {
@@ -283,11 +305,15 @@ export class ReferenceDataService {
         `UPDATE position
             SET title = COALESCE($2, title),
                 job_family = CASE WHEN $4 THEN $3 ELSE job_family END,
-                job_level  = CASE WHEN $6 THEN $5 ELSE job_level END
+                job_level  = CASE WHEN $6 THEN $5 ELSE job_level END,
+                -- Explicit null unranks the position, which is a real thing to
+                -- want; $8 separates "clear it" from "leave it alone".
+                rank_id    = CASE WHEN $8 THEN $7::uuid ELSE rank_id END
           WHERE id = $1 RETURNING id`,
         [id, patch.title ?? null, patch.jobFamily ?? null,
          patch.jobFamily !== undefined, patch.jobLevel ?? null,
-         patch.jobLevel !== undefined]));
+         patch.jobLevel !== undefined, patch.rankId ?? null,
+         patch.rankId !== undefined]));
       if (!res.rows[0]) throw new NotFoundException('Position not found or not permitted');
       return { id };
     });

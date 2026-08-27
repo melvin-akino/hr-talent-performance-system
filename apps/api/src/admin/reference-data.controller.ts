@@ -12,6 +12,9 @@ const updatePosition = z.object({
   title: z.string().trim().min(1).optional(),
   jobFamily: z.string().trim().nullish(),
   jobLevel: z.string().trim().nullish(),
+  // Explicit null unranks the position. A position outside the ladder is
+  // normal, so clearing has to be expressible.
+  rankId: z.string().uuid().nullish(),
 });
 
 @Controller()
@@ -81,6 +84,11 @@ export class ReferenceDataController {
   }
 
   // --- Positions -----------------------------------------------------------
+
+  @Get('ranks')
+  listRanks(@Req() req: AuthenticatedRequest) {
+    return this.ref.listRanks(req.auth);
+  }
 
   @Get('positions')
   listPositions(@Req() req: AuthenticatedRequest) {

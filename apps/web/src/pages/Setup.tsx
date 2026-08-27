@@ -47,8 +47,20 @@ interface Position {
   title: string;
   jobFamily: string | null;
   jobLevel: string | null;
+  rankId: string | null;
+  rankCode: string | null;
+  rankName: string | null;
+  rankNo: number | null;
   departmentName: string | null;
   headcount: number;
+}
+
+interface Rank {
+  id: string;
+  code: string;
+  name: string;
+  rankNo: number;
+  positionCount: number;
 }
 
 /**
@@ -420,12 +432,24 @@ function Positions() {
     queryKey: ['positions'],
     queryFn: () => api<Position[]>('/positions'),
   });
+  // The ladder is small and changes rarely; loading it here keeps the row
+  // component free of its own request per row.
+  const ranks = useQuery({
+    queryKey: ['ranks'],
+    queryFn: () => api<Rank[]>('/ranks'),
+  });
 
   const update = useMutation({
-    mutationFn: (input: { id: string; jobFamily: string; jobLevel: string }) =>
+    mutationFn: (input: {
+      id: string; jobFamily: string; jobLevel: string; rankId: string | null;
+    }) =>
       api(`/positions/${input.id}`, {
         method: 'PATCH',
-        body: { jobFamily: input.jobFamily || null, jobLevel: input.jobLevel || null },
+        body: {
+          jobFamily: input.jobFamily || null,
+          jobLevel: input.jobLevel || null,
+          rankId: input.rankId,
+        },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['positions'] });
@@ -439,8 +463,10 @@ function Positions() {
   return (
     <Card kicker="Positions">
       <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
-        Job family groups positions for the competency gap report. Blank family
-        means those positions are absent from it.
+        Job family groups positions for the competency gap report; a blank family
+        means those positions are absent from it. <strong>Rank</strong> is the
+        ladder — it is what "one rank above" means when evaluators are chosen, so
+        an unranked position cannot take part in those rules.
       </p>
       <div className="overflow-x-auto">
         <table className="table">
@@ -450,14 +476,15 @@ function Positions() {
               <th>Department</th>
               <th>Headcount</th>
               <th>Job family</th>
+              <th>Rank</th>
               <th>Level</th>
             </tr>
           </thead>
           <tbody>
             {q.data?.map((p) => (
-              <PositionRow key={p.id} position={p}
-                           onSave={(family, level) =>
-                             update.mutate({ id: p.id, jobFamily: family, jobLevel: level })}
+              <PositionRow key={p.id} position={p} ranks={ranks.data ?? []}
+                           onSave={(family, level, rankId) =>
+                             update.mutate({ id: p.id, jobFamily: family, jobLevel: level, rankId })}
                            pending={update.isPending} />
             ))}
           </tbody>
@@ -468,9 +495,10 @@ function Positions() {
   );
 }
 
-function PositionRow({ position, onSave, pending }: {
+function PositionRow({ position, ranks, onSave, pending }: {
   position: Position;
-  onSave: (family: string, level: string) => void;
+  ranks: Rank[];
+  onSave: (family: string, level: string, rankId: string | null) => void;
   pending: boolean;
 }) {
   const [family, setFamily] = useState(position.jobFamily ?? '');
@@ -483,12 +511,28 @@ function PositionRow({ position, onSave, pending }: {
       <td style={{ fontSize: 12 }}>{position.departmentName ?? '—'}</td>
       <td className="tabular-nums">{position.headcount}</td>
       <td>
+        {/* Saves on change rather than on blur: it is one choice from a short
+            list, so there is nothing to finish typing. */}
+        <select
+          className={inputClass} style={{ width: '11rem', fontSize: 12 }}
+          aria-label={`Rank for ${position.title}`}
+          value={position.rankId ?? ''}
+          disabled={pending || ranks.length === 0}
+          onChange={(e) => onSave(family, level, e.target.value || null)}
+        >
+          <option value="">— unranked —</option>
+          {ranks.map((r) => (
+            <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
+          ))}
+        </select>
+      </td>
+      <td>
         <input
           className={inputClass} style={{ width: '11rem' }}
           aria-label={`Job family for ${position.title}`}
           value={family} placeholder="e.g. Engineering"
           onChange={(e) => setFamily(e.target.value)}
-          onBlur={() => { if (dirty) onSave(family, level); }}
+          onBlur={() => { if (dirty) onSave(family, level, position.rankId); }}
           disabled={pending}
         />
       </td>
@@ -498,7 +542,7 @@ function PositionRow({ position, onSave, pending }: {
           aria-label={`Job level for ${position.title}`}
           value={level} placeholder="L4"
           onChange={(e) => setLevel(e.target.value)}
-          onBlur={() => { if (dirty) onSave(family, level); }}
+          onBlur={() => { if (dirty) onSave(family, level, position.rankId); }}
           disabled={pending}
         />
       </td>

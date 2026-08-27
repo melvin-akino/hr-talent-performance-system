@@ -376,8 +376,15 @@ calendar commitments.
       mapping is the remaining piece, tracked as A1b.
 - [ ] **A1b** Map Division/Area/Branch columns in the 201 importer, so a real
       staff file lands with levels already set. **S**
-- [ ] **A2** Ordered **rank** ladder as a first-class table, with `position.rank_id`;
-      importer maps the five ranks. Enables rank-distance queries. **M** — §5.1
+- [x] **A2** Rank ladder — DONE. Migration 0028 adds `job_rank` (org-scoped,
+      RLS, audited) and `position.rank_id` with a composite FK, so a position
+      cannot borrow another tenant's rank. Adopts the client's own numbering,
+      where **a lower number is more senior**; `app.ranks_above()` encodes that
+      direction once so no call site has to. Verified against the real rule: for
+      a Team Leader / Associate, "same rank" resolves to 19 colleagues, "1 rank
+      up" to 2 Junior Supervisors, "2 ranks up" to 2 Area Coordinators.
+- [ ] **A2b** Map the rank column in the 201 importer, so a real staff file
+      lands already on the ladder. **S**
 - [ ] **A3** Role set extended: `dept_head`, `area_head`, `supervisor`, `gm`, plus a
       narrow `scoring_admin` capability distinct from `hr_admin`. **M** — §5.2, §3.8
 - [ ] **A4** Regularisation and promotion dates as first-class employment events. **S** — §5.1

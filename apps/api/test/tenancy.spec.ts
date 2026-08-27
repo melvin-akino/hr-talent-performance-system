@@ -320,6 +320,22 @@ describe('performance data is tenant-scoped', () => {
       [B.org])).toBe(0);
   });
 
+  it('the rank ladder does not cross the boundary', async () => {
+    // Ranks are reference data every employee can read, which makes the tenant
+    // predicate the only thing standing between two customers' ladders.
+    await admin.query(
+      `INSERT INTO job_rank (org_id, code, name, rank_no) VALUES ($1,'R6','Dept Manager',6)`,
+      [A.org]);
+    await admin.query(
+      `INSERT INTO job_rank (org_id, code, name, rank_no) VALUES ($1,'R6','Head of Unit',6)`,
+      [B.org]);
+
+    expect(await count(A.admin, 'SELECT count(*)::int AS c FROM job_rank')).toBe(1);
+    expect(await count(B.admin, 'SELECT count(*)::int AS c FROM job_rank')).toBe(1);
+    expect(await count(A.admin,
+      `SELECT count(*)::int AS c FROM job_rank WHERE name = 'Head of Unit'`)).toBe(0);
+  });
+
   it('audit history does not cross the boundary', async () => {
     const a = await count(A.admin,
       'SELECT count(*)::int AS c FROM audit_log WHERE org_id = $1', [B.org]);
@@ -344,6 +360,19 @@ describe('writes cannot cross the boundary', () => {
         `INSERT INTO goal (org_id,goal_period_id,employee_id,title,weight)
          VALUES ($1,$2,$3,'cross-tenant',10)`, [A.org, A.period, B.ic]),
     ).rejects.toThrow(/goal_employee_same_org/);
+  });
+
+  it('a position cannot borrow another tenant\'s rank', async () => {
+    // Written as the migrator (BYPASSRLS) so this proves the constraint, not
+    // the policy — the same defence in depth the other composite keys get.
+    const foreignRank = (await admin.query<{ id: string }>(
+      `SELECT id FROM job_rank WHERE org_id = $1 LIMIT 1`, [B.org])).rows[0]!.id;
+
+    await expect(
+      admin.query(
+        `INSERT INTO position (org_id, title, rank_id) VALUES ($1,'Borrowed',$2)`,
+        [A.org, foreignRank]),
+    ).rejects.toThrow(/position_rank_same_org/);
   });
 
   it('a cross-org reporting line is rejected', async () => {

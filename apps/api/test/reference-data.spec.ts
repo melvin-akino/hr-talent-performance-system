@@ -249,6 +249,75 @@ describe('org unit levels', () => {
   });
 });
 
+/**
+ * The rank ladder (migration 0028).
+ *
+ * The direction is the whole risk here: the client numbers ranks so that a
+ * LOWER number is MORE senior. Every rule they wrote is phrased as "1 rank
+ * higher", "up to 2 ranks above", so the tests are phrased that way too — if
+ * app.ranks_above() ever inverts, these fail rather than silently inviting the
+ * wrong people to evaluate someone.
+ */
+describe('rank ladder', () => {
+  it('orders the ladder with the lower number more senior', async () => {
+    for (const [code, name, no] of [
+      ['R6', 'Department Manager', 6], ['R7', 'Assistant Department Manager', 7],
+      ['R10', 'Junior Supervisor', 10], ['R11', 'Team Leader / Associate', 11],
+    ] as const) {
+      await admin.query(
+        `INSERT INTO job_rank (org_id, code, name, rank_no) VALUES ($1,$2,$3,$4)`,
+        [ids.org, code, name, no]);
+    }
+    const rows = await admin.query<{ code: string }>(
+      `SELECT code FROM job_rank WHERE org_id=$1 ORDER BY rank_no`, [ids.org]);
+    expect(rows.rows.map((r) => r.code)).toEqual(['R6', 'R7', 'R10', 'R11']);
+  });
+
+  it('answers "how many ranks above" in the direction the rules are written', async () => {
+    const q = async (subject: number, other: number) =>
+      Number((await admin.query<{ n: number }>(
+        `SELECT app.ranks_above($1::smallint,$2::smallint) AS n`, [subject, other]))
+        .rows[0]!.n);
+
+    // An Associate (11) and a Junior Supervisor (10): the supervisor is 1 above.
+    expect(await q(11, 10)).toBe(1);
+    // Two ranks above an Associate is rank 9.
+    expect(await q(11, 9)).toBe(2);
+    // Same rank is zero, in both directions.
+    expect(await q(11, 11)).toBe(0);
+    // A Department Manager looking at an Associate: the Associate is below.
+    expect(await q(6, 11)).toBe(-5);
+  });
+
+  it('refuses two rungs on the same number', async () => {
+    // "One rank above" has no answer if two ranks share a number.
+    await expect(
+      admin.query(
+        `INSERT INTO job_rank (org_id, code, name, rank_no) VALUES ($1,'R11B','Duplicate',11)`,
+        [ids.org]),
+    ).rejects.toThrow(/job_rank_org_id_rank_no_key/);
+  });
+
+  it('lets a position be unranked', async () => {
+    // Normal for a tenant with no ladder, and for positions outside it.
+    const rows = await admin.query<{ rank_id: string | null }>(
+      `INSERT INTO position (org_id, title) VALUES ($1,'Unranked Role') RETURNING rank_id`,
+      [ids.org]);
+    expect(rows.rows[0]!.rank_id).toBeNull();
+  });
+
+  it('a plain employee can read the ladder but not change it', async () => {
+    // Reading is necessary: an employee should see what rank their role is.
+    const visible = await as(ids.ic, `SELECT id FROM job_rank`);
+    expect(visible.length).toBeGreaterThan(0);
+
+    await expect(
+      as(ids.ic, `INSERT INTO job_rank (org_id, code, name, rank_no)
+                  VALUES ($1,'R99','Invented',99)`, [ids.org]),
+    ).rejects.toThrow(/row-level security/i);
+  });
+});
+
 describe('destructive guards', () => {
   it('refuses to close a department that still has people', async () => {
     await expect(
