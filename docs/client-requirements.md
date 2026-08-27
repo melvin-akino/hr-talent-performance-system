@@ -410,8 +410,16 @@ calendar commitments.
 
 ### Phase B — Scoring engine *(the core gap)*
 
-- [ ] **B1** Points on form fields; per-classification point maps; validation that a
-      template totals its stated maximum. **L** — §3.1, §3.3
+- [x] **B1** Points on form fields — DONE. A field may carry a single point
+      value or a map keyed by classification, which is the shape of the
+      client's page-3 template: one list of metrics, two point columns
+      (Technical/Ops/Field 70+30, Admin 60+40). A scored form declares the
+      total it must reach and is refused at authoring time if any column
+      misses it — the failure being prevented is a mistyped point value,
+      invisible by eye, silently rescoring everyone on that form. Points are
+      rejected on fields whose answers are stored elsewhere (goal_review,
+      competency_review) or nowhere (free text). Their real template is a
+      test fixture, so the instrument itself proves the abstraction fits.
 - [ ] **B2** Computed scores: instance score from responses, stored with a snapshot
       of the point map used — never recomputed from a later template version. **L** — §3.2
 - [ ] **B3** The two 100-point default templates (Admin; Technical/Ops/Field) seeded

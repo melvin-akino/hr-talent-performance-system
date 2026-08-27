@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import { DbService, RequestContext } from '../db/db.service';
+import { assertScoringValid, fieldPoints, scoringConfig } from './scoring';
 
 /** A form field. `goal_review` renders the subject's Phase 1 goals inline. */
 export const formField = z.object({
@@ -16,12 +17,19 @@ export const formField = z.object({
     'goal_review', 'competency_review',
   ]),
   required: z.boolean().default(false),
+  // What this line is worth. A single number scores everyone the same; a map
+  // keyed by classification carries the client's two point columns (Admin vs
+  // Technical/Ops/Field) on one instrument. See scoring.ts.
+  points: fieldPoints.optional(),
   helpText: z.string().trim().optional(),
   options: z.array(z.string()).optional(),
   maxLength: z.number().int().positive().optional(),
 });
 
 export const formSchema = z.object({
+  // Present only on scored forms. Its absence is what makes every form built
+  // before points existed still valid.
+  scoring: scoringConfig.optional(),
   sections: z.array(z.object({
     key: z.string().trim().min(1),
     title: z.string().trim().min(1),
@@ -165,6 +173,7 @@ export class FormsService {
     return this.db.withContext(ctx, async (client) => {
       const org = await this.orgOf(ctx, client);
       this.assertUniqueKeys(input.schema);
+      assertScoringValid(input.schema);
 
       const t = await client.query<{ id: string }>(
         `INSERT INTO form_template (org_id, code, name, description)
@@ -203,6 +212,7 @@ export class FormsService {
   ) {
     return this.db.withContext(ctx, async (client) => {
       this.assertUniqueKeys(input.schema);
+      assertScoringValid(input.schema);
 
       const current = await client.query<{ version: number }>(
         `SELECT version FROM form_version
