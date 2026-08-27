@@ -369,9 +369,13 @@ calendar commitments.
 
 ### Phase A — Foundations *(nothing else works without these)*
 
-- [ ] **A1** `unit_type` on `department` (division/department/area/branch) with a
-      hierarchy constraint; UI renamed to "org unit"; importer maps the client's
-      Division/Area/Branch columns. **M** — §5.3
+- [x] **A1** Org unit levels — DONE. Migration 0027 adds `unit_type`
+      (holdings/group/division/department/section/area/branch) with a trigger that
+      rejects inversion while permitting the nesting real data already has; API
+      and Setup expose it. **Region is not a level** — see §0 and R4. Importer
+      mapping is the remaining piece, tracked as A1b.
+- [ ] **A1b** Map Division/Area/Branch columns in the 201 importer, so a real
+      staff file lands with levels already set. **S**
 - [ ] **A2** Ordered **rank** ladder as a first-class table, with `position.rank_id`;
       importer maps the five ranks. Enables rank-distance queries. **M** — §5.1
 - [ ] **A3** Role set extended: `dept_head`, `area_head`, `supervisor`, `gm`, plus a

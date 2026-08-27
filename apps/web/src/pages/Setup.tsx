@@ -8,10 +8,22 @@ import { api } from '../auth';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
 import { Btn, Card, PageHead } from '../components/ds';
 
+/**
+ * The levels an org unit can be, in nesting order.
+ *
+ * Region is absent deliberately — it groups provinces across areas rather than
+ * containing them, so it is an attribute rather than a level (migration 0027).
+ */
+const UNIT_TYPES = [
+  'holdings', 'group', 'division', 'department', 'section', 'area', 'branch',
+] as const;
+type UnitType = typeof UNIT_TYPES[number];
+
 interface Department {
   id: string;
   code: string;
   name: string;
+  unitType: UnitType;
   parentDepartmentId: string | null;
   parentName: string | null;
   effectiveFrom: string;
@@ -100,9 +112,10 @@ function Departments() {
   const invalidate = () => void qc.invalidateQueries({ queryKey: ['departments'] });
 
   const save = useMutation({
-    mutationFn: (input: { id: string; code: string; name: string }) =>
+    mutationFn: (input: { id: string; code: string; name: string; unitType: string }) =>
       api(`/departments/${input.id}`, {
-        method: 'PATCH', body: { code: input.code, name: input.name },
+        method: 'PATCH',
+        body: { code: input.code, name: input.name, unitType: input.unitType },
       }),
     onSuccess: () => { setEditing(null); invalidate(); },
   });
@@ -153,6 +166,7 @@ function Departments() {
                 <tr>
                   <th>Code</th>
                   <th>Name</th>
+                  <th>Level</th>
                   <th>Parent</th>
                   <th>Headcount</th>
                   <th></th>
@@ -165,7 +179,8 @@ function Departments() {
                   <tr key={d.id} style={d.isCurrent ? undefined : { opacity: 0.55 }}>
                     {editing === d.id ? (
                       <EditRow department={d} onCancel={() => setEditing(null)}
-                               onSave={(code, name) => save.mutate({ id: d.id, code, name })}
+                               onSave={(code, name, unitType) =>
+                                 save.mutate({ id: d.id, code, name, unitType })}
                                pending={save.isPending} />
                     ) : (
                       <>
@@ -178,6 +193,7 @@ function Departments() {
                             </span>
                           )}
                         </td>
+                        <td style={{ fontSize: 12 }}>{d.unitType}</td>
                         <td style={{ fontSize: 12 }}>{d.parentName ?? '—'}</td>
                         <td className="tabular-nums">{d.headcount}</td>
                         <td className="no-print" style={{ textAlign: 'right' }}>
@@ -221,12 +237,13 @@ function Departments() {
 
 function EditRow({ department, onSave, onCancel, pending }: {
   department: Department;
-  onSave: (code: string, name: string) => void;
+  onSave: (code: string, name: string, unitType: UnitType) => void;
   onCancel: () => void;
   pending: boolean;
 }) {
   const [code, setCode] = useState(department.code);
   const [name, setName] = useState(department.name);
+  const [unitType, setUnitType] = useState<UnitType>(department.unitType);
   return (
     <>
       <td>
@@ -234,14 +251,23 @@ function EditRow({ department, onSave, onCancel, pending }: {
                style={{ width: '7rem', fontFamily: 'monospace', fontSize: 12 }}
                value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
       </td>
-      <td colSpan={2}>
+      <td>
         <input className={inputClass} aria-label="Department name"
                value={name} onChange={(e) => setName(e.target.value)} />
+      </td>
+      <td>
+        <select className={inputClass} aria-label="Org unit level"
+                style={{ fontSize: 12 }}
+                value={unitType}
+                onChange={(e) => setUnitType(e.target.value as UnitType)}>
+          {UNIT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
       </td>
       <td className="tabular-nums">{department.headcount}</td>
       <td style={{ textAlign: 'right' }}>
         <div className="flex justify-end gap-2">
-          <Btn variant="primary" disabled={pending} onClick={() => onSave(code, name)}>
+          <Btn variant="primary" disabled={pending}
+               onClick={() => onSave(code, name, unitType)}>
             Save
           </Btn>
           <Btn onClick={onCancel}>Cancel</Btn>
@@ -257,6 +283,7 @@ function NewDepartment({ departments, onDone }: {
 }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [unitType, setUnitType] = useState<UnitType>('department');
   const [parentDepartmentId, setParent] = useState('');
 
   const create = useMutation({
@@ -266,6 +293,7 @@ function NewDepartment({ departments, onDone }: {
         body: {
           code: code.trim().toUpperCase(),
           name: name.trim(),
+          unitType,
           parentDepartmentId: parentDepartmentId || null,
         },
       }),
@@ -274,7 +302,7 @@ function NewDepartment({ departments, onDone }: {
 
   return (
     <Card kicker="New department">
-      <form className="grid gap-4 sm:grid-cols-3"
+      <form className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
         <Field label="Code" hint="Used by the 201 import, e.g. OPS">
           <input className={inputClass} required value={code}
@@ -284,7 +312,13 @@ function NewDepartment({ departments, onDone }: {
           <input className={inputClass} required value={name}
                  onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Parent department" hint="Optional — scopes HR partner access">
+        <Field label="Level" hint="What this unit is — a branch, an area, a section">
+          <select className={inputClass} value={unitType}
+                  onChange={(e) => setUnitType(e.target.value as UnitType)}>
+            {UNIT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+        <Field label="Parent unit" hint="Optional — scopes HR partner access">
           <select className={inputClass} value={parentDepartmentId}
                   onChange={(e) => setParent(e.target.value)}>
             <option value="">— none (top level) —</option>
@@ -293,11 +327,11 @@ function NewDepartment({ departments, onDone }: {
             ))}
           </select>
         </Field>
-        <div className="sm:col-span-3 flex gap-3">
+        <div className="sm:col-span-2 flex gap-3">
           <Btn type="submit" variant="primary" disabled={create.isPending}>Create</Btn>
           <Btn type="button" onClick={onDone}>Cancel</Btn>
         </div>
-        {create.error ? <div className="sm:col-span-3"><ErrorNote error={create.error} /></div> : null}
+        {create.error ? <div className="sm:col-span-2"><ErrorNote error={create.error} /></div> : null}
       </form>
     </Card>
   );

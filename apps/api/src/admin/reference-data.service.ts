@@ -4,10 +4,24 @@ import {
 import { z } from 'zod';
 import { DbService, RequestContext } from '../db/db.service';
 
+/**
+ * The levels an org unit can be, ordered as they nest — which is also the order
+ * a picker should offer them in.
+ *
+ * REGION is absent on purpose (migration 0027): it behaves as a cross-cutting
+ * attribute rather than a parent of branch.
+ */
+export const orgUnitType = z.enum([
+  'holdings', 'group', 'division', 'department', 'section', 'area', 'branch',
+]);
+
 export const createDepartment = z.object({
   code: z.string().trim().min(1).max(16)
     .regex(/^[A-Z0-9_-]+$/, 'Use uppercase letters, digits, hyphen or underscore'),
   name: z.string().trim().min(1),
+  // Defaults to department: the common case, and the level every row created
+  // before migration 0027 already carries.
+  unitType: orgUnitType.default('department'),
   parentDepartmentId: z.string().uuid().nullish(),
   effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
@@ -15,6 +29,7 @@ export const createDepartment = z.object({
 export const updateDepartment = z.object({
   code: z.string().trim().min(1).max(16).regex(/^[A-Z0-9_-]+$/).optional(),
   name: z.string().trim().min(1).optional(),
+  unitType: orgUnitType.optional(),
   // Explicit null clears the parent, making it a top-level department.
   parentDepartmentId: z.string().uuid().nullish(),
 });
@@ -58,6 +73,8 @@ export class ReferenceDataService {
     return this.db.withContext(ctx, async (client) => {
       const res = await client.query(
         `SELECT d.id, d.code, d.name,
+                d.unit_type::text            AS "unitType",
+                p.unit_type::text            AS "parentUnitType",
                 d.parent_department_id       AS "parentDepartmentId",
                 p.name                       AS "parentName",
                 d.effective_from::text       AS "effectiveFrom",
@@ -92,10 +109,12 @@ export class ReferenceDataService {
       if (!orgId) throw new NotFoundException('Requesting employee not found');
 
       const res = await this.wrap(() => client.query<{ id: string }>(
-        `INSERT INTO department (org_id, code, name, parent_department_id, effective_from)
-              VALUES ($1,$2,$3,$4,COALESCE($5::date, CURRENT_DATE)) RETURNING id`,
-        [orgId, input.code, input.name, input.parentDepartmentId ?? null,
-         input.effectiveFrom ?? null]));
+        `INSERT INTO department (org_id, code, name, unit_type,
+                                 parent_department_id, effective_from)
+              VALUES ($1,$2,$3,$4::org_unit_type,$5,COALESCE($6::date, CURRENT_DATE))
+         RETURNING id`,
+        [orgId, input.code, input.name, input.unitType,
+         input.parentDepartmentId ?? null, input.effectiveFrom ?? null]));
 
       const id = res.rows[0]?.id;
       // RLS WITH CHECK failures return no row rather than raising.
@@ -112,6 +131,7 @@ export class ReferenceDataService {
         `UPDATE department
             SET code = COALESCE($2, code),
                 name = COALESCE($3, name),
+                unit_type = COALESCE($6::org_unit_type, unit_type),
                 -- Distinguish "not supplied" from "explicitly cleared":
                 -- $5 is a flag saying the caller intends to change the parent.
                 parent_department_id = CASE WHEN $5 THEN $4::uuid
@@ -120,7 +140,8 @@ export class ReferenceDataService {
       RETURNING id`,
         [id, patch.code ?? null, patch.name ?? null,
          patch.parentDepartmentId ?? null,
-         patch.parentDepartmentId !== undefined]));
+         patch.parentDepartmentId !== undefined,
+         patch.unitType ?? null]));
 
       if (!res.rows[0]) {
         throw new NotFoundException('Department not found, closed, or not permitted');

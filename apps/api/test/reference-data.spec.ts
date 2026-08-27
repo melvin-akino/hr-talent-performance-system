@@ -165,6 +165,90 @@ describe('department CRUD', () => {
   });
 });
 
+/**
+ * Org unit levels (migration 0027).
+ *
+ * The rule is narrow on purpose: it rejects INVERSION — a division inside a
+ * branch — and permits everything else. Two shapes that look wrong but are not:
+ * a department inside a department, which is how the client's HCM sections were
+ * loaded before the level existed, and a branch directly under a division with
+ * no area between, which is normal when a division runs branches itself.
+ *
+ * A stricter "each level must be exactly one below its parent" rule would fail
+ * on real data the day it shipped.
+ */
+describe('org unit levels', () => {
+  it('defaults to department, so rows predating the level keep their meaning', async () => {
+    const rows = await as<{ unit_type: string }>(ids.hrAdmin,
+      `INSERT INTO department (org_id,code,name,effective_from)
+       VALUES ($1,'DEFLT','Defaulted',CURRENT_DATE) RETURNING unit_type`, [ids.org]);
+    expect(rows[0]!.unit_type).toBe('department');
+  });
+
+  it('accepts a branch inside a division, skipping the levels between', async () => {
+    const div = (await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'MCDIV','Motorcycle Division','division',CURRENT_DATE) RETURNING id`,
+      [ids.org])).rows[0].id;
+    const branch = await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,parent_department_id,effective_from)
+       VALUES ($1,'BR01','Dagupan Branch','branch',$2,CURRENT_DATE) RETURNING id`,
+      [ids.org, div]);
+    expect(branch.rowCount).toBe(1);
+    ids.divMc = div;
+  });
+
+  it('accepts a department nested in a department', async () => {
+    // The client's HCM sections arrived this way, and they are not wrong.
+    const parent = (await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'HCMX','Human Capital','department',CURRENT_DATE) RETURNING id`,
+      [ids.org])).rows[0].id;
+    const child = await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,parent_department_id,effective_from)
+       VALUES ($1,'HSX','Hiring & Selection','department',$2,CURRENT_DATE) RETURNING id`,
+      [ids.org, parent]);
+    expect(child.rowCount).toBe(1);
+  });
+
+  it('rejects a division inside a branch, and says which is which', async () => {
+    const branch = (await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'BR02','Urdaneta Branch','branch',CURRENT_DATE) RETURNING id`,
+      [ids.org])).rows[0].id;
+
+    await expect(
+      admin.query(
+        `INSERT INTO department (org_id,code,name,unit_type,parent_department_id,effective_from)
+         VALUES ($1,'BADDIV','Inverted','division',$2,CURRENT_DATE)`, [ids.org, branch]),
+    ).rejects.toThrow(/cannot sit inside branch/);
+  });
+
+  it('rejects inversion introduced by an UPDATE, not only on insert', async () => {
+    // Moving a node under a deeper parent is the same mistake arriving later.
+    const area = (await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'AR01','Area R1-C','area',CURRENT_DATE) RETURNING id`,
+      [ids.org])).rows[0].id;
+    const group = (await admin.query(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'GRP1','Automotive Group','group',CURRENT_DATE) RETURNING id`,
+      [ids.org])).rows[0].id;
+
+    await expect(
+      admin.query(`UPDATE department SET parent_department_id=$2 WHERE id=$1`,
+        [group, area]),
+    ).rejects.toThrow(/cannot sit inside area/);
+  });
+
+  it('treats area and section as the same depth', async () => {
+    // Siblings in depth, different in kind: back office versus branch network.
+    const depth = await admin.query<{ a: number; s: number }>(
+      `SELECT app.org_unit_depth('area') AS a, app.org_unit_depth('section') AS s`);
+    expect(depth.rows[0]!.a).toBe(depth.rows[0]!.s);
+  });
+});
+
 describe('destructive guards', () => {
   it('refuses to close a department that still has people', async () => {
     await expect(
