@@ -437,6 +437,54 @@ calendar commitments.
 - [ ] **B5** Incentive bands and qualification output. **S** — *blocked on Q1, Q2*
 - [ ] **B6** Competency weight × accomplishment scoring. **M** — *blocked on Q3*
 
+### Phase T — Task metrics *(the client's follow-up, 2026-08-27)*
+
+While the ten open questions were outstanding the client asked for two things:
+*"just load the metrics for the staff for later use"* and *"load KPI and
+evaluate"*. They are separable, and the first is not blocked on any open
+question, so it was built first.
+
+- [x] **T1** Loading — DONE (migration `0032_task_metrics.sql`). Four tables:
+      `task_indicator` (the controlled vocabulary, carrying the workbook's own
+      nature weights — administrative 1, field 1.5, technical 2), `scorecard`,
+      `scorecard_item` and the effective-dated `scorecard_assignment`. Reading
+      is open inside the tenant, because a person must be able to see what they
+      are measured on; writing needs `scorecard:write`, held org-wide by
+      `hr_admin` and department-wide by `dept_head`.
+
+      **The line is the unit of measurement, not the indicator.** The first
+      schema carried `UNIQUE (scorecard_id, task_indicator_id)`, on the
+      reasoning that scoring the same task twice would be a mistake. Loading the
+      client's own sheet disproved it: Social Insurances lists *Claims
+      Processing* three times — accident, maternity, sickness — and *Payments
+      processing* eleven times, once per company, a point each. The constraint
+      silently dropped fourteen lines and turned a 33-point scorecard into 19.
+      The constraint is gone and a test pins the behaviour down.
+
+      Loaded into the GGCHCM pilot from the workbook: **94 indicators, 15
+      scorecards, 375 lines, 24 staff assigned.** Fourteen of the fifteen
+      targets reproduce the sheet exactly; the fifteenth is the sheet's own
+      defect, below.
+
+      The API is `/task-indicators`, `/scorecards`, `/scorecards/:id`,
+      `/scorecards/:id/items`, `/scorecards/:id/assignments` and
+      `/employees/:id/scorecard?asOf=`. The screen is **Task metrics** under
+      Company. Nothing in it evaluates anybody, and a test asserts that.
+
+- [ ] **T2** Evaluating against a loaded scorecard — the client's second option.
+      A period, a per-line claim of what was actually done, and a total against
+      the target. **M** — *next*
+
+#### A defect found in their sheet
+
+`hcm kpi!D132` reads `=SUM(D133:D159)`, but the **Attendance Processing &
+Payroll** block runs to row 161. Two lines — *Crafts Design* (2) and *Activity
+Organizing* (2) — fall outside the range and are therefore missing from the
+stated 33-point target. The lines total **37**. This is raised as **R10**; until
+they answer, the loaded scorecard carries all 29 lines and a target of 37,
+because dropping two real tasks to match a formula would be the wrong way round.
+
+
 ### Phase C — Evaluation types
 
 - [ ] **C1** Evaluation definition entity: type, scoring model, period basis,

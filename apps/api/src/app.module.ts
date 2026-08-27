@@ -30,6 +30,8 @@ import { AnalyticsController } from './analytics/analytics.controller';
 import { HelpController } from './help/help.controller';
 import { HelpService } from './help/help.service';
 import { AnalyticsService } from './analytics/analytics.service';
+import { MetricsController } from './metrics/metrics.controller';
+import { MetricsService } from './metrics/metrics.service';
 
 @Global()
 @Module({
@@ -37,7 +39,7 @@ import { AnalyticsService } from './analytics/analytics.service';
     EmployeesController, HealthController, GoalsController, PipController,
     ReviewsController, CompetenciesController, ReferenceDataController,
     NotificationsController, DevelopmentController, AnalyticsController,
-    HelpController,
+    HelpController, MetricsController,
   ],
   providers: [
     DbService, AuthGuard, EmployeesService, EmployeeImportService,
@@ -46,7 +48,7 @@ import { AnalyticsService } from './analytics/analytics.service';
     ReviewsService, FormsService,
     CompetenciesService, ReferenceDataService, Ph201ImportService,
     NotificationsService, NotificationWorkerService, FeedbackService,
-    DevelopmentService, AnalyticsService, HelpService,
+    DevelopmentService, AnalyticsService, HelpService, MetricsService,
   ],
   exports: [DbService],
 })

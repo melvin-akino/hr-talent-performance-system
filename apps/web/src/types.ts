@@ -173,3 +173,56 @@ export interface HrDashboard {
     goalCount: number;
   }[];
 }
+
+/* ── task metrics ─────────────────────────────────────────────────────── */
+
+export type TaskNature = 'administrative' | 'field' | 'technical';
+
+export interface TaskIndicator {
+  id: string;
+  name: string;
+  nature: TaskNature;
+  description: string | null;
+  isActive: boolean;
+  defaultPoints: string;
+  usedInLines: number;
+}
+
+export interface ScorecardSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  departmentId: string | null;
+  departmentName: string | null;
+  lineCount: number;
+  targetPoints: string;
+  holders: number;
+}
+
+export interface ScorecardLine {
+  id: string;
+  points: string;
+  criteria: string | null;
+  sequence: number;
+  taskIndicatorId: string;
+  indicatorName: string;
+  nature: TaskNature;
+}
+
+export interface ScorecardDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  targetPoints: string;
+  items: ScorecardLine[];
+  holders: {
+    id: string;
+    employeeId: string;
+    name: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+  }[];
+}

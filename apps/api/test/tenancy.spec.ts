@@ -127,6 +127,8 @@ async function seedTenant(code: string, t: Tenant): Promise<void> {
   await admin.query('SELECT app.seed_phase3_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_phase4_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_phase6_grants($1)', [t.org]);
+  await admin.query('SELECT app.seed_line_role_grants($1)', [t.org]);
+  await admin.query('SELECT app.seed_scorecard_grants($1)', [t.org]);
 
   const role = async (c: string) => (await admin.query(
     `SELECT id FROM app_role WHERE org_id=$1 AND code=$2`, [t.org, c])).rows[0].id;
@@ -334,6 +336,55 @@ describe('performance data is tenant-scoped', () => {
     expect(await count(B.admin, 'SELECT count(*)::int AS c FROM job_rank')).toBe(1);
     expect(await count(A.admin,
       `SELECT count(*)::int AS c FROM job_rank WHERE name = 'Head of Unit'`)).toBe(0);
+  });
+
+  it('task metrics do not cross the boundary', async () => {
+    // All four tables at once. They are read by every employee -- a person has
+    // to see the scorecard they are measured on -- so the tenant predicate is
+    // the only thing separating two customers' definitions of the same work.
+    const load = async (t: Tenant, indicator: string, card: string) => {
+      const ind = (await admin.query<{ id: string }>(
+        `INSERT INTO task_indicator (org_id, name, nature)
+         VALUES ($1,$2,'administrative') RETURNING id`, [t.org, indicator])).rows[0]!.id;
+      const sc = (await admin.query<{ id: string }>(
+        `INSERT INTO scorecard (org_id, name) VALUES ($1,$2) RETURNING id`,
+        [t.org, card])).rows[0]!.id;
+      await admin.query(
+        `INSERT INTO scorecard_item (org_id, scorecard_id, task_indicator_id, points, sequence)
+         VALUES ($1,$2,$3,1,1)`, [t.org, sc, ind]);
+      await admin.query(
+        `INSERT INTO scorecard_assignment (org_id, scorecard_id, employee_id, effective_from)
+         VALUES ($1,$2,$3,'2026-01-01')`, [t.org, sc, t.ic]);
+      return { ind, sc };
+    };
+    await load(A, 'Claims Processing', 'Social Insurances');
+    const b = await load(B, 'Claims Processing', 'Social Insurances');
+
+    for (const table of ['task_indicator', 'scorecard', 'scorecard_item',
+                         'scorecard_assignment']) {
+      expect(await count(A.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+      expect(await count(B.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+    }
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM scorecard WHERE id = $1', [b.sc])).toBe(0);
+
+    // app.scorecard_for() runs SECURITY INVOKER, so it inherits the policy
+    // rather than quietly widening it.
+    expect(await count(A.admin,
+      `SELECT count(*)::int AS c FROM scorecard
+        WHERE id = app.scorecard_for($1, DATE '2026-06-01')`, [B.ic])).toBe(0);
+  });
+
+  it('a cross-org scorecard line is rejected', async () => {
+    const foreign = (await admin.query<{ id: string }>(
+      `SELECT id FROM task_indicator WHERE org_id = $1 LIMIT 1`, [B.org])).rows[0]!.id;
+    const mine = (await admin.query<{ id: string }>(
+      `SELECT id FROM scorecard WHERE org_id = $1 LIMIT 1`, [A.org])).rows[0]!.id;
+    await expect(
+      admin.query(
+        `INSERT INTO scorecard_item (org_id, scorecard_id, task_indicator_id, points, sequence)
+         VALUES ($1,$2,$3,1,99)`, [A.org, mine, foreign]),
+    ).rejects.toThrow(/same_org/);
   });
 
   it('audit history does not cross the boundary', async () => {

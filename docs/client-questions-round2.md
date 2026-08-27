@@ -151,6 +151,53 @@ of work already done?
 
 ---
 
+## R10 — a formula in `hcm kpi` misses two of its own lines
+
+**Attendance Processing & Payroll.** The target in `D132` is
+`=SUM(D133:D159)`, which gives 33. But the block continues past row 159: rows
+160 and 161 carry **Crafts Design** (2 points) and **Activity Organizing** (2
+points), both plainly part of the same scorecard.
+
+Summing every line in the block gives **37**, not 33.
+
+So one of two things is true, and we cannot tell which:
+
+- the **target is right at 33** and those two tasks belong to a different
+  scorecard, or were added without updating the total; or
+- the **lines are right** and the target should read 37.
+
+We have loaded all 29 lines with a target of 37, on the reasoning that dropping
+two real tasks to satisfy a formula would be the wrong way round — but it is
+your number, so please confirm.
+
+Worth a check across the other fourteen scorecards at the same time: this is the
+kind of error a copied SUM range produces more than once, and every one of them
+shifts somebody's score.
+
+---
+
+## R11 — six tasks are spelled two ways
+
+Loading the catalogue turned up pairs of entries that are plainly the same piece
+of work under two spellings. Left as they are, each pair splits one task into
+two, and any comparison of the same work across sections silently understates
+it.
+
+| Spelling A | Spelling B |
+|---|---|
+| `Govt Liaison` (4 lines) | `Gov't Liaison` (1) |
+| `Issue/Concern Intake` (12) | `Issue/ Concern Intake` (1) |
+| `Payments processing` (20) | `Payments Processing` (catalogue only) |
+| `Concern Follow-up` (1) | `Concern Followup` (1) |
+| `Dox Tracking/ Dox Filing` (1) | `Dox Tracking/Dox Filing` (1) |
+| `Info Dissemination` (13) | `Info Dissem` (1) |
+
+We have loaded both spellings rather than merging them on our own judgement,
+because a merge is not reversible once people are scored against it. Confirm
+that each pair is one task and we will collapse them to the spelling you prefer.
+
+---
+
 ## Still open from the first round
 
 These were not touched by the workbook and still need answers:
