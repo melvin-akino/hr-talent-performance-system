@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { Client } from 'pg';
 
 /**
  * The three journeys that must never break.
@@ -49,7 +50,54 @@ test.describe('navigation reflects the signed-in user', () => {
   });
 });
 
+/** Every goal this suite creates carries this prefix, so cleanup can find them. */
+const E2E_GOAL_PREFIX = 'E2E goal ';
+
+/**
+ * Deletes the goals this suite created, whatever happened to the test.
+ *
+ * Cancelling in the test is not enough on its own. When the test fails between
+ * creating and cancelling — which it did, once, without reproducing — the goal
+ * survives as a draft and every later run inherits it. That is how this fixture
+ * accumulated seven stray goals before anyone noticed.
+ *
+ * It connects directly rather than driving the UI: cleanup has to run after a
+ * failure, when the browser is in an unknown state and the thing that failed may
+ * be the very screen the cleanup would need.
+ *
+ * A cleanup failure warns rather than throws. Failing here would mask the real
+ * result of the run, and the warning names the exact query to run by hand.
+ */
+async function deleteE2EGoals(): Promise<number> {
+  const url = process.env.ADMIN_DATABASE_URL
+    ?? 'postgresql://postgres:postgres@localhost:15432/hr';
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    const like = `${E2E_GOAL_PREFIX}%`;
+    // Children first: goal_target and goal_checkin both reference goal.
+    await client.query('DELETE FROM goal_target WHERE goal_id IN (SELECT id FROM goal WHERE title LIKE $1)', [like]);
+    await client.query('DELETE FROM goal_checkin WHERE goal_id IN (SELECT id FROM goal WHERE title LIKE $1)', [like]);
+    const res = await client.query('DELETE FROM goal WHERE title LIKE $1', [like]);
+    return res.rowCount ?? 0;
+  } finally {
+    await client.end();
+  }
+}
+
 test.describe('goal lifecycle', () => {
+  test.afterAll(async () => {
+    try {
+      const removed = await deleteE2EGoals();
+      if (removed > 0) console.log(`  cleaned up ${removed} goal(s) created by this suite`);
+    } catch (err) {
+      console.warn(
+        `  WARNING: could not clean up goals created by this suite: ${String(err)}\n` +
+        `  Remove them by hand or the fixture will drift:\n` +
+        `    DELETE FROM goal WHERE title LIKE '${E2E_GOAL_PREFIX}%';`);
+    }
+  });
+
   /**
    * Creates a goal and cleans it up again.
    *
@@ -60,12 +108,18 @@ test.describe('goal lifecycle', () => {
    * depends on eventually fails for reasons that have nothing to do with the
    * code.
    *
+   * Cancelling in the test is still worth doing: it exercises the cancel path,
+   * and it keeps the fixture correct during the run rather than only after it.
+   * `afterAll` above is the backstop for when this test does not reach the end.
+   *
    * The weight is a normal one: `goal_weight_valid` requires `> 0`, and the
    * weight gate counts neither draft nor cancelled goals, so a goal that is
    * created as a draft and cancelled at the end never touches the totals.
    */
   test('a goal can be created, opens, and keeps its measure', async ({ page }) => {
-    const title = `E2E goal ${Date.now()}`;
+    // Built from the same constant the cleanup matches on, so the two cannot
+    // drift apart and leave orphans the cleanup silently misses.
+    const title = `${E2E_GOAL_PREFIX}${Date.now()}`;
 
     await gotoApp(page, '/goals/new');
     await page.getByLabel('Title', { exact: true }).fill(title);
