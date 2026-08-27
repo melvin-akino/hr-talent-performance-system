@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { DbService, RequestContext } from '../db/db.service';
+import { DEFAULT_CLASSIFICATION, classificationsOf, scoreResponses } from './scoring';
 import { NotificationsService } from '../notifications/notifications.service';
 
 export const createCycle = z.object({
@@ -316,13 +317,75 @@ export class ReviewsService {
    * database cannot express "required" for arbitrary JSONB, so this is the one
    * rule that legitimately lives in the service.
    */
+  /**
+   * The score for a submission, or null when the form is not a scored one.
+   *
+   * Returns null rather than zero in three cases, and the difference matters:
+   * an unscored form (most forms, and every form built before points existed),
+   * a scored form with no rating scale to read ratings against, and a
+   * multi-column form on an instance whose classification nobody has set.
+   *
+   * That last one is deliberate. Picking a column on the employee's behalf
+   * would produce a plausible number computed against the wrong allocation —
+   * worse than no number, because nothing about it looks wrong. Resolving a
+   * person's classification is still open (R6), so until it is answered a
+   * multi-column form scores only when told which column to use.
+   */
+  private scoreOf(
+    row: {
+      schema: {
+        scoring?: { maxPoints: number; classifications?: string[] };
+        sections: { fields: { key: string; type: string;
+                              points?: number | Record<string, number> }[] }[];
+      };
+      classification: string | null;
+      scaleMax: string | null;
+    },
+    values: Map<string, unknown>,
+  ): { earned: number; available: number; classification: string | null; scaleMax: number }
+    | null {
+    if (!row.schema.scoring) return null;
+    if (row.scaleMax === null) return null;
+
+    const scaleMax = Number(row.scaleMax);
+    if (!(scaleMax > 0)) return null;
+
+    const columns = classificationsOf(row.schema);
+    const single = columns.length === 1 && columns[0] === DEFAULT_CLASSIFICATION;
+    const classification = row.classification ?? (single ? DEFAULT_CLASSIFICATION : null);
+    if (classification === null) return null;
+
+    const result = scoreResponses(row.schema, values, classification, scaleMax);
+    return {
+      earned: result.earned,
+      available: result.available,
+      classification: single ? null : classification,
+      scaleMax,
+    };
+  }
+
   async submit(ctx: RequestContext, instanceId: string) {
     return this.db.withContext(ctx, async (client) => {
       const inst = await client.query<{
-        schema: { sections: { fields: { key: string; label: string; required: boolean }[] }[] };
+        schema: {
+          scoring?: { maxPoints: number; classifications?: string[] };
+          sections: {
+            fields: {
+              key: string; label: string; required: boolean;
+              type: string; points?: number | Record<string, number>;
+            }[];
+          }[];
+        };
         state: string;
+        classification: string | null;
+        scaleMax: string | null;
       }>(
-        `SELECT v.schema_json AS schema, ri.state::text AS state
+        `SELECT v.schema_json AS schema, ri.state::text AS state,
+                ri.scored_classification AS classification,
+                -- The scale in force for this form version. Read here and
+                -- stored with the score, because it can change later.
+                (SELECT max(p.value) FROM rating_scale_point p
+                  WHERE p.rating_scale_id = v.rating_scale_id) AS "scaleMax"
            FROM review_instance ri
            JOIN form_version v ON v.id = ri.form_version_id
           WHERE ri.id = $1 AND ri.reviewer_employee_id = $2`,
@@ -348,14 +411,28 @@ export class ReviewsService {
           `Cannot submit — required questions are unanswered: ${missing.join(', ')}`);
       }
 
+      const score = this.scoreOf(row, values);
+
       await client.query(
-        `UPDATE review_instance SET state = 'submitted' WHERE id = $1`, [instanceId])
+        `UPDATE review_instance
+            SET state = 'submitted',
+                computed_score        = $2::numeric,
+                computed_available    = $3::numeric,
+                scored_classification = $4,
+                scored_scale_max      = $5::numeric,
+                scored_at             = CASE WHEN $2 IS NULL THEN NULL ELSE now() END
+          WHERE id = $1`,
+        [instanceId, score?.earned ?? null, score?.available ?? null,
+         score?.classification ?? null, score?.scaleMax ?? null])
         .catch((err: { code?: string; message?: string }) => {
           if (err.code === 'P0001') throw new BadRequestException(err.message);
           throw err;
         });
 
-      return { state: 'submitted' };
+      return {
+        state: 'submitted',
+        ...(score ? { score: score.earned, available: score.available } : {}),
+      };
     });
   }
 

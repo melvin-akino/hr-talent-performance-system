@@ -43,8 +43,16 @@ import { z } from 'zod';
  *
  * `text` and `textarea` are excluded because there is nothing to compute from.
  * A commentary box is evidence for a score, not a score.
+ *
+ * `number` and `select` were listed here when points were introduced, before
+ * anything computed a score. That was premature: neither has a defined
+ * conversion. A number needs a target to be a proportion of, and a select needs
+ * a value per option, and the client has specified neither. Allowing points on
+ * them meant a form could validate and then score as zero — the exact silent
+ * wrongness the validation exists to prevent. They come back when there is a
+ * rule to implement rather than a shape to guess at.
  */
-export const SCOREABLE_FIELD_TYPES = ['rating', 'number', 'boolean', 'select'] as const;
+export const SCOREABLE_FIELD_TYPES = ['rating', 'boolean'] as const;
 
 /**
  * Points for one field: the same for everybody, or one value per classification.
@@ -195,4 +203,89 @@ export function assertScoringValid(schema: ScoredSchema): void {
       + 'A form that does not add up produces a wrong score for everyone evaluated '
       + 'on it, so it cannot be published.');
   }
+}
+
+
+/**
+ * One field's contribution to a score.
+ *
+ * `earned` is what the answer was worth; `available` is what it could have been
+ * worth. Both are kept so a score can be explained line by line rather than
+ * presented as a number the reader must trust.
+ */
+export interface ScoreLine {
+  key: string;
+  earned: number;
+  available: number;
+}
+
+export interface ScoreResult {
+  earned: number;
+  available: number;
+  classification: string;
+  lines: ScoreLine[];
+}
+
+/**
+ * What a rating is worth: its position on the scale, times the line's points.
+ *
+ * A 4 out of 5 on a 10-point line earns 8. The scale minimum matters — a 1-5
+ * scale scores 1 as a fifth, not as zero, because the bottom of the scale is
+ * still an answer. Using (value / max) rather than ((value - min) / (max - min))
+ * is deliberate and matches how the client's own sheet reads: their columns are
+ * "10 pts" against "1 2 3 4 5", and a 1 there is worth 2, not nothing.
+ */
+export function ratingFraction(value: number, scaleMax: number): number {
+  if (!(scaleMax > 0)) return 0;
+  const clamped = Math.max(0, Math.min(value, scaleMax));
+  return clamped / scaleMax;
+}
+
+/**
+ * Scores a set of answers against the schema they were given under.
+ *
+ * Unanswered scored fields earn nothing but still count towards `available`:
+ * a review with half the lines blank is not a perfect score on the half that
+ * was filled in.
+ */
+export function scoreResponses(
+  schema: ScoredSchema,
+  responses: Map<string, unknown>,
+  classification: string,
+  scaleMax: number,
+): ScoreResult {
+  const lines: ScoreLine[] = [];
+  let earned = 0;
+  let available = 0;
+
+  for (const section of schema.sections) {
+    for (const field of section.fields) {
+      const points = pointsFor(field.points, classification);
+      if (points === 0) continue;
+
+      available += points;
+      const answer = responses.get(field.key);
+      let got = 0;
+
+      if (field.type === 'rating' && typeof answer === 'number') {
+        got = ratingFraction(answer, scaleMax) * points;
+      } else if (field.type === 'boolean' && answer === true) {
+        got = points;
+      }
+
+      // Two decimals: a 1-5 rating on a 15-point line lands on thirds, and
+      // carrying the full float into the database makes two identical reviews
+      // differ in the sixteenth decimal place.
+      got = Math.round(got * 100) / 100;
+      earned += got;
+      lines.push({ key: field.key, earned: got, available: points });
+    }
+  }
+
+  return {
+    earned: Math.round(earned * 100) / 100,
+    available,
+    classification,
+    lines,
+  };
 }

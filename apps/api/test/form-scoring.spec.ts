@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_CLASSIFICATION, assertScoringValid, classificationsOf, pointsFor, totalFor,
+  DEFAULT_CLASSIFICATION, assertScoringValid, classificationsOf, pointsFor,
+  ratingFraction, scoreResponses, totalFor,
 } from '../src/reviews/scoring';
 
 /**
@@ -103,6 +104,15 @@ describe('refusals', () => {
     })).toThrow(/cannot carry points/);
   });
 
+  it('rejects points on a number, which has no target to be a fraction of', () => {
+    // Allowed when points were introduced, before anything computed a score.
+    // Narrowed once it became clear there was no conversion rule to apply.
+    expect(() => assertScoringValid({
+      scoring: { maxPoints: 10 },
+      sections: [{ key: 's', fields: [{ key: 'count', type: 'number', points: 10 }] }],
+    })).toThrow(/cannot carry points/);
+  });
+
   it('rejects points on free text, which computes nothing', () => {
     expect(() => assertScoringValid({
       scoring: { maxPoints: 10 },
@@ -196,5 +206,104 @@ describe('pointsFor', () => {
     // Validation refuses to publish such a form, but scoring must not throw if
     // one reaches it — a stored evaluation is read long after publication.
     expect(pointsFor({ technical: 10 }, 'admin')).toBe(0);
+  });
+});
+
+
+describe('computing a score', () => {
+  const form = {
+    scoring: { maxPoints: 100, classifications: ['technical', 'admin'] },
+    sections: [{
+      key: 's',
+      fields: [
+        { key: 'efficiency', type: 'rating', points: { technical: 15, admin: 10 } },
+        { key: 'mastery', type: 'rating', points: { technical: 10, admin: 10 } },
+        { key: 'attendance', type: 'rating', points: { technical: 75, admin: 80 } },
+      ],
+    }],
+  };
+
+  it('scores a rating as its position on the scale, times the points', () => {
+    // 4 out of 5 on a 15-point line is 12.
+    const r = scoreResponses(form, new Map([['efficiency', 4]]), 'technical', 5);
+    expect(r.lines.find((l) => l.key === 'efficiency')!.earned).toBe(12);
+  });
+
+  it('scores the same answer differently on the other column', () => {
+    // The whole reason points are a map: 4/5 of a 10-point line is 8, not 12.
+    const r = scoreResponses(form, new Map([['efficiency', 4]]), 'admin', 5);
+    expect(r.lines.find((l) => l.key === 'efficiency')!.earned).toBe(8);
+  });
+
+  it('counts unanswered lines as available but not earned', () => {
+    // A review with most lines blank is not a perfect score on the rest.
+    const r = scoreResponses(form, new Map([['efficiency', 5]]), 'technical', 5);
+    expect(r.earned).toBe(15);
+    expect(r.available).toBe(100);
+  });
+
+  it('gives the bottom of the scale its share, not zero', () => {
+    // Their sheet reads "10 pts" against "1 2 3 4 5". A 1 is worth 2 there.
+    // Scoring it as zero would treat the lowest answer as no answer at all.
+    const r = scoreResponses(form, new Map([['mastery', 1]]), 'technical', 5);
+    expect(r.lines.find((l) => l.key === 'mastery')!.earned).toBe(2);
+  });
+
+  it('never exceeds the points available, whatever arrives', () => {
+    // A 9 on a 1-5 scale is bad data, not a bonus.
+    const r = scoreResponses(form, new Map([['mastery', 9]]), 'technical', 5);
+    expect(r.lines.find((l) => l.key === 'mastery')!.earned).toBe(10);
+  });
+
+  it('treats a negative rating as the floor rather than a deduction', () => {
+    const r = scoreResponses(form, new Map([['mastery', -3]]), 'technical', 5);
+    expect(r.lines.find((l) => l.key === 'mastery')!.earned).toBe(0);
+  });
+
+  it('rounds to two decimals so identical reviews cannot differ in float dust', () => {
+    // 1/3 of 10 is 3.3333...; two of them must agree exactly.
+    const of = (r: { lines: { key: string; earned: number }[] }) =>
+      r.lines.find((l) => l.key === 'mastery')!.earned;
+    const a = scoreResponses(form, new Map([['mastery', 1]]), 'technical', 3);
+    const b = scoreResponses(form, new Map([['mastery', 1]]), 'technical', 3);
+    expect(of(a)).toBe(of(b));
+    expect(of(a)).toBe(3.33);
+  });
+
+  it('ignores an answer of the wrong shape rather than guessing', () => {
+    const r = scoreResponses(form, new Map([['mastery', 'excellent']]), 'technical', 5);
+    expect(r.earned).toBe(0);
+  });
+
+  it('scores a boolean as all or nothing', () => {
+    const yesNo = {
+      scoring: { maxPoints: 10 },
+      sections: [{ key: 's', fields: [{ key: 'promotable', type: 'boolean', points: 10 }] }],
+    };
+    expect(scoreResponses(yesNo, new Map([['promotable', true]]), DEFAULT_CLASSIFICATION, 5)
+      .earned).toBe(10);
+    expect(scoreResponses(yesNo, new Map([['promotable', false]]), DEFAULT_CLASSIFICATION, 5)
+      .earned).toBe(0);
+  });
+
+  it('skips lines worth nothing on this column', () => {
+    // A line scored 0 for admin should not appear in the admin breakdown at all.
+    const oneSided = {
+      scoring: { maxPoints: 10, classifications: ['technical', 'admin'] },
+      sections: [{
+        key: 's',
+        fields: [
+          { key: 'field_work', type: 'rating', points: { technical: 10, admin: 0 } },
+          { key: 'paperwork', type: 'rating', points: { technical: 0, admin: 10 } },
+        ],
+      }],
+    };
+    const admin = scoreResponses(oneSided, new Map([['field_work', 5]]), 'admin', 5);
+    expect(admin.lines.map((l) => l.key)).toEqual(['paperwork']);
+    expect(admin.available).toBe(10);
+  });
+
+  it('survives a scale maximum of zero without dividing by it', () => {
+    expect(ratingFraction(3, 0)).toBe(0);
   });
 });

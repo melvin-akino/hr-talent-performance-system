@@ -420,8 +420,16 @@ calendar commitments.
       rejected on fields whose answers are stored elsewhere (goal_review,
       competency_review) or nowhere (free text). Their real template is a
       test fixture, so the instrument itself proves the abstraction fits.
-- [ ] **B2** Computed scores: instance score from responses, stored with a snapshot
-      of the point map used — never recomputed from a later template version. **L** — §3.2
+- [x] **B2** Computed scores — DONE. A rating scores as its position on the
+      scale times the line points; a submitted review stores the number with
+      the inputs that produced it (points available, classification column,
+      and the scale maximum). The point map was already safe via the pinned
+      form version, but the **rating scale is not** — a tenant moving from
+      1-5 to 1-6 would silently rescore every historical review on read.
+      Proven: a submitted 92/100 stays 92 after the scale is extended.
+      A multi-column form does **not** guess a classification (R6): it
+      scores only when told which column, because a plausible number from
+      the wrong allocation is worse than none.
 - [ ] **B3** The two 100-point default templates (Admin; Technical/Ops/Field) seeded
       as prepared formats. **S** — §3.3
 - [ ] **B4** Composite KPI score: 40 + 30 + 30, with the component breakdown
