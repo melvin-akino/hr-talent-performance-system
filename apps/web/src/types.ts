@@ -226,3 +226,52 @@ export interface ScorecardDetail {
     effectiveTo: string | null;
   }[];
 }
+
+export type EvaluationState = 'draft' | 'submitted' | 'acknowledged';
+
+export interface EvaluationSummary {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  scorecardId: string;
+  scorecardName: string;
+  state: EvaluationState;
+  periodStart: string;
+  periodEnd: string;
+  targetPoints: string;
+  awardedPoints: string | null;
+  evaluatorId: string;
+  evaluatorName: string;
+  submittedAt: string | null;
+  lineCount: number;
+  unassessed: number;
+}
+
+export interface EvaluationLine {
+  id: string;
+  indicatorName: string;
+  criteria: string | null;
+  nature: TaskNature;
+  pointsAvailable: string;
+  pointsAwarded: string | null;
+  note: string | null;
+  sequence: number;
+}
+
+export interface EvaluationDetail {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  scorecardName: string;
+  state: EvaluationState;
+  periodStart: string;
+  periodEnd: string;
+  targetPoints: string;
+  awardedPoints: string | null;
+  note: string | null;
+  evaluatorName: string;
+  evaluatorId: string;
+  submittedAt: string | null;
+  acknowledgedAt: string | null;
+  lines: EvaluationLine[];
+}

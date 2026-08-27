@@ -16,6 +16,7 @@ import Team from './pages/Team';
 import HrConsole from './pages/HrConsole';
 import KpiLibrary from './pages/KpiLibrary';
 import Metrics from './pages/Metrics';
+import Evaluations from './pages/Evaluations';
 import EmployeeGoals from './pages/EmployeeGoals';
 import Monitoring from './pages/Monitoring';
 import Pips from './pages/Pips';
@@ -155,6 +156,7 @@ function Shell() {
           <Route path="/hr" element={<HrConsole />} />
           <Route path="/kpis" element={<KpiLibrary />} />
           <Route path="/metrics" element={<Metrics />} />
+          <Route path="/evaluations" element={<Evaluations />} />
           <Route path="*" element={<p className="text-muted">Page not found.</p>} />
         </Routes>
       </main>

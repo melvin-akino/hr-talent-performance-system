@@ -129,6 +129,7 @@ async function seedTenant(code: string, t: Tenant): Promise<void> {
   await admin.query('SELECT app.seed_phase6_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_line_role_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_scorecard_grants($1)', [t.org]);
+  await admin.query('SELECT app.seed_evaluation_grants($1)', [t.org]);
 
   const role = async (c: string) => (await admin.query(
     `SELECT id FROM app_role WHERE org_id=$1 AND code=$2`, [t.org, c])).rows[0].id;
@@ -384,6 +385,55 @@ describe('performance data is tenant-scoped', () => {
       admin.query(
         `INSERT INTO scorecard_item (org_id, scorecard_id, task_indicator_id, points, sequence)
          VALUES ($1,$2,$3,1,99)`, [A.org, mine, foreign]),
+    ).rejects.toThrow(/same_org/);
+  });
+
+  it('evaluations and their lines do not cross the boundary', async () => {
+    // Scored performance is the most sensitive thing either table holds, and
+    // 'org' scope is what HR admins carry -- so this is the pair where a
+    // one-way predicate would be worst.
+    const evaluate = async (t: Tenant) => {
+      const sc = (await admin.query<{ id: string }>(
+        `SELECT id FROM scorecard WHERE org_id = $1 LIMIT 1`, [t.org])).rows[0]!.id;
+      const ev = (await admin.query<{ id: string }>(
+        `INSERT INTO scorecard_evaluation (org_id, employee_id, scorecard_id,
+                                           evaluator_employee_id, period_start,
+                                           period_end, target_points)
+         VALUES ($1,$2,$3,$4,'2026-01-01','2026-03-31',1) RETURNING id`,
+        [t.org, t.ic, sc, t.manager])).rows[0]!.id;
+      await admin.query(
+        `INSERT INTO scorecard_evaluation_line (org_id, evaluation_id, indicator_name,
+                                                nature, points_available, sequence)
+         VALUES ($1,$2,'Claims Processing','administrative',1,1)`, [t.org, ev]);
+      return ev;
+    };
+    await evaluate(A);
+    const bEval = await evaluate(B);
+
+    for (const table of ['scorecard_evaluation', 'scorecard_evaluation_line']) {
+      expect(await count(A.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+      expect(await count(B.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+    }
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM scorecard_evaluation WHERE id = $1',
+      [bEval])).toBe(0);
+    // The lines inherit visibility through EXISTS on the head, so this proves
+    // the inheritance fails closed rather than defaulting open.
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM scorecard_evaluation_line WHERE evaluation_id = $1',
+      [bEval])).toBe(0);
+  });
+
+  it('a cross-org evaluation is rejected', async () => {
+    const sc = (await admin.query<{ id: string }>(
+      `SELECT id FROM scorecard WHERE org_id = $1 LIMIT 1`, [A.org])).rows[0]!.id;
+    await expect(
+      admin.query(
+        `INSERT INTO scorecard_evaluation (org_id, employee_id, scorecard_id,
+                                           evaluator_employee_id, period_start,
+                                           period_end, target_points)
+         VALUES ($1,$2,$3,$4,'2026-04-01','2026-06-30',1)`,
+        [A.org, B.ic, sc, A.manager]),
     ).rejects.toThrow(/same_org/);
   });
 

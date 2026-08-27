@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../auth';
 import type {
@@ -129,7 +130,40 @@ export default function Metrics() {
   );
 }
 
+/**
+ * Default period: the current calendar quarter.
+ *
+ * Not the fiscal year, and not "since they were assigned" -- the client's own
+ * scorecards are written in per-month and per-cutoff units, so a quarter is the
+ * shortest window their criteria actually make sense over. It is only a default;
+ * the evaluator can set any period.
+ */
+function currentQuarter(): { start: string; end: string } {
+  const now = new Date();
+  const q = Math.floor(now.getMonth() / 3);
+  const start = new Date(Date.UTC(now.getFullYear(), q * 3, 1));
+  const end = new Date(Date.UTC(now.getFullYear(), q * 3 + 3, 0));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { start: iso(start), end: iso(end) };
+}
+
 function ScorecardPanel({ id, onClose }: { id: string; onClose: () => void }) {
+  const navigate = useNavigate();
+  const [evaluating, setEvaluating] = useState<string | null>(null);
+  const [period, setPeriod] = useState(currentQuarter);
+
+  const openEvaluation = useMutation({
+    mutationFn: (employeeId: string) =>
+      api<{ id: string }>('/evaluations', {
+        method: 'POST',
+        body: { employeeId, periodStart: period.start, periodEnd: period.end },
+      }),
+    onSuccess: () => {
+      setEvaluating(null);
+      navigate('/evaluations');
+    },
+  });
+
   const detail = useQuery({
     queryKey: ['scorecard', id],
     queryFn: () => api<ScorecardDetail>(`/scorecards/${id}`),
@@ -205,18 +239,62 @@ function ScorecardPanel({ id, onClose }: { id: string; onClose: () => void }) {
               Nobody is assigned yet. The scorecard is defined but counts for no one.
             </p>
           ) : (
-            <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none',
+                         display: 'flex', flexDirection: 'column',
+                         gap: 'var(--space-2)' }}>
               {d.holders.map((h) => (
-                <li key={h.id} className="text-xs">
-                  {h.name}{' '}
+                <li key={h.id} className="text-xs"
+                    style={{ display: 'flex', gap: 'var(--space-2)',
+                             alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span>{h.name}</span>
                   <span className="t-faint">
                     from {h.effectiveFrom}
                     {h.effectiveTo ? ` until ${h.effectiveTo}` : ''}
                   </span>
                   {h.effectiveTo && <Tag>past</Tag>}
+                  {/* Only for someone currently on the card. Evaluating against
+                      a scorecard they have already left is a different act, and
+                      goes through the period, not this button. */}
+                  {!h.effectiveTo && (
+                    <span className="no-print" style={{ marginLeft: 'auto' }}>
+                      <Btn variant="ghost"
+                           onClick={() => setEvaluating(
+                             evaluating === h.employeeId ? null : h.employeeId)}>
+                        {evaluating === h.employeeId ? 'Cancel' : 'Evaluate'}
+                      </Btn>
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
+          )}
+
+          {evaluating && (
+            <div className="no-print" style={{
+              display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap',
+              alignItems: 'flex-end', marginTop: 'var(--space-3)',
+            }}>
+              <label className="text-xs" style={{ display: 'flex',
+                                                  flexDirection: 'column',
+                                                  gap: 'var(--space-1)' }}>
+                Period from
+                <input className="input" type="date" value={period.start}
+                       onChange={(e) => setPeriod({ ...period, start: e.target.value })} />
+              </label>
+              <label className="text-xs" style={{ display: 'flex',
+                                                  flexDirection: 'column',
+                                                  gap: 'var(--space-1)' }}>
+                to
+                <input className="input" type="date" value={period.end}
+                       onChange={(e) => setPeriod({ ...period, end: e.target.value })} />
+              </label>
+              <Btn variant="primary"
+                   disabled={openEvaluation.isPending}
+                   onClick={() => openEvaluation.mutate(evaluating)}>
+                Open evaluation
+              </Btn>
+              {openEvaluation.error ? <ErrorNote error={openEvaluation.error} /> : null}
+            </div>
           )}
         </div>
       </div>

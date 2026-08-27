@@ -471,9 +471,42 @@ question, so it was built first.
       `/employees/:id/scorecard?asOf=`. The screen is **Task metrics** under
       Company. Nothing in it evaluates anybody, and a test asserts that.
 
-- [ ] **T2** Evaluating against a loaded scorecard — the client's second option.
-      A period, a per-line claim of what was actually done, and a total against
-      the target. **M** — *next*
+- [x] **T2** Evaluating — DONE (migration `0033_scorecard_evaluation.sql`). An
+      evaluation is opened for a person over a period, each line is given the
+      points actually earned, and submitting totals the lines and freezes them.
+
+      **The lines are snapshotted, not referenced.** This is the versioning
+      principle from `architecture.md` applied where it bites hardest: R10 and
+      R11 alone will change several of these scorecards after people have been
+      scored on them. An evaluation therefore copies the indicator name, the
+      criterion, the nature and the points available at the moment it is
+      opened, and never reads them again. `scorecard_item_id` is kept only for
+      traceability — nullable, and not the source of truth on read. A test
+      rewrites a scorecard underneath a submitted evaluation (repoints a line,
+      rewrites a criterion, adds a task, deletes another) and asserts the score
+      does not move.
+
+      The period is taken from the **end** date: an evaluation of the first
+      quarter is against the scorecard the person held *for it*, even if they
+      have since transferred.
+
+      Confidentiality follows reviews (D-?/0014): the subject cannot see a
+      draft at all, and **must** be able to read it once submitted. The subject's
+      only write on their own evaluation is acknowledgement.
+
+      Two distinctions the schema keeps that the UI depends on: a line *not yet
+      assessed* (NULL) versus one *assessed at zero*; and a draft, which is
+      private, versus a submitted evaluation, which is fixed. Submitting is
+      refused while any line is unassessed — a total computed over half-finished
+      work is indistinguishable, once stored, from a genuinely poor score.
+
+      `/evaluations` on the API; **Evaluations** under My team, reachable from
+      the *Evaluate* button beside anyone currently on a scorecard.
+
+- [ ] **T3** Evaluation on a schedule — opening a quarter's evaluations for a
+      whole section at once, rather than one person at a time. **M**
+- [ ] **T4** Feeding the task score into the composite KPI model (B4). **M**
+      *(depends on Q3 and the incentive bands)*
 
 #### A defect found in their sheet
 

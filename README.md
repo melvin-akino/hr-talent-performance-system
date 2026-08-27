@@ -17,8 +17,8 @@ scans every text column on every build to keep it that way
 
 ## Status
 
-Phases 0–7 complete. **626 automated tests** — 499 against a real PostgreSQL via
-Testcontainers, 127 component and content tests, plus 14 Playwright journeys
+Phases 0–7 complete. **647 automated tests** — 519 against a real PostgreSQL via
+Testcontainers, 128 component and content tests, plus 14 Playwright journeys
 covering sign-in, the goal lifecycle, sign-off gating and responsive layout. RLS
 policies are the security boundary and cannot be verified against mocks.
 
@@ -33,8 +33,9 @@ policies are the security boundary and cannot be verified against mocks.
 | Notifications (in-app + email, durable outbox) | Complete |
 | Multi-tenancy, audit trail, effective-dated org chart | Complete |
 | One-command install (on-prem and AWS demo) | Complete |
-| Task metrics: catalogue, scorecards, effective-dated assignment | Loading complete; scoring next |
-| UI on the Industry design system, grouped navigation | Complete — all 22 screens |
+| Task metrics: catalogue, scorecards, effective-dated assignment | Complete |
+| Evaluation against a scorecard, with snapshotted lines | Complete |
+| UI on the Industry design system, grouped navigation | Complete — all 23 screens |
 | In-app help — 14 bundled articles, role- and route-aware | Complete |
 | HR-authored help content, published from Setup | Complete |
 | Active Directory federation | Configured, untested against a real directory |
