@@ -123,6 +123,7 @@ year's review is calibrated against last year's reporting line).
 | [client-questions.md](docs/client-questions.md) | Open questions sent to the client (round 1) |
 | [client-questions-round2.md](docs/client-questions-round2.md) | Round 2 — what the HCM workbook answered, and what it raised |
 | [handoff/ENGINEERING-HANDOFF.md](docs/handoff/ENGINEERING-HANDOFF.md) | Onboarding for a new engineer or agent — rules, gotchas, work queue |
+| [handoff/CURRENT-STATE.md](docs/handoff/CURRENT-STATE.md) | Resume point — what is done, what is next, what bites locally |
 | [demo-logins.md](docs/demo-logins.md) | Dev logins for walkthroughs, and which tenant has which data |
 
 ---
