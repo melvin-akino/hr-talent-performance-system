@@ -19,6 +19,11 @@ import '@fontsource/barlow-condensed/600.css';
 // Industry component classes win where the two overlap.
 import './index.css';
 import './styles/industry.css';
+import { initTheme } from './theme';
+
+// Before render, so the first paint is already the right ground rather than
+// a light flash that swaps a frame later.
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

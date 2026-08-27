@@ -81,11 +81,110 @@
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark theme
+   ═══════════════════════════════════════════════════════════════════════════
+
+   The client asked for dark. The light palette above is unchanged and still
+   reachable — `data-theme="light"` — because a design that only exists in one
+   mode is one bad decision away from being lost, and because printing an
+   evaluation on a dark ground wastes toner and reads badly.
+
+   THE RAMPS ARE INVERTED, NOT REPLACED. Both ramps are written so that step 100
+   is nearest the background and step 900 is furthest from it. On light that
+   means 100 is pale and 900 is dark; on dark it means the opposite. Every
+   existing usage therefore keeps its meaning without touching a single
+   component:
+
+     .tag-solid    background accent-800, text --color-bg
+                   light: dark blue chip, pale text
+                   dark:  pale blue chip, dark text          ← still legible
+     Bar           track neutral-200, fill accent
+                   nearest-the-ground track in both modes
+     nine-box      denser accent step = higher band, in both
+
+   Had the ramps been replaced with hand-picked darks instead, accent-800 would
+   have stayed dark, --color-bg would have gone dark, and every solid tag would
+   have become dark-on-dark — invisible, and invisible only in the mode the
+   client actually uses.
+
+   Elevation changes technique rather than value. A shadow on a near-black
+   ground is barely perceptible, so the dark theme separates surfaces with a
+   hairline of light and a deeper ambient shadow, which is what the token
+   comment above always said it would do. */
+
+:root[data-theme="dark"] {
+  --color-bg: #17181a;
+  --color-surface: #1f2123;
+  --color-text: #e8e9ea;
+  /* Slightly lifted from the light accent: the same hue reads flatter against a
+     dark ground, and this is the one colour the whole system leans on. */
+  --color-accent: #7aa3cc;
+  --color-accent-2: #8fadc9;
+  --color-divider: color-mix(in srgb, #e8e9ea 18%, transparent);
+
+  /* Neutral ramp, inverted: 100 nearest the background, 900 furthest. */
+  --color-neutral-100: #202224;
+  --color-neutral-200: #2a2c2f;
+  --color-neutral-300: #3a3d41;
+  --color-neutral-400: #4e5155;
+  --color-neutral-500: #6b6e73;
+  --color-neutral-600: #8b8e93;
+  --color-neutral-700: #a9acb1;
+  --color-neutral-800: #c6c9cd;
+  --color-neutral-900: #e4e6e9;
+
+  --color-accent-100: #1b2430;
+  --color-accent-200: #22303f;
+  --color-accent-300: #2d4054;
+  --color-accent-400: #3d5670;
+  --color-accent-500: #4f6e8d;
+  --color-accent-600: #6489a9;
+  --color-accent-700: #7ba3c4;
+  --color-accent-800: #9cbcd9;
+  --color-accent-900: #c2d6ea;
+
+  --color-accent-2-100: #1c2530;
+  --color-accent-2-200: #23303c;
+  --color-accent-2-300: #2f3f4e;
+  --color-accent-2-400: #3f5466;
+  --color-accent-2-500: #536b80;
+  --color-accent-2-600: #6a869c;
+  --color-accent-2-700: #85a1b6;
+  --color-accent-2-800: #a3bccf;
+  --color-accent-2-900: #c4d6e4;
+
+  /* Ambient rather than cast: a hairline of light does the separating, and the
+     shadow only deepens the ground beneath it. */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-md: 0 3px 12px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 14px 36px rgb(0 0 0 / 0.65);
+}
+
+/* Printing is always light. An evaluation printed for a personnel file on a
+   near-black ground is unreadable and empties a toner cartridge doing it. */
+@media print {
+  :root[data-theme="dark"] {
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1d1f20;
+    --color-divider: color-mix(in srgb, #1d1f20 30%, transparent);
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+  }
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
 }
+
+/* Tells the browser to render its own furniture — scrollbars, form controls,
+   spinners — to match. Without it a dark page keeps white scrollbars. */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
 h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: var(--font-heading-weight); }
 
 .blueprint {

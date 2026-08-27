@@ -1,3 +1,4 @@
+import { ThemeToggle } from './components/ds';
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -110,6 +111,7 @@ function Shell() {
                 ))}
               </select>
             )}
+            <ThemeToggle />
             <HelpButton onClick={() => setHelpOpen(true)} />
             <span style={{ fontSize: 14 }}>
               {me.data ? `${me.data.firstName} ${me.data.lastName}` : '…'}

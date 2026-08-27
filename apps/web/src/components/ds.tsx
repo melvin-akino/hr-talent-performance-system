@@ -1,4 +1,6 @@
-import type { ReactNode, CSSProperties } from 'react';
+import { useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { DEFAULT_THEME, setTheme, storedTheme, type Theme } from '../theme';
 
 /**
  * The Industry design system, as React.
@@ -39,6 +41,8 @@ export function Icon(
 }
 
 export const paths = {
+  moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.3 17.7-1.4 1.4" /><path d="m19.1 4.9-1.4 1.4" /></>,
   trendUp: <><path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" /></>,
   triangleAlert: <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></>,
   alertCircle: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>,
@@ -349,6 +353,30 @@ export function PageHead(
       {meta}
       <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>{children}</div>
     </div>
+  );
+}
+
+/**
+ * Switches the ground between dark and light.
+ *
+ * Shows the mode it will switch TO, not the one you are in: a control that
+ * pictures the current state looks like a status light and gets ignored.
+ */
+export function ThemeToggle() {
+  const [theme, setThemeState] = useState<Theme>(() => storedTheme() ?? DEFAULT_THEME);
+  const next: Theme = theme === 'dark' ? 'light' : 'dark';
+
+  return (
+    <button
+      type="button"
+      className="link-btn"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+      aria-label={`Switch to ${next} theme`}
+      title={`Switch to ${next} theme`}
+      onClick={() => { setTheme(next); setThemeState(next); }}
+    >
+      <Icon path={next === 'dark' ? paths.moon : paths.sun} size={16} />
+    </button>
   );
 }
 

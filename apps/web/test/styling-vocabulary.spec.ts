@@ -169,3 +169,59 @@ describe('two states never render identically', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('both themes define the same tokens', () => {
+  /*
+   * The failure this catches: a token added to `:root` and forgotten in the dark
+   * block. Nothing errors — the dark theme silently inherits the light value, so
+   * one pale surface appears in an otherwise dark screen, and only in the mode
+   * the client actually uses.
+   *
+   * Parsed from the stylesheet rather than rendered, because jsdom does not
+   * resolve custom properties from a linked sheet, and the point is the source
+   * of truth rather than a browser's opinion of it.
+   */
+  // Read directly: the source scan above collects .ts/.tsx only.
+  const css = readFileSync(join(SRC, 'styles', 'industry.css'), 'utf8');
+
+  const tokensIn = (selector: string): Set<string> => {
+    const start = css.indexOf(selector);
+    if (start === -1) throw new Error(`no ${selector} block`);
+    const open = css.indexOf('{', start);
+    const close = css.indexOf('\n}', open);
+    const body = css.slice(open, close);
+    return new Set([...body.matchAll(/(--color-[a-z0-9-]+)\s*:/g)].map((m) => m[1]!));
+  };
+
+  it('finds the stylesheet at all', () => {
+    expect(css.length).toBeGreaterThan(1000);
+  });
+
+  it('gives every light colour token a dark counterpart', () => {
+    const light = tokensIn(':root {');
+    const dark = tokensIn(':root[data-theme="dark"] {');
+    expect(light.size).toBeGreaterThan(20);
+
+    const missing = [...light].filter((t) => !dark.has(t));
+    expect(missing).toEqual([]);
+  });
+
+  it('does not invent a dark-only token, which light would then lack', () => {
+    const light = tokensIn(':root {');
+    const dark = tokensIn(':root[data-theme="dark"] {');
+    expect([...dark].filter((t) => !light.has(t))).toEqual([]);
+  });
+
+  it('keeps the light palette, rather than replacing it with dark', () => {
+    // "Save the current light template" — if this ever fails, the light theme
+    // has been overwritten rather than kept alongside.
+    expect(css).toMatch(/--color-bg:\s*#f2f2f3/);
+    expect(css).toMatch(/--color-text:\s*#1d1f20/);
+  });
+
+  it('tells the browser which furniture to draw', () => {
+    // Without color-scheme, a dark page keeps white scrollbars and light form
+    // controls — the two things a token swap cannot reach.
+    expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{\s*color-scheme:\s*dark/);
+  });
+});
