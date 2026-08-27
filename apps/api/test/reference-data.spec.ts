@@ -318,6 +318,204 @@ describe('rank ladder', () => {
   });
 });
 
+/**
+ * Employment milestones (migration 0029).
+ *
+ * The dates are read from history rather than stored beside it, so these build
+ * a real career — and a real career has to respect `employment_no_overlap`:
+ * nobody holds two employments at once, so each row is closed as the next
+ * begins. Writing the test the lazy way (several open-ended rows) is rejected by
+ * the database, which is the constraint doing its job.
+ *
+ * The two orderings that could plausibly be written backwards are asserted
+ * explicitly: regularisation takes the EARLIEST such event, because extended
+ * probation produces more than one, and promotion takes the LATEST, because
+ * "date promoted" means the most recent.
+ */
+describe('employment milestones', () => {
+  let person: string;
+
+  const milestones = async (id: string) => (await admin.query<{
+    hired_on: string | null; regularized_on: string | null; last_promoted_on: string | null;
+  }>(`SELECT (m.hired_on)::text, (m.regularized_on)::text, (m.last_promoted_on)::text
+        FROM app.employment_milestones($1) m`, [id])).rows[0]!;
+
+  /** Closes the open row and opens a new one — how a career actually moves. */
+  const move = async (employee: string, on: string, event: string) => {
+    await admin.query(
+      `UPDATE employment SET effective_to = $2
+        WHERE employee_id = $1 AND effective_to IS NULL`, [employee, on]);
+    await admin.query(
+      `INSERT INTO employment (org_id, employee_id, department_id, employment_type_id,
+                               status, effective_from, event_type)
+       VALUES ($1,$2,$3,$4,'regular',$5,$6::employment_event)`,
+      [ids.org, employee, ids.deptOps, ids.typeReg, on, event]);
+  };
+
+  it('reports only a hire date for someone freshly imported', async () => {
+    person = (await admin.query<{ id: string }>(
+      `INSERT INTO employee (org_id, employee_no, first_name, last_name, work_email, hired_on)
+       VALUES ($1,'MS-001','Milestone','Subject','ms1@example.test','2020-03-02')
+       RETURNING id`, [ids.org])).rows[0]!.id;
+    await admin.query(
+      `INSERT INTO employment (org_id, employee_id, department_id,
+                               employment_type_id, status, effective_from)
+       VALUES ($1,$2,$3,$4,'regular','2020-03-02')`,
+      [ids.org, person, ids.deptOps, ids.typeReg]);
+
+    const m = await milestones(person);
+    expect(m.hired_on).toBe('2020-03-02');
+    expect(m.regularized_on).toBeNull();
+    expect(m.last_promoted_on).toBeNull();
+  });
+
+  it('takes the EARLIEST regularisation, so extended probation does not move it', async () => {
+    // Two regularisation events is not a data error: probation was extended and
+    // then closed. The date they became regular is the first one.
+    await move(person, '2020-09-02', 'regularization');
+    await move(person, '2020-12-02', 'regularization');
+
+    expect((await milestones(person)).regularized_on).toBe('2020-09-02');
+  });
+
+  it('takes the LATEST promotion, because that is what the date means', async () => {
+    await move(person, '2022-01-15', 'promotion');
+    await move(person, '2024-06-01', 'promotion');
+
+    const m = await milestones(person);
+    expect(m.last_promoted_on).toBe('2024-06-01');
+    // Both promotions remain in the history; only the summary picks one.
+    const all = await admin.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM employment
+        WHERE employee_id=$1 AND event_type='promotion'`, [person]);
+    expect(all.rows[0]!.c).toBe(2);
+
+    // And the earlier dates are untouched by the later moves.
+    expect(m.hired_on).toBe('2020-03-02');
+    expect(m.regularized_on).toBe('2020-09-02');
+  });
+
+  it('refuses two employments at once, which is what keeps the history readable', async () => {
+    // Asserting the premise the rest of this block relies on: if overlapping
+    // rows were allowed, "the earliest regularisation" would stop being
+    // well-defined and these tests would pass while meaning nothing.
+    await expect(
+      admin.query(
+        `INSERT INTO employment (org_id, employee_id, department_id, employment_type_id,
+                                 status, effective_from, event_type)
+         VALUES ($1,$2,$3,$4,'regular','2025-01-01','promotion')`,
+        [ids.org, person, ids.deptOps, ids.typeReg]),
+    ).rejects.toThrow(/employment_no_overlap/);
+  });
+
+  it('defaults existing rows to hire, which is what they are', async () => {
+    const rows = await admin.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM employment WHERE event_type = 'hire'`);
+    expect(rows.rows[0]!.c).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Line roles (migration 0030).
+ *
+ * The point of this block is that an AREA HEAD needed no new authorization
+ * machinery. An area is a department row with unit_type='area' (0027), and
+ * `scope_type='department'` already resolves the subtree beneath whichever node
+ * the role assignment names — so "Area Head over R1-C" is an existing scope
+ * pointed at an area, and can_access() was not touched.
+ *
+ * If that claim is wrong, these fail. That is why the negative case matters as
+ * much as the positive one: a scope that returns everything would pass the first
+ * assertion and fail the second.
+ */
+describe('line roles', () => {
+  let areaHead: string;
+  let inArea: string;
+  let outsideArea: string;
+
+  it('an area head sees the people beneath their area', async () => {
+    await admin.query('SELECT app.seed_line_role_grants($1)', [ids.org]);
+
+    const area = (await admin.query<{ id: string }>(
+      `INSERT INTO department (org_id,code,name,unit_type,effective_from)
+       VALUES ($1,'R1C','Area R1-C','area','2020-01-01') RETURNING id`,
+      [ids.org])).rows[0]!.id;
+    const branch = (await admin.query<{ id: string }>(
+      `INSERT INTO department (org_id,code,name,unit_type,parent_department_id,effective_from)
+       VALUES ($1,'BRDAG','Dagupan Branch','branch',$2,'2020-01-01') RETURNING id`,
+      [ids.org, area])).rows[0]!.id;
+
+    const person = async (no: string, dept: string) => {
+      const id = (await admin.query<{ id: string }>(
+        `INSERT INTO employee (org_id,employee_no,first_name,last_name,hired_on)
+         VALUES ($1,$2,$2,'Person','2020-01-01') RETURNING id`,
+        [ids.org, no])).rows[0]!.id;
+      await admin.query(
+        `INSERT INTO employment (org_id,employee_id,department_id,employment_type_id,
+                                 status,effective_from)
+         VALUES ($1,$2,$3,$4,'regular','2020-01-01')`,
+        [ids.org, id, dept, ids.typeReg]);
+      return id;
+    };
+
+    areaHead = await person('AH-1', area);
+    inArea = await person('BR-1', branch);          // one level below the area
+    outsideArea = await person('OPS-9', ids.deptOps); // a different part of the org
+
+    const roleId = (await admin.query<{ id: string }>(
+      `SELECT id FROM app_role WHERE org_id=$1 AND code='area_head'`, [ids.org])).rows[0]!.id;
+    await admin.query(
+      `INSERT INTO role_assignment (org_id,employee_id,role_id,scope_department_id,effective_from)
+       VALUES ($1,$2,$3,$4,'2020-01-01')`, [ids.org, areaHead, roleId, area]);
+
+    const visible = await as<{ id: string }>(areaHead,
+      `SELECT id FROM employee WHERE id = $1`, [inArea]);
+    expect(visible).toHaveLength(1);
+  });
+
+  it('and not the people outside it', async () => {
+    // The half that proves the scope is a scope. An area head reading the whole
+    // organisation would satisfy the test above just as well.
+    const visible = await as<{ id: string }>(areaHead,
+      `SELECT id FROM employee WHERE id = $1`, [outsideArea]);
+    expect(visible).toEqual([]);
+  });
+
+  it('defines the line roles without granting them to anybody', async () => {
+    // Defining a role must not confer it. These arrive with every tenant and
+    // stay unassigned until the customer decides who holds them (Q6 is open on
+    // exactly that).
+    const rows = await admin.query<{ code: string; holders: number }>(
+      `SELECT r.code, count(ra.*)::int AS holders
+         FROM app_role r
+         LEFT JOIN role_assignment ra ON ra.role_id = r.id
+        WHERE r.org_id = $1 AND r.code IN ('dept_head','gm','scoring_admin')
+        GROUP BY r.code ORDER BY r.code`, [ids.org]);
+    expect(rows.rows.map((r) => r.code)).toEqual(['dept_head', 'gm', 'scoring_admin']);
+    for (const r of rows.rows) expect(Number(r.holders)).toBe(0);
+  });
+
+  it('does not add a supervisor role, because that is `manager`', async () => {
+    // manager is derived from the reporting lines by sync-roles. A parallel
+    // hand-assigned supervisor role would drift from the org chart and leave two
+    // answers to "is this person someone's boss".
+    const rows = await admin.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM app_role WHERE org_id=$1 AND code='supervisor'`,
+      [ids.org]);
+    expect(rows.rows[0]!.c).toBe(0);
+  });
+
+  it('gives the scoring administrator no access to employee data', async () => {
+    // It exists to set how scores are computed, not to read anyone's score.
+    const rows = await admin.query<{ c: number }>(
+      `SELECT count(*)::int AS c
+         FROM access_grant ag JOIN app_role r ON r.id = ag.role_id
+        WHERE r.org_id=$1 AND r.code='scoring_admin'
+          AND ag.resource_type <> 'scoring_parameter'`, [ids.org]);
+    expect(rows.rows[0]!.c).toBe(0);
+  });
+});
+
 describe('destructive guards', () => {
   it('refuses to close a department that still has people', async () => {
     await expect(

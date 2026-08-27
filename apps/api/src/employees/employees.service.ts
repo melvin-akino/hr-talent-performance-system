@@ -40,14 +40,20 @@ export class EmployeesService {
            e.status::text   AS status,
            p.title          AS "positionTitle",
            d.name           AS "departmentName",
-           d.id             AS "departmentId"
+           d.id             AS "departmentId",
+           -- The three dates the client's 201 sheet asks for, read from the
+           -- employment history rather than stored beside it (migration 0029).
+           m.hired_on::text        AS "hiredOn",
+           m.regularized_on::text  AS "regularizedOn",
+           m.last_promoted_on::text AS "lastPromotedOn"
       FROM employee e
       LEFT JOIN employment em
         ON em.employee_id = e.id
        AND em.effective_from <= $1::date
        AND (em.effective_to IS NULL OR $1::date < em.effective_to)
       LEFT JOIN position p ON p.id = em.position_id
-      LEFT JOIN department d ON d.id = em.department_id`;
+      LEFT JOIN department d ON d.id = em.department_id
+      LEFT JOIN LATERAL app.employment_milestones(e.id) m ON TRUE`;
 
   /** The requesting employee's own record. */
   /**

@@ -385,9 +385,26 @@ calendar commitments.
       up" to 2 Junior Supervisors, "2 ranks up" to 2 Area Coordinators.
 - [ ] **A2b** Map the rank column in the 201 importer, so a real staff file
       lands already on the ladder. **S**
-- [ ] **A3** Role set extended: `dept_head`, `area_head`, `supervisor`, `gm`, plus a
-      narrow `scoring_admin` capability distinct from `hr_admin`. **M** — §5.2, §3.8
-- [ ] **A4** Regularisation and promotion dates as first-class employment events. **S** — §5.1
+- [x] **A3** Line roles — DONE. Migration 0030 adds `dept_head`, `area_head`,
+      `gm` and a narrow `scoring_admin`, each seeded **unassigned**: defining a
+      role must not confer it, and who holds them is Q6.
+      **`supervisor` was deliberately not added** — that is `manager`, derived
+      from the reporting lines by `sync-roles`, and a parallel hand-assigned
+      role would drift from the org chart. **Area Head needed no new
+      authorization machinery**: an area is a `department` row (0027) and
+      `scope_type='department'` already resolves its subtree, so `can_access()`
+      was untouched. Proved both ways — an area head sees the branch beneath
+      their area and not the people outside it.
+
+- [x] **A4** Regularisation and promotion dates — DONE. Migration 0029 names
+      what each employment row *is* (`event_type`), because the dates were not
+      merely unexposed: `change_reason` was free text and NULL on every row in
+      every tenant, and the importer writes one row per person. Milestones are
+      read from history by `app.employment_milestones()` rather than copied
+      onto `employee`, so a second promotion cannot lose the first.
+      Regularisation takes the **earliest** such event (extended probation
+      produces more than one); promotion takes the **latest**.
+
 - [ ] **A5** ADR **D-015**: inbound attendance aggregates — what may cross the
       boundary and what may not. *Decision, not code.* **S** — §5.4
 

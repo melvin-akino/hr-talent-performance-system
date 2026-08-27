@@ -30,6 +30,9 @@ const SEEDERS = [
   'app.seed_phase5_notification_grants',
   'app.seed_phase6_grants',
   'app.seed_help_grants',
+  // The line roles the client's access matrix names. Seeded unassigned:
+  // defining a role must not confer it.
+  'app.seed_line_role_grants',
   'app.seed_notification_templates',
 ] as const;
 
