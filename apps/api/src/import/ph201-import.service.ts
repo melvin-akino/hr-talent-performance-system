@@ -41,8 +41,50 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   employment_status: ['employment_status', 'status', 'employment_type'],
   supervisor_no: ['supervisor_id', 'supervisor_employee_id', 'reports_to', 'manager_id'],
   job_family: ['job_family', 'family'],
-  job_level: ['job_level', 'level', 'rank'],
+  // 'rank' USED to be an alias for job_level, the free-text grade. It now means
+  // the rank ladder (0028), because in a Guanzon file that is unambiguously
+  // what it is -- their own numbering, 6 to 11. A file that used 'rank' for a
+  // text grade will now fail with a message telling it to rename the column to
+  // job_level. Visibly breaking is the right failure here: silently filing
+  // "Senior" as a rank number, or a 6 as a text grade, is the sort of thing
+  // nobody notices until peer-review routing picks the wrong people.
+  job_level: ['job_level', 'level'],
+  rank_no: ['rank', 'rank_no', 'job_rank', 'rank_level'],
+  rank_title: ['rank_title', 'rank_name'],
+  holdings: ['holdings'],
+  group: ['group', 'group_name'],
+  division: ['division'],
+  section: ['section'],
+  area: ['area'],
+  branch: ['branch', 'branch_name'],
 };
+
+/**
+ * The org levels a 201 file may name, in depth order (0027).
+ *
+ * `department` is required and is the one every file already has. The rest are
+ * optional: a file that names none of them imports exactly as it did before,
+ * producing a flat list of departments.
+ *
+ * AREA and SECTION share depth 5 and are deliberately NOT both allowed on one
+ * row. They are siblings in depth but different in kind -- a section is back
+ * office, an area is a branch network -- so a row naming both is describing two
+ * different places, and guessing which one the person is in would put them
+ * under the wrong head for peer review.
+ */
+const UNIT_LEVELS: { field: string; unitType: string; depth: number }[] = [
+  { field: 'holdings', unitType: 'holdings', depth: 1 },
+  { field: 'group', unitType: 'group', depth: 2 },
+  { field: 'division', unitType: 'division', depth: 3 },
+  { field: 'department', unitType: 'department', depth: 4 },
+  { field: 'section', unitType: 'section', depth: 5 },
+  { field: 'area', unitType: 'area', depth: 5 },
+  { field: 'branch', unitType: 'branch', depth: 6 },
+];
+
+/** The client's ladder runs 6..11. Anything outside it is a typo, not a rank. */
+const RANK_MIN = 1;
+const RANK_MAX = 99;
 
 /**
  * PH employment terms → the system's employment_status enum.
@@ -97,8 +139,21 @@ const DEPARTMENT_CODES: Record<string, string> = {
 };
 
 export interface Ph201Report extends ImportReport {
-  departmentsCreated: { code: string; name: string }[];
+  /** Every org unit created, at whatever level -- not only departments. */
+  departmentsCreated: { code: string; name: string; unitType?: string;
+                        parentCode?: string | null }[];
   employmentTypesCreated: { code: string; name: string }[];
+  ranksCreated: { code: string; name: string; rankNo: number }[];
+  /**
+   * Existing org units this file describes differently. Never an error and never
+   * changed automatically -- see the note at the write site.
+   */
+  unitDifferences: {
+    code: string; name: string; field: 'level' | 'parent';
+    stored: string; inFile: string;
+  }[];
+  /** Positions placed on the ladder, so a dry run shows the ladder taking shape. */
+  positionsRanked: number;
   /** Columns present in the file that this system deliberately does not store. */
   columnsNotImported: string[];
   missingWorkEmails: string[];
@@ -132,6 +187,7 @@ export class Ph201ImportService {
       dryRun: opts.dryRun ?? false,
       totalRows: 0, created: 0, updated: 0, reportingLines: 0, errors: [],
       departmentsCreated: [], employmentTypesCreated: [],
+      ranksCreated: [], positionsRanked: 0, unitDifferences: [],
       columnsNotImported: [], missingWorkEmails: [], missingSupervisors: [],
     };
 
@@ -188,9 +244,81 @@ export class Ph201ImportService {
       (found.has(field) ? (row[found.get(field)!] ?? '') : '').trim();
 
     // --- transform ---------------------------------------------------------
-    const departments = new Map<string, string>();   // code -> name
+    interface Unit { code: string; name: string; unitType: string;
+                     parentCode: string | null; depth: number }
+    const units = new Map<string, Unit>();           // code -> unit
     const types = new Map<string, string>();         // code -> name
+    const ranks = new Map<number, string>();         // rank_no -> title
+    // position title + unit code -> rank_no, applied after the people land.
+    const positionRanks = new Map<string, number>();
     const out: string[][] = [];
+
+    /**
+     * Resolves a row's org units into a parent chain and returns the deepest.
+     *
+     * Returns null on a contradiction, having recorded the error -- the caller
+     * skips the row, as it does for an unrecognised employment status.
+     */
+    const resolveUnits = (
+      row: Record<string, string>, line: number, employeeNo: string,
+    ): string | null => {
+      const named = UNIT_LEVELS
+        .map((l) => ({ ...l, name: get(row, l.field) }))
+        .filter((l) => l.name !== '');
+
+      if (named.some((l) => l.unitType === 'section')
+          && named.some((l) => l.unitType === 'area')) {
+        report.errors.push({
+          row: line, employeeNo,
+          message: 'Row names both a section and an area. They sit at the same '
+                 + 'level but are different kinds of unit -- back office and '
+                 + 'branch network -- so a person is in one or the other. '
+                 + 'Leave the column that does not apply empty.',
+        });
+        return null;
+      }
+
+      let parentCode: string | null = null;
+      let deepest: string | null = null;
+
+      for (const level of named) {
+        const code = Ph201ImportService.departmentCode(level.name);
+        const existing = units.get(code);
+
+        if (existing && existing.name !== level.name) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `Org unit code '${code}' would be shared by '${existing.name}' `
+                   + `and '${level.name}'. Give one of them an explicit code.`,
+          });
+          return null;
+        }
+
+        // The same unit under two different parents is a real contradiction:
+        // one node cannot hang in two places on the tree, and picking either
+        // silently would misroute everyone beneath it.
+        if (existing && existing.parentCode !== parentCode) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `'${level.name}' appears under '${parentCode ?? 'no parent'}' `
+                   + `here and under '${existing.parentCode ?? 'no parent'}' `
+                   + 'elsewhere in the file.',
+          });
+          return null;
+        }
+
+        if (!existing) {
+          units.set(code, {
+            code, name: level.name, unitType: level.unitType, parentCode,
+            depth: level.depth,
+          });
+        }
+        parentCode = code;
+        deepest = code;
+      }
+
+      return deepest;
+    };
 
     rows.forEach((row, i) => {
       const line = i + 2;
@@ -212,24 +340,67 @@ export class Ph201ImportService {
       }
       types.set(status.typeCode, status.typeName);
 
-      const departmentName = get(row, 'department');
-      const departmentCode = Ph201ImportService.departmentCode(departmentName);
-      const clash = departments.get(departmentCode);
-      if (clash && clash !== departmentName) {
-        report.errors.push({
-          row: line, employeeNo,
-          message: `Department code '${departmentCode}' would be shared by ` +
-                   `'${clash}' and '${departmentName}'. Give one of them an explicit code.`,
-        });
-        return;
+      // The person lands in the DEEPEST unit their row names -- their branch if
+      // they have one, their section if not, their department otherwise. That is
+      // what makes an Area Head's subtree grant reach them.
+      const departmentCode = resolveUnits(row, line, employeeNo);
+      if (!departmentCode) return;
+
+      const rankRaw = get(row, 'rank_no');
+      let rankNo: number | null = null;
+      if (rankRaw) {
+        if (!/^\d+$/.test(rankRaw)) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `Rank '${rankRaw}' is not a number. The rank column is the `
+                   + 'ladder position (a lower number is more senior). If this '
+                   + 'column holds a text grade, rename it to job_level.',
+          });
+          return;
+        }
+        rankNo = Number(rankRaw);
+        if (rankNo < RANK_MIN || rankNo > RANK_MAX) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `Rank ${rankNo} is outside ${RANK_MIN}-${RANK_MAX}.`,
+          });
+          return;
+        }
+        const title = get(row, 'rank_title') || `Rank ${rankNo}`;
+        const knownTitle = ranks.get(rankNo);
+        if (knownTitle && knownTitle !== title) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `Rank ${rankNo} is named '${knownTitle}' elsewhere in the `
+                   + `file and '${title}' here.`,
+          });
+          return;
+        }
+        ranks.set(rankNo, title);
       }
-      departments.set(departmentCode, departmentName);
 
       const workEmail = get(row, 'work_email');
       if (!workEmail) report.missingWorkEmails.push(employeeNo);
 
       const supervisor = get(row, 'supervisor_no');
       if (!supervisor) report.missingSupervisors.push(employeeNo);
+
+      // A position is (title, unit), so everyone holding it shares a rank. Two
+      // rows disagreeing is a fact about the file, not something to average.
+      const positionTitle = get(row, 'position');
+      if (rankNo !== null && positionTitle) {
+        const key = `${positionTitle} ${departmentCode}`;
+        const seen = positionRanks.get(key);
+        if (seen !== undefined && seen !== rankNo) {
+          report.errors.push({
+            row: line, employeeNo,
+            message: `'${positionTitle}' is rank ${seen} elsewhere in the file `
+                   + `and rank ${rankNo} here. One position, one rank.`,
+          });
+          return;
+        }
+        positionRanks.set(key, rankNo);
+      }
 
       out.push([
         employeeNo,
@@ -274,14 +445,87 @@ export class Ph201ImportService {
       const orgId = org.rows[0]?.id;
       if (!orgId) throw new Error(`Organization '${orgCode}' does not exist`);
 
-      for (const [code, name] of departments) {
-        const res = await client.query(
-          `INSERT INTO department (org_id, code, name, effective_from)
-                SELECT $1, $2, $3, '1900-01-01'
+      // Shallowest first, so a parent always exists before its child needs it.
+      // The hierarchy trigger (0027) rejects an inverted parent, so getting this
+      // order wrong would fail loudly rather than build a wrong tree -- but
+      // failing on a real import is not much of a consolation.
+      const ordered = [...units.values()].sort((a, b) => a.depth - b.depth);
+      const unitIds = new Map<string, string>();
+
+      for (const unit of ordered) {
+        const parentId = unit.parentCode ? unitIds.get(unit.parentCode) ?? null : null;
+
+        const res = await client.query<{ id: string }>(
+          `INSERT INTO department (org_id, code, name, unit_type,
+                                   parent_department_id, effective_from)
+                SELECT $1, $2, $3, $4::org_unit_type, $5, '1900-01-01'
                  WHERE NOT EXISTS (SELECT 1 FROM department
                                     WHERE org_id = $1 AND code = $2)
-             RETURNING id`, [orgId, code, name]);
-        if (res.rowCount) report.departmentsCreated.push({ code, name });
+             RETURNING id`,
+          [orgId, unit.code, unit.name, unit.unitType, parentId]);
+
+        if (res.rows[0]) {
+          unitIds.set(unit.code, res.rows[0].id);
+          report.departmentsCreated.push({
+            code: unit.code, name: unit.name, unitType: unit.unitType,
+            parentCode: unit.parentCode,
+          });
+        } else {
+          // Already there from an earlier import.
+          //
+          // STRUCTURE IS SET ON CREATION ONLY. Neither the level nor the parent
+          // is written to a unit that already exists; where the file disagrees
+          // it is reported for a human to settle in Setup.
+          //
+          // The tempting alternative -- backfill whatever is still NULL -- was
+          // written first and a test caught it. A parent of NULL is not "unset":
+          // it is also what somebody means when they deliberately detach a unit,
+          // and COALESCE cannot tell the two apart, so the next import silently
+          // reattached it. `unit_type` has the same problem with no NULL at all
+          // (NOT NULL DEFAULT 'department'), so a unit sitting at 'department'
+          // is indistinguishable from one deliberately set there.
+          //
+          // The cost is that units created before this change keep their flat
+          // shape until someone fixes them; the report says which. That is the
+          // better failure: a re-import that quietly reshapes an org chart is
+          // one nobody can safely re-run.
+          const existing = await client.query<{
+            id: string; unit_type: string; parent_code: string | null;
+          }>(
+            `SELECT d.id, d.unit_type::text, p.code AS parent_code
+               FROM department d
+               LEFT JOIN department p ON p.id = d.parent_department_id
+              WHERE d.org_id = $1 AND d.code = $2`,
+            [orgId, unit.code]);
+
+          const row = existing.rows[0];
+          if (row) {
+            unitIds.set(unit.code, row.id);
+            if (row.unit_type !== unit.unitType) {
+              report.unitDifferences.push({
+                code: unit.code, name: unit.name, field: 'level',
+                stored: row.unit_type, inFile: unit.unitType,
+              });
+            }
+            if ((row.parent_code ?? null) !== unit.parentCode) {
+              report.unitDifferences.push({
+                code: unit.code, name: unit.name, field: 'parent',
+                stored: row.parent_code ?? '(none)',
+                inFile: unit.parentCode ?? '(none)',
+              });
+            }
+          }
+        }
+      }
+
+      for (const [rankNo, name] of [...ranks.entries()].sort((a, b) => a[0] - b[0])) {
+        const code = `R${rankNo}`;
+        const res = await client.query(
+          `INSERT INTO job_rank (org_id, code, name, rank_no)
+                VALUES ($1, $2, $3, $4)
+           ON CONFLICT (org_id, code) DO NOTHING
+             RETURNING id`, [orgId, code, name, rankNo]);
+        if (res.rowCount) report.ranksCreated.push({ code, name, rankNo });
       }
 
       for (const [code, name] of types) {
@@ -304,6 +548,23 @@ export class Ph201ImportService {
       report.reportingLines = result.reportingLines;
       report.errors = result.errors;
 
+      // Ranks are applied AFTER the people land, because a position row does
+      // not exist until the employee holding it is imported. Same transaction,
+      // so a dry run still leaves nothing behind.
+      for (const [key, rankNo] of positionRanks) {
+        const [title, unitCode] = key.split(' ') as [string, string];
+        const res = await client.query(
+          `UPDATE position p
+              SET rank_id = r.id
+             FROM job_rank r, department d
+            WHERE p.org_id = $1 AND p.title = $2
+              AND d.org_id = $1 AND d.code = $3 AND p.department_id = d.id
+              AND r.org_id = $1 AND r.rank_no = $4
+              AND p.rank_id IS DISTINCT FROM r.id`,
+          [orgId, title, unitCode, rankNo]);
+        report.positionsRanked += res.rowCount ?? 0;
+      }
+
       if (opts.dryRun || result.errors.length > 0) {
         throw new Ph201Rollback();
       }
@@ -320,6 +581,8 @@ export class Ph201ImportService {
     logger.info({
       rows: report.totalRows,
       departmentsCreated: report.departmentsCreated.length,
+      ranksCreated: report.ranksCreated.length,
+      positionsRanked: report.positionsRanked,
       notImported: report.columnsNotImported.length,
     }, '201 import complete');
 

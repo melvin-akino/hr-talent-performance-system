@@ -374,8 +374,29 @@ calendar commitments.
       rejects inversion while permitting the nesting real data already has; API
       and Setup expose it. **Region is not a level** — see §0 and R4. Importer
       mapping is the remaining piece, tracked as A1b.
-- [ ] **A1b** Map Division/Area/Branch columns in the 201 importer, so a real
-      staff file lands with levels already set. **S**
+- [x] **A1b** Org levels in the 201 importer — DONE. The importer now reads
+      `Division`, `Section`, `Area` and `Branch` (plus `Holdings` and `Group`)
+      alongside the required `Department`, builds the parent chain, and places
+      the employee in the **deepest** unit their row names. Verified end to end
+      on a client-shaped file: an Area Head scoped to North Luzon reaches the
+      three people in that area's subtree and nobody else, which is the whole
+      point of the levels.
+
+      Two contradictions are refused rather than guessed: a row naming **both a
+      section and an area** (same depth, different kind — back office versus
+      branch network, so the person is in one or the other), and the **same unit
+      under two different parents** anywhere in the file.
+
+      **Structure is set on creation only.** Neither the level nor the parent is
+      written to a unit that already exists; where the file disagrees it is
+      reported for a human to settle in Setup. The first attempt backfilled
+      whatever was still NULL and a test caught it: a NULL parent is not "unset",
+      it is also what somebody means when they deliberately detach a unit, so the
+      next import silently reattached it. `unit_type` has the same problem with
+      no NULL at all (`NOT NULL DEFAULT 'department'`). The cost is that units
+      imported before this change keep their flat shape until somebody fixes
+      them — the report says which. That is the better failure: a re-import that
+      quietly reshapes an org chart is one nobody can safely re-run.
 - [x] **A2** Rank ladder — DONE. Migration 0028 adds `job_rank` (org-scoped,
       RLS, audited) and `position.rank_id` with a composite FK, so a position
       cannot borrow another tenant's rank. Adopts the client's own numbering,
@@ -383,8 +404,21 @@ calendar commitments.
       direction once so no call site has to. Verified against the real rule: for
       a Team Leader / Associate, "same rank" resolves to 19 colleagues, "1 rank
       up" to 2 Junior Supervisors, "2 ranks up" to 2 Area Coordinators.
-- [ ] **A2b** Map the rank column in the 201 importer, so a real staff file
-      lands already on the ladder. **S**
+- [x] **A2b** The rank ladder in the 201 importer — DONE. A `Rank` column
+      creates the `job_rank` rows and sets `position.rank_id`, with an optional
+      `Rank_Title` naming them (falling back to "Rank 9"). Ranks are applied
+      after the people land, because a position row does not exist until
+      somebody holds it — same transaction, so a dry run still leaves nothing.
+
+      **`rank` no longer aliases `job_level`.** It was ambiguous: in a Guanzon
+      file it is unmistakably the ladder, their own 6–11 numbering. A file using
+      `rank` for a text grade now fails with a message telling it to rename the
+      column to `job_level`. Breaking visibly is right here — filing "Senior" as
+      a rank number, or a 6 as a text grade, is the kind of error nobody notices
+      until peer-review routing picks the wrong people.
+
+      A position is (title, unit), so everyone holding it shares a rank; two
+      rows disagreeing is reported as an error rather than averaged away.
 - [x] **A3** Line roles — DONE. Migration 0030 adds `dept_head`, `area_head`,
       `gm` and a narrow `scoring_admin`, each seeded **unassigned**: defining a
       role must not confer it, and who holds them is Q6.

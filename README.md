@@ -17,7 +17,7 @@ scans every text column on every build to keep it that way
 
 ## Status
 
-Phases 0–7 complete. **653 automated tests** — 525 against a real PostgreSQL via
+Phases 0–7 complete. **666 automated tests** — 538 against a real PostgreSQL via
 Testcontainers, 128 component and content tests, plus 14 Playwright journeys
 covering sign-in, the goal lifecycle, sign-off gating and responsive layout. RLS
 policies are the security boundary and cannot be verified against mocks.
@@ -142,6 +142,8 @@ standard export:
 
 | Column | Why |
 |---|---|
+| `Division` / `Section` / `Area` / `Branch` | Optional. Given, the importer builds the org tree and files the person in the deepest unit named — which is what makes an Area Head's grant reach a branch. A file with only `Department` still imports as a flat list. A row naming both a Section and an Area is rejected: they sit at the same level but are different in kind. |
+| `Rank` | Optional. The ladder position, where a **lower number is more senior**. Creates the rank and puts the position on it; `Rank_Title` names it. Must be a number — if your file uses `Rank` for a text grade, rename it to `Job_Level`. |
 | `Supervisor_ID` | Another row's `Employee_ID`. **This is the org chart** — without it no manager sees a team, no goal is approved, no review is assigned. Exactly one person (the top) leaves it blank. |
 | `Work_Email` | Binds the person to their AD account at first login. The personal `Email` column is not imported. |
 

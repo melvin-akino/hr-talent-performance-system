@@ -133,8 +133,38 @@ async function import201(): Promise<void> {
   console.log(`  reporting lines ${report.reportingLines}`);
 
   if (report.departmentsCreated.length > 0) {
-    console.log(`\n  departments created:`);
-    for (const d of report.departmentsCreated) console.log(`    ${d.code}  ${d.name}`);
+    console.log(`\n  org units created:`);
+    // Indented by level, so the shape of the tree the file describes is
+    // visible in the dry run. Reading it back as a flat list is how a
+    // division ends up filed as a department without anyone noticing.
+    const unitDepth: Record<string, number> = {
+      holdings: 0, group: 1, division: 2, department: 3,
+      section: 4, area: 4, branch: 5,
+    };
+    for (const d of report.departmentsCreated) {
+      const pad = '  '.repeat(unitDepth[d.unitType ?? 'department'] ?? 3);
+      const level = d.unitType && d.unitType !== 'department'
+        ? `  [${d.unitType}]`
+        : '';
+      console.log(`    ${pad}${d.code}  ${d.name}${level}`);
+    }
+  }
+  if (report.ranksCreated.length > 0) {
+    console.log(`\n  ranks created (a LOWER number is more senior):`);
+    for (const r of report.ranksCreated) {
+      console.log(`    ${r.code}  ${r.name}  (rank ${r.rankNo})`);
+    }
+  }
+  if (report.positionsRanked > 0) {
+    console.log(`\n  positions placed on the ladder: ${report.positionsRanked}`);
+  }
+  if (report.unitDifferences.length > 0) {
+    console.log(`\n  NOTE: ${report.unitDifferences.length} existing org unit(s) are `
+                + `described differently by this file. Nothing was changed - set `
+                + `these in Setup if the file is right:`);
+    for (const d of report.unitDifferences) {
+      console.log(`    ${d.code}  ${d.name}: ${d.field} is ${d.stored}, file says ${d.inFile}`);
+    }
   }
   if (report.employmentTypesCreated.length > 0) {
     console.log(`\n  employment types created:`);
