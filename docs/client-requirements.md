@@ -464,8 +464,40 @@ calendar commitments.
       A multi-column form does **not** guess a classification (R6): it
       scores only when told which column, because a plausible number from
       the wrong allocation is worse than none.
-- [ ] **B3** The two 100-point default templates (Admin; Technical/Ops/Field) seeded
-      as prepared formats. **S** — §3.3
+- [x] **B3** The two 100-point formats — DONE. `provision-org` publishes
+      `GGC-TOF` (Technical/Ops/Field, 70 + 30) and `GGC-ADMIN`
+      (Administrative, 60 + 40) as prepared formats in every tenant.
+
+      **One list, two formats.** The nine metrics live once, in
+      `apps/api/src/reviews/client-templates.ts`, and both formats are generated
+      from them. Two hand-written templates would drift, and the drift is
+      invisible — both still total 100, only the list differs, so two people's
+      scores quietly stop being comparable. A test asserts the two carry
+      identical metric keys.
+
+      **Two single-column templates rather than one two-column form**, which
+      `scoring.ts` supports and B1 built for. A two-column form only scores once
+      somebody says which column applies to the person (B2), and how that is
+      decided is **R6, unanswered**. Two templates need no such decision: each
+      is assigned through the existing assignment table and scores on its own.
+      `combinedTemplate()` builds the single-form version from the same list, so
+      answering R6 costs a line rather than a re-transcription.
+
+      **Published but deliberately unassigned.** Assignment decides who is
+      measured on which instrument, and an administrative employee scored on the
+      technical split loses ten points of attendance weighting with nothing on
+      screen to say why. HR picks them up in Setup; the generic `STD` starter
+      form stays the org default so a new tenant still runs a cycle on day one.
+
+      The schema is validated with `assertScoringValid()` **before** it is
+      written — seeding a "100-point" form that does not total 100 would put a
+      broken instrument in front of every new organisation. Re-provisioning
+      never issues a v2: versions are immutable and instances snapshot the one
+      they were issued under.
+
+      The scoring suite now imports the instrument from the module that seeds it
+      rather than keeping its own copy, so the form their page-3 assertions
+      verify is the form a tenant actually gets.
 - [ ] **B4** Composite KPI score: 40 + 30 + 30, with the component breakdown
       visible. **M** — §3.4 *(depends on Phases D and E)*
 - [ ] **B5** Incentive bands and qualification output. **S** — *blocked on Q1, Q2*

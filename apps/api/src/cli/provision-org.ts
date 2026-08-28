@@ -17,6 +17,10 @@
  */
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
+import {
+  CLIENT_FORMATS, CLIENT_TEMPLATE_TOTAL, formatTemplate,
+} from '../reviews/client-templates';
+import { assertScoringValid } from '../reviews/scoring';
 
 /** Every per-org seeder, in dependency order. Add new phases to the end. */
 const SEEDERS = [
@@ -151,6 +155,47 @@ export async function provisionOrg(
               VALUES ($1,1,$2::jsonb,$3,now(),TRUE)`,
         [template, JSON.stringify(STARTER_FORM), scale]);
     }
+
+    // The client's two 100-point formats (requirements section 3.3), published
+    // and ready to assign.
+    //
+    // Deliberately NOT assigned to anything. Assignment decides who is measured
+    // on which instrument, and getting that wrong is worse than leaving it
+    // undone -- an admin scored on the technical split loses ten points of
+    // attendance weighting without anyone seeing why. HR picks these up in
+    // Setup; the generic STD form below stays the default until they do.
+    for (const format of CLIENT_FORMATS) {
+      const schema = formatTemplate(format.classification);
+
+      // Validated before it is written, not after. The whole point of the
+      // 100-point instrument is that it totals 100: seeding one that does not
+      // would put a broken form in front of every new organisation.
+      assertScoringValid(schema);
+
+      const id = (await c.query<{ id: string }>(
+        `INSERT INTO form_template (org_id, code, name, description)
+              VALUES ($1,$2,$3,$4)
+         ON CONFLICT (org_id, code) DO UPDATE SET name = EXCLUDED.name,
+                                                  description = EXCLUDED.description
+           RETURNING id`,
+        [org, format.code, format.name, format.description])).rows[0]!.id;
+
+      // Never a second version: form versions are immutable once published and
+      // instances snapshot the one they were issued under. Re-provisioning must
+      // not quietly issue a v2 that nothing is using.
+      const exists = await c.query(
+        `SELECT 1 FROM form_version WHERE form_template_id = $1`, [id]);
+      if (exists.rowCount === 0) {
+        await c.query(
+          `INSERT INTO form_version (form_template_id, version, schema_json,
+                                     rating_scale_id, published_at, is_active)
+                VALUES ($1,1,$2::jsonb,$3,now(),TRUE)`,
+          [id, JSON.stringify(schema), scale]);
+      }
+    }
+    console.log(`  prepared formats: `
+      + `${CLIENT_FORMATS.map((f) => f.code).join(', ')} `
+      + `(${CLIENT_TEMPLATE_TOTAL} points each, unassigned)`);
 
     // The org-wide default: the row with no employment type and no role. Without
     // it resolve_form_version() returns NULL and every review is skipped.

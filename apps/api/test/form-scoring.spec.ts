@@ -3,6 +3,9 @@ import {
   DEFAULT_CLASSIFICATION, assertScoringValid, classificationsOf, pointsFor,
   ratingFraction, scoreResponses, totalFor,
 } from '../src/reviews/scoring';
+import {
+  CLIENT_FORMATS, CLIENT_METRICS, combinedTemplate, formatTemplate, sectionTotal,
+} from '../src/reviews/client-templates';
 
 /**
  * Point-weighted form scoring (client requirements §3).
@@ -15,31 +18,69 @@ import {
  * built from their real numbers rather than a convenient invention.
  */
 
-/** The client's default template, exactly as their page 3 states it. */
-const clientTemplate = {
-  scoring: { maxPoints: 100, classifications: ['technical', 'admin'] },
-  sections: [
-    {
-      key: 'performance',
-      fields: [
-        { key: 'mastery', type: 'rating', points: { technical: 10, admin: 10 } },
-        { key: 'efficiency', type: 'rating', points: { technical: 15, admin: 10 } },
-        { key: 'productivity', type: 'rating', points: { technical: 15, admin: 10 } },
-        { key: 'team_cooperation', type: 'rating', points: { technical: 10, admin: 10 } },
-        { key: 'supervisor_assessment', type: 'rating', points: { technical: 20, admin: 20 } },
-      ],
-    },
-    {
-      key: 'attendance_demeanor',
-      fields: [
-        { key: 'attendance', type: 'rating', points: { technical: 10, admin: 10 } },
-        { key: 'seminars', type: 'rating', points: { technical: 5, admin: 10 } },
-        { key: 'tenure', type: 'rating', points: { technical: 5, admin: 10 } },
-        { key: 'policy_compliance', type: 'rating', points: { technical: 10, admin: 10 } },
-      ],
-    },
-  ],
-};
+/**
+ * The client's own instrument, imported from the module that SEEDS it rather
+ * than transcribed again here.
+ *
+ * It was a local fixture until B3. Two copies of a hundred points is exactly
+ * the arrangement where the seeded form and the tested form drift apart, and
+ * the drift is invisible: both still total 100, and only the split is wrong.
+ */
+const clientTemplate = combinedTemplate();
+
+describe('the two prepared formats (B3)', () => {
+  it('each totals 100 on its own, with no classification needed', () => {
+    // The reason there are two single-column templates rather than one
+    // two-column form: each scores without anyone first deciding which column
+    // applies to the person, which is R6 and unanswered.
+    for (const format of CLIENT_FORMATS) {
+      const schema = formatTemplate(format.classification);
+      expect(() => assertScoringValid(schema)).not.toThrow();
+      expect(classificationsOf(schema)).toEqual([DEFAULT_CLASSIFICATION]);
+      expect(totalFor(schema, DEFAULT_CLASSIFICATION)).toBe(100);
+    }
+  });
+
+  it('keeps the client splits: 70/30 technical, 60/40 admin', () => {
+    expect(sectionTotal('performance', 'technical')).toBe(70);
+    expect(sectionTotal('attendance_demeanor', 'technical')).toBe(30);
+    expect(sectionTotal('performance', 'admin')).toBe(60);
+    expect(sectionTotal('attendance_demeanor', 'admin')).toBe(40);
+  });
+
+  it('measures both kinds of role on exactly the same metrics', () => {
+    // The failure this prevents. Two hand-written templates drift, and the
+    // drift is invisible -- both still total 100, and only the list differs, so
+    // two people's scores quietly stop being comparable.
+    const keys = (classification: 'technical' | 'admin') =>
+      formatTemplate(classification)
+        .sections.flatMap((sec) => sec.fields.map((f) => `${sec.key}.${f.key}`));
+
+    expect(keys('technical')).toEqual(keys('admin'));
+    expect(keys('technical')).toHaveLength(
+      CLIENT_METRICS.reduce((n, sec) => n + sec.metrics.length, 0));
+  });
+
+  it('makes every line required', () => {
+    // A 100-point instrument with an optional line is not a 100-point
+    // instrument: the total would depend on how much the evaluator filled in.
+    for (const format of CLIENT_FORMATS) {
+      for (const section of formatTemplate(format.classification).sections) {
+        for (const field of section.fields) expect(field.required).toBe(true);
+      }
+    }
+  });
+
+  it('gives every metric a human label, not a key', () => {
+    for (const section of CLIENT_METRICS) {
+      expect(section.title).not.toBe('');
+      for (const m of section.metrics) {
+        expect(m.label).toBeTruthy();
+        expect(m.label).not.toBe(m.key);
+      }
+    }
+  });
+});
 
 describe("the client's own template", () => {
   it('validates, and both columns total 100', () => {

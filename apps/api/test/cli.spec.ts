@@ -224,6 +224,78 @@ describe('provision-org', () => {
     expect(assignment.rows[0].n).toBe(1);
   });
 
+  it('publishes the two 100-point formats, unassigned (B3)', async () => {
+    const orgId = (await admin.query<{ id: string }>(
+      `SELECT id FROM organization WHERE code='ACME'`)).rows[0].id;
+
+    const formats = await admin.query<{
+      code: string; version: number; is_active: boolean; published: boolean;
+    }>(
+      `SELECT t.code, v.version, v.is_active, v.published_at IS NOT NULL AS published
+         FROM form_template t JOIN form_version v ON v.form_template_id = t.id
+        WHERE t.org_id = $1 AND t.code LIKE 'GGC-%'
+        ORDER BY t.code`, [orgId]);
+
+    expect(formats.rows).toEqual([
+      { code: 'GGC-ADMIN', version: 1, is_active: true, published: true },
+      { code: 'GGC-TOF', version: 1, is_active: true, published: true },
+    ]);
+
+    // Deliberately not assigned to anyone. Assignment decides who is measured
+    // on which instrument, and an admin scored on the technical split loses ten
+    // points of attendance weighting with nothing on screen to say why.
+    const assigned = await admin.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM form_template_assignment a
+         JOIN form_template t ON t.id = a.form_template_id
+        WHERE t.org_id = $1 AND t.code LIKE 'GGC-%'`, [orgId]);
+    expect(assigned.rows[0].n).toBe(0);
+
+    // The generic starter form is still the org default, so a freshly
+    // provisioned org can run a cycle on day one exactly as before.
+    const fallback = await admin.query<{ code: string }>(
+      `SELECT t.code FROM form_template_assignment a
+         JOIN form_template t ON t.id = a.form_template_id
+        WHERE a.org_id = $1 AND a.employment_type_id IS NULL
+          AND a.app_role_id IS NULL`, [orgId]);
+    expect(fallback.rows[0].code).toBe('STD');
+  });
+
+  it('seeds the formats with the points the client stated', async () => {
+    // Read back out of the database, not out of the module that wrote them:
+    // this asserts what a new tenant actually gets.
+    const row = await admin.query<{ schema_json: unknown }>(
+      `SELECT v.schema_json FROM form_template t
+         JOIN form_version v ON v.form_template_id = t.id
+        WHERE t.code = 'GGC-TOF'`);
+    const schema = row.rows[0].schema_json as {
+      scoring: { maxPoints: number };
+      sections: { key: string; fields: { points: number }[] }[];
+    };
+
+    expect(schema.scoring.maxPoints).toBe(100);
+    const total = (key: string) => schema.sections
+      .filter((sec) => sec.key === key)
+      .flatMap((sec) => sec.fields)
+      .reduce((sum, f) => sum + f.points, 0);
+    expect(total('performance')).toBe(70);
+    expect(total('attendance_demeanor')).toBe(30);
+  });
+
+  it('does not issue a second version when re-provisioned', async () => {
+    // Form versions are immutable and instances snapshot the one they were
+    // issued under. A v2 nothing is using would be noise at best, and at worst
+    // the thing an operator assigns by mistake.
+    const c = captureOutput();
+    await provisionOrg('ACME', 'Acme Corporation', 'Asia/Manila');
+    c.restore();
+
+    const versions = await admin.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM form_version v
+         JOIN form_template t ON t.id = v.form_template_id
+        WHERE t.code LIKE 'GGC-%'`);
+    expect(versions.rows[0].n).toBe(2);
+  });
+
   it('is idempotent — re-running changes nothing', async () => {
     const before = await admin.query(
       `SELECT (SELECT count(*) FROM app_role) AS roles,

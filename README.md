@@ -17,7 +17,7 @@ scans every text column on every build to keep it that way
 
 ## Status
 
-Phases 0–7 complete. **666 automated tests** — 538 against a real PostgreSQL via
+Phases 0–7 complete. **674 automated tests** — 546 against a real PostgreSQL via
 Testcontainers, 128 component and content tests, plus 14 Playwright journeys
 covering sign-in, the goal lifecycle, sign-off gating and responsive layout. RLS
 policies are the security boundary and cannot be verified against mocks.
@@ -167,7 +167,7 @@ Run on the host; never exposed over HTTP. Requires `ADMIN_DATABASE_URL`.
 
 | Command | Purpose |
 |---|---|
-| `provision-org` | Create a tenant with roles, grants, templates, starter form |
+| `provision-org` | Create a tenant with roles, grants, templates, starter form, and the two 100-point prepared formats |
 | `import-201` / `import-employees` | Load staff |
 | `sync-roles` | Derive `employee` / `manager` from the reporting lines |
 | `grant-admin` | Bootstrap the first HR administrator |
