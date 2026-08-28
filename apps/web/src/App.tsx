@@ -17,6 +17,7 @@ import HrConsole from './pages/HrConsole';
 import KpiLibrary from './pages/KpiLibrary';
 import Metrics from './pages/Metrics';
 import Evaluations from './pages/Evaluations';
+import EmployeeHistory from './pages/EmployeeHistory';
 import EmployeeGoals from './pages/EmployeeGoals';
 import Monitoring from './pages/Monitoring';
 import Pips from './pages/Pips';
@@ -141,6 +142,7 @@ function Shell() {
           <Route path="/goals/new" element={<NewGoal />} />
           <Route path="/goals/:id" element={<GoalDetail />} />
           <Route path="/employees/:employeeId/goals" element={<EmployeeGoals />} />
+          <Route path="/employees/:employeeId/history" element={<EmployeeHistory />} />
           <Route path="/team" element={<Team />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/reviews/:id" element={<ReviewForm />} />

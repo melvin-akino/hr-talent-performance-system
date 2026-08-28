@@ -286,3 +286,18 @@ export interface BatchOpenRow {
   evaluationId: string | null;
   outcome: EvaluationOpenOutcome;
 }
+
+/* -- employee history (F1) -------------------------------------------- */
+
+export type TimelineKind =
+  | 'review' | 'task_evaluation' | 'pip' | 'competency' | 'employment_event';
+
+export interface TimelineEvent {
+  occurredOn: string;
+  kind: TimelineKind;
+  title: string;
+  detail: string | null;
+  /** As the source stated it. Scales differ between kinds; see the screen. */
+  result: string | null;
+  refId: string;
+}

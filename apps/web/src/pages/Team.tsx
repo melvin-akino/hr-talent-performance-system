@@ -172,7 +172,15 @@ export default function Team() {
                           )}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {/* History first: a supervisor opening somebody's row is
+                            usually asking what has happened to them, not what
+                            they are working on this quarter. */}
+                        <Link to={`/employees/${t.employeeId}/history`}
+                              className="btn btn-ghost btn-icon"
+                              aria-label={`Open ${t.employeeName}'s history`}>
+                          <Icon path={paths.clock} size={15} />
+                        </Link>
                         <Link to={`/employees/${t.employeeId}/goals`} className="btn btn-ghost btn-icon"
                               aria-label={`Open ${t.employeeName}'s goals`}>
                           <Icon path={paths.arrowRight} size={15} />

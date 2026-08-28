@@ -31,6 +31,16 @@ export class EmployeesController {
     return this.employees.list(req.auth, listQuery.parse(query));
   }
 
+  @Get(':id/timeline')
+  timeline(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.employees.timeline(req.auth, id, from, to);
+  }
+
   @Get(':id')
   byId(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.employees.byId(req.auth, id);

@@ -307,7 +307,7 @@ unchanged: an aggregate carries no forbidden field, so it should.
 
 | # | Requirement | Status | Evidence / gap |
 |---|---|---|---|
-| 7.1 | Employee history: evaluation results and actions taken | **Partial** | Data exists across `review_summary`, `pip_plan`, `competency_assessment`, `goal`; no single per-employee timeline. |
+| 7.1 | Employee history: evaluation results and actions taken | **Have** | `app.employee_timeline` consolidates reviews, task evaluations, PIPs, competency assessments and employment events; screen at `/employees/:id/history` (F1). |
 | 7.2 | Reports by name / eval type / period / PIP results | **Partial** | Analytics endpoints exist (distribution, nine-box, rater comparison, calibration movement, progress, trend) plus CSV export. No filtered report builder; "by eval type" needs types first. |
 | 7.3 | Dashboards per user level (HCM, DH, Supervisor, RH/AH) | **Partial** | HR console, Team and Monitoring cover the HCM and Supervisor shapes. DH and AH/RH do not exist. |
 | 7.4 | Form creation **plus** prepared formats by employee type | **Have** | Versioned `form_template` / `form_version` with assignment; the §3 defaults become seeded prepared formats. |
@@ -645,7 +645,35 @@ because dropping two real tasks to match a formula would be the wrong way round.
 
 ### Phase F — Surfaces
 
-- [ ] **F1** Per-employee evaluation history timeline. **M** — §7.1
+- [x] **F1** Per-employee history — DONE (migration `0035_employee_timeline.sql`).
+      `app.employee_timeline(employee, from, to)` gathers reviews, task
+      evaluations, PIPs, competency assessments and employment events into one
+      dated list. `GET /employees/:id/timeline`; the screen is
+      `/employees/:id/history`, reachable from Team.
+
+      **SECURITY INVOKER, deliberately.** Every source is already protected — a
+      draft task evaluation is invisible to its subject (0033), an unreleased
+      review until sign-off (0014). The function re-implements none of it: it
+      runs as the caller and each source filters itself, so the timeline cannot
+      show what the underlying screen would not, and cannot drift when those
+      rules change. A consolidated view is the obvious place for confidential
+      assessment to leak, and a `SECURITY DEFINER` function that "just joins the
+      history" is how that happens.
+
+      **Events sit at the period they describe**, not the date the paperwork
+      moved: a Q1 evaluation signed in May belongs at 31 March, because the
+      reader is asking what this person's Q1 was.
+
+      **`result` is text, and the screen is a list rather than a table.** A
+      review's 4.2 out of 5, a task evaluation's 32 out of 37 and a PIP's "met"
+      share no scale; a table invites the eye to compare down a column and would
+      imply comparisons nobody made.
+
+      Verification note: the first check was run through `psql` as the
+      `postgres` superuser, which **bypasses RLS**, so all three "viewers"
+      appeared to see everything and the check proved nothing. The confidentiality
+      assertions live in `employee-timeline.spec.ts`, which connects as `hr_app`
+      and fails the run if it ever finds itself a superuser.
 - [ ] **F2** Report builder: by name, type, period; PIP results. **M** — §7.2
 - [ ] **F3** DH and AH/RH dashboards. **M** — §7.3
 - [ ] **F4** Request-and-approval flow (extra competency, special eval, scoring

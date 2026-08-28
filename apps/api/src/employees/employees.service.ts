@@ -18,6 +18,20 @@ export interface EmployeeSummary {
   roles?: string[];
 }
 
+export interface TimelineEvent {
+  occurredOn: string;
+  kind: 'review' | 'task_evaluation' | 'pip' | 'competency' | 'employment_event';
+  title: string;
+  detail: string | null;
+  /**
+   * Text, not a number. A review's 4.2, a task evaluation's 32/37 and a PIP's
+   * "met" are not one scale, and rendering them as though they were is how a
+   * timeline starts implying comparisons nobody made.
+   */
+  result: string | null;
+  refId: string;
+}
+
 /**
  * Read paths for people data.
  *
@@ -143,6 +157,30 @@ export class EmployeesService {
           LIMIT $2`,
         [asOf, limit, opts.afterLastName ?? null, opts.afterId ?? null],
       );
+      return res.rows;
+    });
+  }
+
+  /**
+   * One employee's history across every source that records something about
+   * them (requirements section 7.1).
+   *
+   * The filtering is entirely app.employee_timeline's, which runs as the caller
+   * so each source applies its own visibility rule. Nothing is re-checked here:
+   * a second implementation of the confidentiality rules is a second thing to
+   * get wrong, and this is the view where getting it wrong leaks assessment.
+   */
+  async timeline(
+    ctx: RequestContext, employeeId: string, from?: string, to?: string,
+  ): Promise<TimelineEvent[]> {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query<TimelineEvent>(
+        `SELECT occurred_on::text AS "occurredOn",
+                kind::text AS kind,
+                title, detail, result,
+                ref_id AS "refId"
+           FROM app.employee_timeline($1, $2::date, $3::date)`,
+        [employeeId, from ?? null, to ?? null]);
       return res.rows;
     });
   }
