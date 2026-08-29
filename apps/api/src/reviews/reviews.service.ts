@@ -445,9 +445,27 @@ export class ReviewsService {
     });
   }
 
-  /** HR or the manager returns a submitted review for revision. */
+  /**
+   * A Department Head, HR, or a manager sends a submitted evaluation back
+   * (requirements §4.5b).
+   *
+   * The permission is `review:approve` on the SUBJECT, which is not the same as
+   * being the review's author. Until C3 this method had no check of its own and
+   * fell through to the row policy, which lets the assigned reviewer edit their
+   * own instance -- so a supervisor could return and rewrite their own submitted
+   * evaluation. That was audited, not silent, but the point of a revise step is
+   * that a second person made the judgement.
+   */
   async returnForRevision(ctx: RequestContext, instanceId: string, reason: string) {
     return this.db.withContext(ctx, async (client) => {
+      const allowed = await client.query<{ ok: boolean }>(
+        'SELECT app.can_return_review($1) AS ok', [instanceId]);
+      if (!allowed.rows[0]?.ok) {
+        throw new ForbiddenException(
+          'Not permitted to return this review. A submitted evaluation is sent '
+          + 'back by a Department Head or HR, not by the person who wrote it.');
+      }
+
       const res = await client.query<{ id: string }>(
         `UPDATE review_instance SET state = 'returned', returned_reason = $2
           WHERE id = $1 RETURNING id`, [instanceId, reason])

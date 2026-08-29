@@ -40,6 +40,11 @@ export interface GoalRow {
   kpiCode: string | null;
   approvedBy: string | null;
   approvedAt: string | null;
+  /** The second gate (C5). Null unless the period requires HCM release. */
+  hcmApprovedBy: string | null;
+  hcmApprovedAt: string | null;
+  /** Why HCM last sent this target back. Cleared on release. */
+  hcmRevisionNote: string | null;
   /** Weighted mean of target attainment. NULL until something is measured. */
   attainmentPct: string | null;
   latestStatus: string | null;
@@ -80,6 +85,9 @@ export class GoalsService {
            k.code                      AS "kpiCode",
            g.approved_by               AS "approvedBy",
            g.approved_at::text         AS "approvedAt",
+           g.hcm_approved_by           AS "hcmApprovedBy",
+           g.hcm_approved_at::text     AS "hcmApprovedAt",
+           g.hcm_revision_note         AS "hcmRevisionNote",
            agg.attainment_pct::text    AS "attainmentPct",
            chk.status_flag::text       AS "latestStatus",
            chk.created_at::text        AS "latestCheckinAt"
@@ -217,24 +225,129 @@ export class GoalsService {
         throw new ForbiddenException('Not permitted to approve goals for this employee');
       }
 
+      // Where this lands depends on the period: straight to active, or parked
+      // for HCM (C5, migration 0037). Asked rather than repeated, so the two
+      // paths cannot drift apart.
       const res = await this.wrapConstraint(() =>
-        client.query<{ id: string }>(
+        client.query<{ id: string; state: string }>(
           `UPDATE goal
-              SET state = 'active', approved_by = $2, approved_at = now()
+              SET state = app.goal_state_after_supervisor_approval($1),
+                  approved_by = $2, approved_at = now()
             WHERE id = $1
-        RETURNING id`,
+        RETURNING id, state::text AS state`,
           [goalId, ctx.employeeId],
         ));
       if (!res.rows[0]) throw new NotFoundException('Goal not found');
 
       const approved = await this.requireGoal(client, goalId);
-      // Same transaction as the approval: the employee learns their goal is
-      // active only if it actually became active.
-      await NotificationsService.enqueue(client, approved.employeeId, 'goal.approved', {
-        goalTitle: approved.title,
-        approverName: approved.employeeName,
-      }, `goal-approved:${goalId}`);
+      const parked = res.rows[0].state === 'pending_hcm';
+
+      // Same transaction as the approval: nobody is told a goal is active
+      // unless it actually became active. When HCM still has to release it,
+      // the employee is told that instead -- silence here would read as the
+      // supervisor having done nothing.
+      await NotificationsService.enqueue(
+        client, approved.employeeId,
+        parked ? 'goal.awaiting_hcm' : 'goal.approved', {
+          goalTitle: approved.title,
+          approverName: approved.employeeName,
+        }, `goal-approved:${goalId}`);
       return approved;
+    });
+  }
+
+  /**
+   * HCM releases a target that a supervisor has already approved (C5, §4.3).
+   *
+   * A distinct grant from goal:approve. A supervisor holds goal:approve over
+   * their own reports, so reusing it would hand every supervisor the second
+   * gate as well -- and two gates one role can pass alone is one gate.
+   */
+  async hcmApprove(ctx: RequestContext, goalId: string): Promise<GoalRow> {
+    return this.db.withContext(ctx, async (client) => {
+      const goal = await client.query<{ employee_id: string; state: string }>(
+        'SELECT employee_id, state::text AS state FROM goal WHERE id = $1', [goalId]);
+      const row = goal.rows[0];
+      if (!row) throw new NotFoundException('Goal not found');
+
+      if (row.state !== 'pending_hcm') {
+        throw new BadRequestException(
+          row.state === 'active'
+            ? 'That target is already active.'
+            : 'That target is not waiting for HCM. A supervisor approves it first.');
+      }
+      if (row.employee_id === ctx.employeeId) {
+        throw new BadRequestException('You cannot release your own target');
+      }
+
+      const allowed = await client.query<{ ok: boolean }>(
+        `SELECT app.can_access('goal_target', 'approve', $1) AS ok`,
+        [row.employee_id]);
+      if (!allowed.rows[0]?.ok) {
+        throw new ForbiddenException('Not permitted to release targets');
+      }
+
+      const res = await this.wrapConstraint(() =>
+        client.query<{ id: string }>(
+          `UPDATE goal
+              SET state = 'active', hcm_approved_by = $2, hcm_approved_at = now(),
+                  hcm_revision_note = NULL
+            WHERE id = $1 AND state = 'pending_hcm'
+        RETURNING id`, [goalId, ctx.employeeId]));
+      if (!res.rows[0]) throw new NotFoundException('Goal not found');
+
+      const released = await this.requireGoal(client, goalId);
+      await NotificationsService.enqueue(client, released.employeeId, 'goal.approved', {
+        goalTitle: released.title,
+        approverName: released.employeeName,
+      }, `goal-hcm-approved:${goalId}`);
+      return released;
+    });
+  }
+
+  /**
+   * HCM sends a target back to be rewritten, with the reason attached.
+   *
+   * Back to draft, not to the supervisor: HCM revises a target because the
+   * target is wrong, and the person who wrote it has to rewrite it. Returning
+   * it to the supervisor would ask them to approve the same text again.
+   *
+   * The state machine clears both approvals on the way (0037) -- a revised goal
+   * must not still carry the signature of somebody who approved a different
+   * version of it.
+   */
+  async hcmRevise(
+    ctx: RequestContext, goalId: string, note: string,
+  ): Promise<GoalRow> {
+    return this.db.withContext(ctx, async (client) => {
+      const goal = await client.query<{ employee_id: string; state: string }>(
+        'SELECT employee_id, state::text AS state FROM goal WHERE id = $1', [goalId]);
+      const row = goal.rows[0];
+      if (!row) throw new NotFoundException('Goal not found');
+      if (row.state !== 'pending_hcm') {
+        throw new BadRequestException('That target is not waiting for HCM.');
+      }
+
+      const allowed = await client.query<{ ok: boolean }>(
+        `SELECT app.can_access('goal_target', 'approve', $1) AS ok`,
+        [row.employee_id]);
+      if (!allowed.rows[0]?.ok) {
+        throw new ForbiddenException('Not permitted to revise targets');
+      }
+
+      const res = await this.wrapConstraint(() =>
+        client.query<{ id: string }>(
+          `UPDATE goal SET state = 'draft', hcm_revision_note = $2
+            WHERE id = $1 AND state = 'pending_hcm'
+        RETURNING id`, [goalId, note]));
+      if (!res.rows[0]) throw new NotFoundException('Goal not found');
+
+      const revised = await this.requireGoal(client, goalId);
+      await NotificationsService.enqueue(client, revised.employeeId, 'goal.revision_requested', {
+        goalTitle: revised.title,
+        note,
+      }, `goal-revise:${goalId}:${Date.now()}`);
+      return revised;
     });
   }
 

@@ -38,6 +38,14 @@ const SEEDERS = [
   // defining a role must not confer it.
   'app.seed_line_role_grants',
   'app.seed_notification_templates',
+  // C1 and C5: the five evaluation types, and the second approval gate's
+  // grants and messages. Seeders are idempotent, so re-provisioning an
+  // existing org picks up whatever was added since.
+  'app.seed_evaluation_definitions',
+  'app.seed_hcm_target_grants',
+  'app.seed_hcm_target_templates',
+  // C3: the Department Head's place in the review chain.
+  'app.seed_dept_head_review_grants',
 ] as const;
 
 const EMPLOYMENT_TYPES: [string, string, boolean][] = [

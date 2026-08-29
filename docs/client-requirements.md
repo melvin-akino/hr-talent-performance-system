@@ -194,10 +194,10 @@ flows is the mistake to avoid.
 |---|---|---|---|
 | 4.1 | HCM notifies DH that an employee needs a KPI set | **Partial** | Outbox and templates exist (9 today); this event does not. |
 | 4.2 | Supervisor/DH selects performance items from the competency library with weights | **Partial** | Library exists and is versioned; per-evaluation weight selection does not. |
-| 4.3 | HCM sets timeline, approves targets, revises | **Partial** | Periods and cycles carry timelines; approval of *targets* by HCM does not exist — goals are approved by the supervisor. |
+| 4.3 | HCM sets timeline, approves targets, revises | **Have** | Timelines on periods and cycles; HCM target approval and revision behind a per-period switch (C5). |
 | 4.4 | System notifies evaluators on the timeline | **Have** | `notification_outbox` with durable retry; `review.assigned`. |
 | 4.5a | Supervisor fills evaluation and recommendation | **Have** | `review_instance` with `reviewer_role='supervisor'`; recommendation is a textarea field. |
-| 4.5b | DH revises / approves / disapproves | **Missing** | Our chain is self → supervisor → calibration → sign-off. No DH step; `reviewer_role` has no `dept_head`. |
+| 4.5b | DH revises / approves / disapproves | **Have** | `dept_head` in both `reviewer_role` and `review_phase_type`; sign-off waits for the DH instance; returning needs `review:approve` (C3). |
 | 4.5c | HCM supplies attendance figures | **Blocked** | §5.4. |
 | 4.6 | HCM & DH set the peer-review population | **Missing** | §6. |
 | 4.7 | System shows the result split 40 / 30 / 30 | **Missing** | Follows from 3.4. |
@@ -657,9 +657,55 @@ because dropping two real tasks to match a formula would be the wrong way round.
       function. The offsets constraint has the same shape and the same guard.
 - [ ] **C2** Employee-relative scheduling (probationary 3rd/4th month) and averaging
       of instances into one result. **M** — §2.1, §2.3 *(Q7)*
-- [ ] **C3** DH revise/approve step; `reviewer_role` extended. **M** — §4.5b
+- [x] **C3** Department Head revise / approve — DONE (migration
+      `0038_dept_head_review_step.sql`). `reviewer_role` and
+      `review_phase_type` both gain `dept_head`, so a DH can hold an instance
+      and has a phase to work in.
+
+      **Built on `review_instance` rather than a new mechanism.** A DH approval
+      is an assessment step by a named person on a named subject within a cycle,
+      which is what a review instance already is. A separate table would
+      duplicate the confidentiality policies of 0014, and two copies of that
+      rule is one more than can be kept in step. It also means **sign-off waits
+      for the DH as a consequence of the existing rule** — `signOff` already
+      refuses while any instance is unsubmitted — rather than a new check that
+      could be forgotten. Disapproval is `returned`, which also already existed.
+
+      **A defect closed on the way.** `returnForRevision` had no permission
+      check of its own and fell through to the row policy, which lets the
+      assigned reviewer edit their own instance. A supervisor could therefore
+      return and rewrite their own submitted evaluation. To be exact: that was
+      **audited, not silent** — the state machine refuses a return with no
+      reason and the audit trigger records both. What was missing is that a
+      second person has to be the one doing it, which is the entire content of
+      step 5b. Returning now requires `review:approve` on the subject, held by
+      `dept_head` over their department and `hr_admin` org-wide, and
+      deliberately not by `manager`.
 - [ ] **C4** Type IV ad-hoc evaluation for a named subset. **M** — §2.4 *(Q10)*
-- [ ] **C5** HCM target-approval step and timeline setting. **S** — §4.3
+- [x] **C5** HCM target approval — DONE (migration
+      `0037_hcm_target_approval.sql`). Their step 3 is "HCM sets timeline,
+      approves targets, revises"; the timeline half already existed, so this is
+      the approval. A new `pending_hcm` goal state sits between the supervisor
+      and active, with `POST /goals/:id/hcm-approve` and `/hcm-revise`.
+
+      **Optional, and off by default.** A second mandatory gate on every goal in
+      every tenant is not ours to impose to satisfy one client process, so it is
+      a per-period switch: `goal_period.requires_hcm_approval`. Off, the
+      existing single-approval flow is untouched — and a test proves that rather
+      than assuming it. Per *period* rather than per organisation because
+      turning it on then cannot retroactively un-approve goals already active in
+      an earlier one.
+
+      **A distinct grant**, `goal_target:approve`, not a reuse of
+      `goal:approve`. A supervisor holds `goal:approve` over their own reports,
+      so reusing it would hand every supervisor the second gate as well — and
+      two gates one role can pass alone is one gate.
+
+      The gate is enforced in the state machine, not only in the service: a
+      target at `pending_hcm` cannot reach `active` without an HCM approver, by
+      any route. Sending one back returns it to draft with the reason attached
+      and **clears both approvals**, so a revised goal cannot still carry the
+      signature of somebody who approved a different version of it.
 
 ### Phase D — Peer review
 

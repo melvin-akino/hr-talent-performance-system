@@ -102,6 +102,24 @@ export class GoalsController {
     return this.goals.approve(req.auth, id);
   }
 
+  /** HCM releases a target the supervisor already approved (C5, §4.3). */
+  @Post('goals/:id/hcm-approve')
+  hcmApprove(@Req() req: AuthenticatedRequest,
+             @Param('id', ParseUUIDPipe) id: string) {
+    return this.goals.hcmApprove(req.auth, id);
+  }
+
+  /** HCM sends a target back to be rewritten, with the reason attached. */
+  @Post('goals/:id/hcm-revise')
+  hcmRevise(@Req() req: AuthenticatedRequest,
+            @Param('id', ParseUUIDPipe) id: string,
+            @Body() body: unknown) {
+    const { note } = z.object({
+      note: z.string().trim().min(1).max(2000),
+    }).parse(body);
+    return this.goals.hcmRevise(req.auth, id, note);
+  }
+
   @Post('goals/:id/complete')
   complete(
     @Req() req: AuthenticatedRequest,
