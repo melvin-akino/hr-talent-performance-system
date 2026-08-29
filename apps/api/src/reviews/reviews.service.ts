@@ -10,6 +10,12 @@ export const createCycle = z.object({
   name: z.string().trim().min(1),
   description: z.string().trim().optional(),
   goalPeriodId: z.string().uuid().optional(),
+  /**
+   * Which evaluation type this cycle runs (C1). Optional: cycles predating
+   * the definitions have none, and inventing one for them would be a claim
+   * about what they were rather than a record of it.
+   */
+  evaluationDefinitionId: z.string().uuid().optional(),
   opensOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   closesOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   phases: z.array(z.object({
@@ -43,11 +49,14 @@ export class ReviewsService {
       if (!orgId) throw new NotFoundException('Requesting employee not found');
 
       const cycle = await client.query<{ id: string }>(
+        // expected_instances and averaging are filled in by the snapshot
+        // trigger (0036) from the named definition, so the pinning cannot be
+        // forgotten by a caller.
         `INSERT INTO review_cycle (org_id, goal_period_id, name, description,
-                                   opens_on, closes_on)
-              VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+                                   opens_on, closes_on, evaluation_definition_id)
+              VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
         [orgId, input.goalPeriodId ?? null, input.name, input.description ?? null,
-         input.opensOn, input.closesOn]);
+         input.opensOn, input.closesOn, input.evaluationDefinitionId ?? null]);
       const cycleId = cycle.rows[0]?.id;
       if (!cycleId) throw new ForbiddenException('Not permitted to create review cycles');
 

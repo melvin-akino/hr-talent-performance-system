@@ -7,6 +7,10 @@ import { ReviewsService, createCycle, saveResponses } from './reviews.service';
 import {
   FormsService, assignTemplate, createRatingScale, createTemplate, formSchema,
 } from './forms.service';
+import {
+  EvaluationDefinitionsService, createDefinition, retireDefinition,
+  updateDefinition,
+} from './evaluation-definitions.service';
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -14,7 +18,38 @@ export class ReviewsController {
   constructor(
     private readonly reviews: ReviewsService,
     private readonly forms: FormsService,
+    private readonly definitions: EvaluationDefinitionsService,
   ) {}
+
+  // --- Evaluation definitions (C1) -----------------------------------------
+  //
+  // The client's five evaluation types are five rows here, not five features.
+
+  @Get('evaluation-definitions')
+  listDefinitions(@Req() req: AuthenticatedRequest,
+                  @Query('includeRetired') includeRetired?: string) {
+    return this.definitions.list(req.auth, includeRetired === 'true');
+  }
+
+  @Post('evaluation-definitions')
+  createDefinition(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    return this.definitions.create(req.auth, createDefinition.parse(body));
+  }
+
+  @Patch('evaluation-definitions/:id')
+  updateDefinition(@Req() req: AuthenticatedRequest,
+                   @Param('id', ParseUUIDPipe) id: string,
+                   @Body() body: unknown) {
+    return this.definitions.update(req.auth, id, updateDefinition.parse(body));
+  }
+
+  @Patch('evaluation-definitions/:id/active')
+  retireDefinition(@Req() req: AuthenticatedRequest,
+                   @Param('id', ParseUUIDPipe) id: string,
+                   @Body() body: unknown) {
+    const { isActive } = retireDefinition.parse(body);
+    return this.definitions.setActive(req.auth, id, isActive);
+  }
 
   // --- Rating scales & form templates --------------------------------------
 

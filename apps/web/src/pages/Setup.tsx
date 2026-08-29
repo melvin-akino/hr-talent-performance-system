@@ -3,6 +3,7 @@ import FormBuilder from './admin/FormBuilder';
 import CompetencyAdmin from './admin/CompetencyAdmin';
 import DevelopmentAdmin from './admin/DevelopmentAdmin';
 import HelpAdmin from './admin/HelpAdmin';
+import EvaluationTypes from './admin/EvaluationTypes';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../auth';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
@@ -74,7 +75,8 @@ interface Rank {
  */
 export default function Setup() {
   const [tab, setTab] = useState<
-    'departments' | 'types' | 'positions' | 'forms' | 'competencies' | 'development' | 'help'
+    'departments' | 'types' | 'positions' | 'evaluations' | 'forms'
+    | 'competencies' | 'development' | 'help'
   >('departments');
 
   return (
@@ -86,6 +88,7 @@ export default function Setup() {
           ['departments', 'Departments'],
           ['types', 'Employment types'],
           ['positions', 'Positions'],
+          ['evaluations', 'Evaluation types'],
           ['forms', 'Review forms'],
           ['competencies', 'Competencies'],
           ['development', 'Development'],
@@ -102,6 +105,7 @@ export default function Setup() {
       {tab === 'departments' && <Departments />}
       {tab === 'types' && <EmploymentTypes />}
       {tab === 'positions' && <Positions />}
+      {tab === 'evaluations' && <EvaluationTypes />}
       {tab === 'forms' && <FormBuilder />}
       {tab === 'competencies' && <CompetencyAdmin />}
       {tab === 'development' && <DevelopmentAdmin />}

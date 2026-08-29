@@ -130,6 +130,7 @@ async function seedTenant(code: string, t: Tenant): Promise<void> {
   await admin.query('SELECT app.seed_line_role_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_scorecard_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_evaluation_grants($1)', [t.org]);
+  await admin.query('SELECT app.seed_evaluation_definitions($1)', [t.org]);
 
   const role = async (c: string) => (await admin.query(
     `SELECT id FROM app_role WHERE org_id=$1 AND code=$2`, [t.org, c])).rows[0].id;
@@ -434,6 +435,38 @@ describe('performance data is tenant-scoped', () => {
                                            period_end, target_points)
          VALUES ($1,$2,$3,$4,'2026-04-01','2026-06-30',1)`,
         [A.org, B.ic, sc, A.manager]),
+    ).rejects.toThrow(/same_org/);
+  });
+
+  it('evaluation definitions do not cross the boundary', async () => {
+    // Reference data every employee can read, which makes the tenant predicate
+    // the only thing between two customers' evaluation policies -- and one of
+    // them is a table of scoring rules.
+    await admin.query(
+      `UPDATE evaluation_definition SET name = 'ACME Probationary'
+        WHERE org_id = $1 AND code = 'PROB'`, [A.org]);
+    await admin.query(
+      `UPDATE evaluation_definition SET name = 'BETA Probationary'
+        WHERE org_id = $1 AND code = 'PROB'`, [B.org]);
+
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM evaluation_definition')).toBe(5);
+    expect(await count(B.admin,
+      'SELECT count(*)::int AS c FROM evaluation_definition')).toBe(5);
+    expect(await count(A.admin,
+      `SELECT count(*)::int AS c FROM evaluation_definition
+        WHERE name = 'BETA Probationary'`)).toBe(0);
+  });
+
+  it('a cross-org cycle definition is rejected', async () => {
+    const foreign = (await admin.query<{ id: string }>(
+      `SELECT id FROM evaluation_definition WHERE org_id = $1 AND code = 'ANNUAL'`,
+      [B.org])).rows[0]!.id;
+    await expect(
+      admin.query(
+        `INSERT INTO review_cycle (org_id, name, opens_on, closes_on,
+                                   evaluation_definition_id)
+         VALUES ($1,'Borrowed','2026-01-01','2026-12-31',$2)`, [A.org, foreign]),
     ).rejects.toThrow(/same_org/);
   });
 

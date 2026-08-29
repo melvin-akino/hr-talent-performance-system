@@ -15,6 +15,7 @@ import { MonitoringService } from './pip/monitoring.service';
 import { ReviewsController } from './reviews/reviews.controller';
 import { ReviewsService } from './reviews/reviews.service';
 import { FormsService } from './reviews/forms.service';
+import { EvaluationDefinitionsService } from './reviews/evaluation-definitions.service';
 import { CompetenciesController } from './competencies/competencies.controller';
 import { CompetenciesService } from './competencies/competencies.service';
 import { ReferenceDataController } from './admin/reference-data.controller';
@@ -47,7 +48,7 @@ import { EvaluationsService } from './metrics/evaluations.service';
     DbService, AuthGuard, EmployeesService, EmployeeImportService,
     GoalsService, KpiService, DashboardService,
     PipService, MonitoringService,
-    ReviewsService, FormsService,
+    ReviewsService, FormsService, EvaluationDefinitionsService,
     CompetenciesService, ReferenceDataService, Ph201ImportService,
     NotificationsService, NotificationWorkerService, FeedbackService,
     DevelopmentService, AnalyticsService, HelpService, MetricsService,

@@ -164,7 +164,7 @@ peer review. Both must exist side by side.
 | 2.3 | **Type III — Semi-annual**, midyear + year-end averaged, drives rank promotions | **Missing** | Same averaging machinery as 2.1; promotion linkage in §8. |
 | 2.4 | **Type IV — Project / term based** (special, behavioural, corrective, promotion) | **Missing** | Ad-hoc evaluation of a named subset, outside the calendar. Generation today is org-wide by employment type. |
 | 2.5 | **Type V — KPI**, settable quarterly / semi-annual / annual | **Partial** | Goals + KPIs with weighted attainment exist; the 40/30/30 composite does not (§3.4). |
-| 2.6 | Type selectable by HCM per employee or group | **Missing** | No type field, no per-employee assignment. |
+| 2.6 | Type selectable by HCM per employee or group | **Partial** | The types exist and a cycle names one (C1). Per-employee assignment follows the scheduler in C2. |
 
 **Design note.** Types I–V are not five features. They are one *evaluation
 definition* — type, scoring model, period basis (calendar or employee-relative),
@@ -621,8 +621,40 @@ because dropping two real tasks to match a formula would be the wrong way round.
 
 ### Phase C — Evaluation types
 
-- [ ] **C1** Evaluation definition entity: type, scoring model, period basis,
-      participants, averaging rule. **L** — §2
+- [x] **C1** Evaluation definition entity — DONE (migration
+      `0036_evaluation_definition.sql`). The client's five types are **five rows
+      in one table**, not five features: type, period basis, anchor, month
+      offsets, expected instances, averaging rule, participants. All five are
+      seeded in every tenant, and the screen is Setup → Evaluation types.
+
+      **It deliberately schedules nothing.** Firing an evaluation on somebody's
+      third month is C2, and C2 waits on Q7 — we do not know whether the third
+      month runs from the hire date, nor what happens when a regularisation
+      moves. So the *answer* is stored as data (`anchor`, `offset_months`) and
+      the scheduler that reads it is written when the answer lands. A test
+      proves the claim rather than asserting it: switching the probationary
+      anchor to regularisation is one `UPDATE`. The same reasoning covers Type
+      IV — `project` is a row here, so **Q10** decides which form it points at,
+      not whether the type exists.
+
+      **A cycle pins the rules it was issued under.** `review_cycle` gains
+      `evaluation_definition_id` plus a snapshot of `expected_instances` and
+      `averaging`, taken by a trigger rather than by application code — cycles
+      are created from the API, the CLI and seed-demo, and a snapshot that
+      relies on each caller remembering it is one that gets missed. Editing a
+      definition afterwards cannot move a score already given.
+
+      Contradictory configurations are refused rather than stored: averaging one
+      instance, two instances with no averaging rule (which would silently
+      discard one and halve somebody's score), an employee-relative type with no
+      anchor, a calendar type carrying a stray anchor, a month offset of zero.
+
+      **A bug worth recording**, because it will recur: the participants
+      constraint was first written with `array_length(participants, 1) >= 1` and
+      a test caught that it accepted an empty array. `array_length` returns
+      **NULL** for an empty array, `NULL >= 1` is NULL, and **a CHECK that
+      evaluates to NULL passes**. `cardinality()` returns 0 and is the right
+      function. The offsets constraint has the same shape and the same guard.
 - [ ] **C2** Employee-relative scheduling (probationary 3rd/4th month) and averaging
       of instances into one result. **M** — §2.1, §2.3 *(Q7)*
 - [ ] **C3** DH revise/approve step; `reviewer_role` extended. **M** — §4.5b
