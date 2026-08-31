@@ -470,6 +470,41 @@ describe('performance data is tenant-scoped', () => {
     ).rejects.toThrow(/same_org/);
   });
 
+  it('peer-review rules do not cross the boundary', async () => {
+    // Two customers' routing matrices. Readable by every employee, so the
+    // tenant predicate is the only thing between them -- and these rules decide
+    // who assesses whom.
+    const write = async (t: Tenant, code: string) => {
+      const rule = (await admin.query<{ id: string }>(
+        `INSERT INTO peer_review_rule (org_id, code, name)
+         VALUES ($1,$2,$2) RETURNING id`, [t.org, code])).rows[0]!.id;
+      await admin.query(
+        `INSERT INTO peer_review_rule_source (org_id, rule_id, label, relation)
+         VALUES ($1,$2,'Colleagues','same_unit')`, [t.org, rule]);
+      return rule;
+    };
+    await write(A, 'ACME-BH');
+    const bRule = await write(B, 'BETA-BH');
+
+    for (const table of ['peer_review_rule', 'peer_review_rule_source']) {
+      expect(await count(A.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+      expect(await count(B.admin, `SELECT count(*)::int AS c FROM ${table}`)).toBe(1);
+    }
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM peer_review_rule WHERE id = $1',
+      [bRule])).toBe(0);
+  });
+
+  it('a cross-org rule source is rejected', async () => {
+    const foreign = (await admin.query<{ id: string }>(
+      `SELECT id FROM peer_review_rule WHERE org_id = $1 LIMIT 1`, [B.org])).rows[0]!.id;
+    await expect(
+      admin.query(
+        `INSERT INTO peer_review_rule_source (org_id, rule_id, label, relation)
+         VALUES ($1,$2,'Borrowed','same_unit')`, [A.org, foreign]),
+    ).rejects.toThrow(/same_org/);
+  });
+
   it('audit history does not cross the boundary', async () => {
     const a = await count(A.admin,
       'SELECT count(*)::int AS c FROM audit_log WHERE org_id = $1', [B.org]);

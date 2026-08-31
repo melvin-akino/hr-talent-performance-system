@@ -293,8 +293,8 @@ unchanged: an aggregate carries no forbidden field, so it should.
 |---|---|---|
 | 6.1 | 30 points: Mastery 5, Demeanor A (phone/messaging) 5, Demeanor B (in person) 5, Customer Service 10, Promptness 5 | A fixed instrument; straightforward once §3 exists. |
 | 6.2 | Reviewers drawn **randomly** from a parameter set | New: a sampling engine with an audit trail of who was drawn and why. |
-| 6.3 | Rank distance: same rank, 1 up, 2 up | Depends on the ordered rank ladder (§5.1). |
-| 6.4 | Rules by job family and unit — Bookkeeper/Cashier → CM, FM; FS/CI → CSS; Parts Custodian/Technician → ASM; Branch Head → same-Area Branch Heads, back-office Supervisors, AH, DH, GM; all other branch staff → colleagues, BH, AH | A rules table, not code. Depends on §5.3. |
+| 6.3 | Rank distance: same rank, 1 up, 2 up | **Have** — `peer_review_rule_source.rank_delta`, in `app.ranks_above()` terms (D2). |
+| 6.4 | **Have** (D2). Rules by job family and unit — Bookkeeper/Cashier → CM, FM; FS/CI → CSS; Parts Custodian/Technician → ASM; Branch Head → same-Area Branch Heads, back-office Supervisors, AH, DH, GM; all other branch staff → colleagues, BH, AH | A rules table, not code. Depends on §5.3. |
 | 6.5 | Main-office variants (Associate; Jr/Sr Supervisor) | Same table. |
 | 6.6 | Eligibility gate: *"Have you had any direct/indirect interaction with X in the last 6 months?"* — No ⇒ thank them, draw a replacement | Needs a solicitation state machine: drawn → accepted → declined → replaced. |
 | 6.7 | Minimum 3, maximum 5, averaged | **Conflicts with page 1's "min. 2 personnel"** — Q4. |
@@ -710,7 +710,44 @@ because dropping two real tasks to match a formula would be the wrong way round.
 ### Phase D — Peer review
 
 - [ ] **D1** The fixed 30-point instrument. **S** — §6.1
-- [ ] **D2** Parameter rules table: job family, rank distance, org unit. **L** — §6.3–6.5
+- [x] **D2** Peer-review parameter rules — DONE (migration
+      `0039_peer_review_rules.sql`). Their page-4 routing is now **rows, not
+      code**: `peer_review_rule` selects the subject (job family, rank, unit
+      type, optionally scoped to a department) and `peer_review_rule_source`
+      names each pool it draws from (rank distance, unit relation, job family,
+      unit type).
+
+      **Two tables, because one subject draws from several pools.** "Branch Head
+      → Branch Heads in the same Area, back-office Supervisors, AH, DH, GM" is
+      one subject with five sources; a flat table would need five near-duplicate
+      rows with nothing saying they belong together. The test writes their
+      actual page-4 rules as rows and asserts the resulting pools — if their
+      rules cannot be expressed, the table is wrong.
+
+      **The rank direction is asserted, not trusted.** Ranks run 6–11 with a
+      *lower* number more senior, so "one rank up" is `rank_no − 1`.
+      `app.ranks_above()` (0028) encodes that once and `rank_delta` is written in
+      its terms. A negative delta means *below* the subject — subordinate
+      review, which R5 has not settled: expressible, and used by nothing.
+
+      **"Same Area" is a walk up the chart**, via `app.unit_ancestor_of_type()`,
+      effective-dated like the rest of the org chart. The NULL guard matters: two
+      people who both have *no* area must not compare equal, or every
+      back-office person lands in everybody's pool.
+
+      **A tie-break I had to add.** Two rules can select on exactly the same
+      things and differ only in their sources — realistic while HCM revises the
+      matrix. A test caught that the winner was whichever `code` sorted first,
+      which is arbitrary and produces a pool nobody can account for. There is now
+      an explicit `priority`; left at its default, most-specific-wins still
+      decides.
+
+      **`min_reviewers` / `max_reviewers` default to 3 and 5** and live on the
+      rule, because Q4 and R2 disagree — page 1 says 2, page 2 says 3, page 4
+      says 3–5, the workbook says 2. Settling it is an `UPDATE`.
+
+      Eligibility only. Drawing reviewers, the six-month interaction question
+      and the re-draw are **D3**.
 - [ ] **D3** Sampling engine with audit trail: drawn → eligibility gate → accepted /
       declined → replacement draw. **L** — §6.2, §6.6
 - [ ] **D4** Averaging, minimum and maximum enforcement. **S** — §6.7 *(Q4)*
