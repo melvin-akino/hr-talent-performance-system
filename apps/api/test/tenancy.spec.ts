@@ -131,6 +131,8 @@ async function seedTenant(code: string, t: Tenant): Promise<void> {
   await admin.query('SELECT app.seed_scorecard_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_evaluation_grants($1)', [t.org]);
   await admin.query('SELECT app.seed_evaluation_definitions($1)', [t.org]);
+  // review:approve, which is what lets HR see a peer-review panel at all.
+  await admin.query('SELECT app.seed_dept_head_review_grants($1)', [t.org]);
 
   const role = async (c: string) => (await admin.query(
     `SELECT id FROM app_role WHERE org_id=$1 AND code=$2`, [t.org, c])).rows[0].id;
@@ -503,6 +505,33 @@ describe('performance data is tenant-scoped', () => {
         `INSERT INTO peer_review_rule_source (org_id, rule_id, label, relation)
          VALUES ($1,$2,'Borrowed','same_unit')`, [A.org, foreign]),
     ).rejects.toThrow(/same_org/);
+  });
+
+  it('peer-review invitations do not cross the boundary', async () => {
+    // Who was asked to assess whom. Two customers' panels must not be visible
+    // to each other even to an org-wide HR administrator.
+    const invite = async (t: Tenant) => {
+      const cycle = (await admin.query<{ id: string }>(
+        `INSERT INTO review_cycle (org_id,name,opens_on,closes_on)
+         VALUES ($1,'Panel cycle','2026-01-01','2026-12-31') RETURNING id`,
+        [t.org])).rows[0]!.id;
+      return (await admin.query<{ id: string }>(
+        `INSERT INTO peer_review_solicitation (org_id, review_cycle_id,
+                                               subject_employee_id,
+                                               reviewer_employee_id, source_label)
+         VALUES ($1,$2,$3,$4,'Colleagues') RETURNING id`,
+        [t.org, cycle, t.ic, t.manager])).rows[0]!.id;
+    };
+    await invite(A);
+    const bInvite = await invite(B);
+
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM peer_review_solicitation')).toBe(1);
+    expect(await count(B.admin,
+      'SELECT count(*)::int AS c FROM peer_review_solicitation')).toBe(1);
+    expect(await count(A.admin,
+      'SELECT count(*)::int AS c FROM peer_review_solicitation WHERE id = $1',
+      [bInvite])).toBe(0);
   });
 
   it('audit history does not cross the boundary', async () => {

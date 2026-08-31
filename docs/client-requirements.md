@@ -292,11 +292,11 @@ unchanged: an aggregate carries no forbidden field, so it should.
 | # | Requirement | Notes |
 |---|---|---|
 | 6.1 | 30 points: Mastery 5, Demeanor A (phone/messaging) 5, Demeanor B (in person) 5, Customer Service 10, Promptness 5 | A fixed instrument; straightforward once §3 exists. |
-| 6.2 | Reviewers drawn **randomly** from a parameter set | New: a sampling engine with an audit trail of who was drawn and why. |
+| 6.2 | Reviewers drawn **randomly** from a parameter set | **Have** — `app.draw_peer_reviewers()`, recording the pool each person came from and who ran the draw (D3). |
 | 6.3 | Rank distance: same rank, 1 up, 2 up | **Have** — `peer_review_rule_source.rank_delta`, in `app.ranks_above()` terms (D2). |
 | 6.4 | **Have** (D2). Rules by job family and unit — Bookkeeper/Cashier → CM, FM; FS/CI → CSS; Parts Custodian/Technician → ASM; Branch Head → same-Area Branch Heads, back-office Supervisors, AH, DH, GM; all other branch staff → colleagues, BH, AH | A rules table, not code. Depends on §5.3. |
 | 6.5 | Main-office variants (Associate; Jr/Sr Supervisor) | Same table. |
-| 6.6 | Eligibility gate: *"Have you had any direct/indirect interaction with X in the last 6 months?"* — No ⇒ thank them, draw a replacement | Needs a solicitation state machine: drawn → accepted → declined → replaced. |
+| 6.6 | **Have** (D3). Eligibility gate: *"Have you had any direct/indirect interaction with X in the last 6 months?"* — No ⇒ thank them, draw a replacement | Needs a solicitation state machine: drawn → accepted → declined → replaced. |
 | 6.7 | Minimum 3, maximum 5, averaged | **Conflicts with page 1's "min. 2 personnel"** — Q4. |
 | 6.8 | Department Manager may specify target parameters, included in randomisation | An override on the rules table. |
 | 6.9 | Anonymity | **Not stated in the requirements.** Averaging implies it, but it must be explicit — it shapes the data model and what HR can see. Q5. |
@@ -748,8 +748,38 @@ because dropping two real tasks to match a formula would be the wrong way round.
 
       Eligibility only. Drawing reviewers, the six-month interaction question
       and the re-draw are **D3**.
-- [ ] **D3** Sampling engine with audit trail: drawn → eligibility gate → accepted /
-      declined → replacement draw. **L** — §6.2, §6.6
+- [x] **D3** Sampling engine — DONE (migration
+      `0040_peer_review_sampling.sql`). `app.draw_peer_reviewers()` draws at
+      random from the pool D2 defines; `app.decline_and_replace()` is their
+      §6.6 gate; `app.peer_panel_status()` says how a panel stands.
+
+      **A solicitation is not a review instance.** Most people asked never write
+      a review — they decline, are replaced, or the cycle closes first. Creating
+      an instance for everyone merely *asked* would put unanswerable work in
+      their queue and block sign-off, which refuses while any instance is
+      unsubmitted. The instance is created on acceptance, which is D1.
+
+      **Somebody who declined is never their own replacement.** The unique
+      constraint covers declines, not just live asks; an unconstrained random
+      draw would re-offer the person who just said they had never worked with
+      the subject. A test asserts the replacement differs from the decliner.
+
+      **The decline and its replacement happen in one statement**, because doing
+      them apart leaves a window where a panel is quietly one short — the state
+      nobody notices until the cycle closes.
+
+      **A response is final.** Reopening a decline would let a reviewer who said
+      they had no interaction be talked into reviewing anyway, which is the one
+      thing the gate exists to prevent.
+
+      **The subject cannot see their own panel.** Knowing who is about to assess
+      you, before they have written anything, is the part of peer review most
+      likely to change what gets written. Q5 decides what they may see
+      afterwards; until then the narrow answer is the safe one, because a link
+      disclosed cannot be undisclosed.
+
+      A short panel is returned, not raised: "nobody is eligible" is a fact
+      about the rule, and enforcing the minimum is **D4** (Q4).
 - [ ] **D4** Averaging, minimum and maximum enforcement. **S** — §6.7 *(Q4)*
 - [ ] **D5** Anonymity model. **M** — §6.9 *(Q5 — must be settled before D1 ships)*
 
