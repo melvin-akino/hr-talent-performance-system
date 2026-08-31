@@ -152,13 +152,13 @@ pnpm install
 docker compose -f docker-compose.dev.yml up -d
 pnpm db:migrate
 pnpm --filter @hr/api hr seed-demo            # ACME, 8 people
-pnpm dev                                       # API :3000 and web :5273
+pnpm dev                                       # API :3100 and web :5273
 ```
 
 | Service | URL | Notes |
 |---|---|---|
 | App | http://localhost:5273 | **Not 5173** — see §6 |
-| API | http://localhost:3000/api | Global prefix is `/api`; unauthenticated calls return 401 |
+| API | http://localhost:3100/api | Global prefix is `/api`; unauthenticated calls return 401 |
 | Keycloak | http://localhost:8080 | realm `hr` |
 | Mailpit | http://localhost:8025 | catches all outbound email |
 | PostgreSQL | localhost:15432 | user `postgres` / `postgres`, db `hr` |
@@ -277,7 +277,7 @@ Five block work. Q3 (a worked scoring example) unlocks the most.
   emit `design:paramtypes`, and without that metadata **NestJS constructor
   injection silently resolves every dependency to `undefined`**. Same reason the
   test runner uses SWC (`apps/api/vitest.config.ts`).
-- `VITE_API_BASE_URL` must be `/api` (relative), not `http://localhost:3000/api`.
+- `VITE_API_BASE_URL` must be `/api` (relative), not `http://localhost:3100/api`.
   The absolute form bypasses the Vite proxy and fails CORS — the API has no CORS
   by design, being same-origin in production.
 - `.env` edited on Windows can pick up a BOM and CRLF; `install.sh` normalises on

@@ -36,7 +36,10 @@ Phases C–G untouched.
   Hyper-V/WinNAT, so Docker could not bind the old port and the container ran
   with it unpublished — a healthy database that nothing could reach. Ranges
   shift on reboot; check `netsh int ipv4 show excludedportrange protocol=tcp`.
-- Dev stack: web 5273, API 3000 (`/api` prefix), Keycloak 8080, Mailpit 8025.
+- Dev stack: web 5273, API 3100 (`/api` prefix), Keycloak 8080, Mailpit 8025.
+  The API moved off 3000 deliberately: that port is contested, and a
+  collision is not a clean failure -- Vite proxies `/api` to whatever
+  answers it. Override with `API_PROXY_TARGET` if 3100 is taken too.
 - **Do not run `pnpm add` or `pnpm install` while `pnpm dev` is running.** It
   re-links `node_modules` under the running API, which dies mid-request; it
   once produced an e2e failure that looked like a product bug.

@@ -27,7 +27,14 @@ export default defineConfig({
     // Local dev only. In production Caddy serves both from one origin, so no
     // proxy and no CORS are involved.
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: true },
+      // Must match PORT in apps/api/.env.development. Overridable so a machine
+      // with a port conflict is a shell variable rather than an edit here:
+      //
+      //   API_PROXY_TARGET=http://localhost:3200 pnpm dev
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:3100',
+        changeOrigin: true,
+      },
     },
   },
 });

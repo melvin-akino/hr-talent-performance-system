@@ -12,7 +12,7 @@ conversation, or re-take them with the walkthrough below.
 ## Walkthrough used
 
 ```
-pnpm dev                       # api on 3000, web on 5273
+pnpm dev                       # api on 3100, web on 5273
 http://localhost:5273          # sign in as maria / test1234
 ```
 
