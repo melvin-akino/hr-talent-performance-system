@@ -17,7 +17,7 @@ scans every text column on every build to keep it that way
 
 ## Status
 
-Phases 0–7 complete. **777 automated tests** — 648 against a real PostgreSQL via
+Phases 0–7 complete. **783 automated tests** — 654 against a real PostgreSQL via
 Testcontainers, 129 component and content tests, plus 14 Playwright journeys
 covering sign-in, the goal lifecycle, sign-off gating and responsive layout. RLS
 policies are the security boundary and cannot be verified against mocks.
@@ -30,7 +30,7 @@ policies are the security boundary and cannot be verified against mocks.
 | Versioned review forms, rating scales, competency frameworks | Complete |
 | Peer feedback, learning library, career paths | Complete |
 | Analytics: nine-box, distribution, rater bias, calibration movement | Complete |
-| Notifications (in-app + email, durable outbox) | Complete |
+| Notifications (in-app + email, durable outbox) | Complete — 17 events; deadline reminders pending |
 | Multi-tenancy, audit trail, effective-dated org chart | Complete |
 | One-command install (on-prem and AWS demo) | Complete |
 | Task metrics: catalogue, scorecards, effective-dated assignment | Complete |

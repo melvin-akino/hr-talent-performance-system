@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { DbService, RequestContext } from '../db/db.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Evaluating somebody against the scorecard they were loaded onto.
@@ -143,8 +144,36 @@ export class EvaluationsService {
 
       const id = res.rows[0]?.id;
       if (!id) throw new BadRequestException('Not permitted to evaluate that person');
+      await this.notifyEvaluator(client, id);
       return { id };
     });
+  }
+
+  /**
+   * Tells an evaluator they have an evaluation to complete.
+   *
+   * Shared by the single open and the batch: T3 opens a whole section at once,
+   * and an invitation written twice is one that eventually differs.
+   */
+  private async notifyEvaluator(client: PoolClient, evaluationId: string) {
+    const res = await client.query<{
+      evaluator: string; subject: string; scorecard: string;
+      starts: string; ends: string;
+    }>(
+      `SELECT e.evaluator_employee_id AS evaluator,
+              app.display_name(e.employee_id) AS subject,
+              s.name AS scorecard,
+              e.period_start::text AS starts, e.period_end::text AS ends
+         FROM scorecard_evaluation e
+         JOIN scorecard s ON s.id = e.scorecard_id
+        WHERE e.id = $1`, [evaluationId]);
+    const row = res.rows[0];
+    if (!row) return;
+    await NotificationsService.enqueue(
+      client, row.evaluator, 'evaluation.assigned', {
+        subjectName: row.subject, scorecardName: row.scorecard,
+        periodStart: row.starts, periodEnd: row.ends,
+      }, `evaluation-assigned:${evaluationId}`);
   }
 
   /**
@@ -175,12 +204,26 @@ export class EvaluationsService {
 
   async openForDepartment(ctx: RequestContext,
                           input: z.infer<typeof openForDepartment>) {
-    return this.db.withContext(ctx, (client) => this.runBatch(client, input));
+    return this.db.withContext(ctx, async (client) => {
+      const rows = await this.runBatch(client, input);
+      // Only the ones actually opened. 'already_open' and 'no_scorecard' are
+      // reported to the operator, not sent to anybody -- telling a supervisor
+      // about work that was not created is how people learn to ignore these.
+      for (const row of rows) {
+        if (row.outcome === 'opened' && row.evaluationId) {
+          await this.notifyEvaluator(client, row.evaluationId);
+        }
+      }
+      return rows;
+    });
   }
 
   private async runBatch(client: PoolClient,
                          input: z.infer<typeof openForDepartment>) {
-    const res = await client.query(
+    const res = await client.query<{
+      employeeId: string; employeeName: string; scorecardId: string | null;
+      evaluationId: string | null; outcome: string;
+    }>(
       `SELECT employee_id AS "employeeId", employee_name AS "employeeName",
               scorecard_id AS "scorecardId", evaluation_id AS "evaluationId",
               outcome::text AS outcome
@@ -250,6 +293,29 @@ export class EvaluationsService {
           }
           throw err;
         });
+      // The subject learns the result, and only now: a draft is invisible to
+      // them, so this is the first moment there is anything to tell.
+      const ev = await client.query<{
+        subject: string; scorecard: string; awarded: string; target: string;
+        starts: string; ends: string;
+      }>(
+        `SELECT e.employee_id AS subject, s.name AS scorecard,
+                app.trim_score(e.awarded_points) AS awarded,
+                app.trim_score(e.target_points) AS target,
+                e.period_start::text AS starts, e.period_end::text AS ends
+           FROM scorecard_evaluation e
+           JOIN scorecard s ON s.id = e.scorecard_id
+          WHERE e.id = $1`, [evaluationId]);
+      const row = ev.rows[0];
+      if (row) {
+        await NotificationsService.enqueue(
+          client, row.subject, 'evaluation.result', {
+            scorecardName: row.scorecard,
+            awarded: row.awarded, target: row.target,
+            periodStart: row.starts, periodEnd: row.ends,
+          }, `evaluation-result:${evaluationId}`);
+      }
+
       return { awardedPoints: res.rows[0]!.total };
     });
   }
@@ -270,6 +336,24 @@ export class EvaluationsService {
           'Only the person evaluated can acknowledge it, and only once it has been '
           + 'submitted.');
       }
+      // Tell the evaluator. They wrote it; they are the one waiting to know it
+      // landed.
+      const ev = await client.query<{
+        evaluator: string; subject: string; starts: string; ends: string;
+      }>(
+        `SELECT evaluator_employee_id AS evaluator,
+                app.display_name(employee_id) AS subject,
+                period_start::text AS starts, period_end::text AS ends
+           FROM scorecard_evaluation WHERE id = $1`, [evaluationId]);
+      const row = ev.rows[0];
+      if (row) {
+        await NotificationsService.enqueue(
+          client, row.evaluator, 'evaluation.acknowledged', {
+            subjectName: row.subject,
+            periodStart: row.starts, periodEnd: row.ends,
+          }, `evaluation-acknowledged:${evaluationId}`);
+      }
+
       return { id: res.rows[0].id };
     });
   }

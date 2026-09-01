@@ -314,7 +314,7 @@ unchanged: an aggregate carries no forbidden field, so it should.
 | 7.5 | Defaults shown automatically, manual override by evaluator level | **Partial** | Resolution exists (`app.resolve_form_version`); the override path and its permission do not. |
 | 7.6 | System walkthrough guide | **Have** | In-app help: 14 bundled articles, route- and role-aware, plus HR-authored content from Setup. |
 | 7.7 | Integrates PIP and goal/target setting | **Have** | Both exist, linked to periods and cycles. |
-| 7.8 | Messaging: reminders, acknowledgement, results, eval notifications | **Partial** | Durable outbox with retry, 9 templates, in-app + email, per-user preferences. Needs the new events. |
+| 7.8 | Messaging: reminders, acknowledgement, results, eval notifications | **Partial** | Acknowledgement, results and evaluation notifications done (F5, 17 templates). Reminders need the deadline scanner, F5b. |
 | 7.9 | Requests: DH asks for extra competency / special eval / scoring adjustment | **Missing** | No request-and-approval entity anywhere in the system. |
 
 ---
@@ -847,7 +847,33 @@ because dropping two real tasks to match a formula would be the wrong way round.
 - [ ] **F3** DH and AH/RH dashboards. **M** — §7.3
 - [ ] **F4** Request-and-approval flow (extra competency, special eval, scoring
       adjustment). **M** — §7.9
-- [ ] **F5** New notification events; acknowledgement and results release. **S** — §7.8
+- [x] **F5** Workflow notification events — DONE (migration
+      `0042_notification_events.sql`). Six new templates, and emitters wired
+      into the paths that were silent: `evaluation.assigned`,
+      `evaluation.result`, `evaluation.acknowledged`, `peer.invited`,
+      `peer.panel_short`, `review.acknowledged`.
+
+      **The audit found more than new events were needed.** Several templates
+      were seeded and emitted by nothing. **`review.assigned` was the worst** —
+      seeded in 0021, and `generateInstances()` has been creating review work
+      and telling nobody ever since. A template with no emitter is
+      indistinguishable from a working feature until somebody waits for a
+      message that never comes, so the audit is now **a test**: every seeded
+      template must either have an emitter or be on a short list with a stated
+      reason.
+
+      **The peer invitation is emitted inside the draw**, not from a service
+      above it — `app.draw_peer_reviewers` is called from SQL, and will be
+      called from a screen and the CLI, so an invitation that depends on the
+      caller remembering is one that gets missed. It names the subject to the
+      reviewer, who cannot answer the six-month question otherwise; nothing
+      travels the other way, and 0041's restrictive policy keeps it so.
+
+- [ ] **F5b** The deadline scanner: something that notices a review or check-in
+      is due and fires on a schedule. **M** — §7.8 ("reminders").
+      `goal.checkin_overdue` has been seeded since 0021 with nothing emitting
+      it, which is the same failure F5 just cleaned up — so the reminder
+      templates are deliberately *not* seeded until the scanner exists.
 - [ ] **F6** Branch ranking. **M** — §2.2 *(Q9)*
 
 ### Phase G — Promotion programmes

@@ -174,6 +174,31 @@ export class ReviewsService {
         }
       }
 
+      // Tell the reviewers. `review.assigned` has been a seeded template since
+      // 0021 with nothing emitting it, so until now a cycle could be generated
+      // and every reviewer left to discover their queue by looking.
+      //
+      // Same transaction as the instances: nobody is told about work that did
+      // not end up existing. Deduplicated on the instance, so re-running
+      // generation over an existing cycle does not re-notify.
+      for (const instanceId of created) {
+        const inst = await client.query<{ reviewer: string; subject: string;
+                                          cycle: string; closes: string }>(
+          `SELECT ri.reviewer_employee_id AS reviewer,
+                  app.display_name(ri.subject_employee_id) AS subject,
+                  c.name AS cycle, c.closes_on::text AS closes
+             FROM review_instance ri
+             JOIN review_cycle c ON c.id = ri.review_cycle_id
+            WHERE ri.id = $1`, [instanceId]);
+        const row = inst.rows[0];
+        // A self-review needs no invitation: the person already knows.
+        if (!row || row.reviewer === null) continue;
+        await NotificationsService.enqueue(
+          client, row.reviewer, 'review.assigned',
+          { subjectName: row.subject, cycleName: row.cycle, closesOn: row.closes },
+          `review-assigned:${instanceId}`);
+      }
+
       return { created: created.length, skipped };
     });
   }
@@ -625,6 +650,26 @@ export class ReviewsService {
         throw new BadRequestException(
           'Only the employee named in a released review can acknowledge it, and only once');
       }
+
+      // Tell whoever signed it off. Acknowledgement is the last step of the
+      // cycle and the one nobody can see from their own queue -- without this,
+      // closing a cycle means chasing people to ask whether they read it.
+      const who = await client.query<{ signer: string | null; employee: string;
+                                       cycle: string }>(
+        `SELECT rs.signed_off_by AS signer,
+                app.display_name(rs.subject_employee_id) AS employee,
+                c.name AS cycle
+           FROM review_summary rs
+           JOIN review_cycle c ON c.id = rs.review_cycle_id
+          WHERE rs.id = $1`, [summaryId]);
+      const row = who.rows[0];
+      if (row?.signer) {
+        await NotificationsService.enqueue(
+          client, row.signer, 'review.acknowledged',
+          { employeeName: row.employee, cycleName: row.cycle },
+          `review-acknowledged:${summaryId}`);
+      }
+
       return { id: summaryId };
     });
   }
