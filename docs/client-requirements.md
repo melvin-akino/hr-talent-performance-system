@@ -291,7 +291,7 @@ unchanged: an aggregate carries no forbidden field, so it should.
 
 | # | Requirement | Notes |
 |---|---|---|
-| 6.1 | 30 points: Mastery 5, Demeanor A (phone/messaging) 5, Demeanor B (in person) 5, Customer Service 10, Promptness 5 | A fixed instrument; straightforward once §3 exists. |
+| 6.1 | 30 points: Mastery 5, Demeanor A (phone/messaging) 5, Demeanor B (in person) 5, Customer Service 10, Promptness 5 | **Have** — seeded as `PEER-30`; accepting an invitation creates the instance (D1). |
 | 6.2 | Reviewers drawn **randomly** from a parameter set | **Have** — `app.draw_peer_reviewers()`, recording the pool each person came from and who ran the draw (D3). |
 | 6.3 | Rank distance: same rank, 1 up, 2 up | **Have** — `peer_review_rule_source.rank_delta`, in `app.ranks_above()` terms (D2). |
 | 6.4 | **Have** (D2). Rules by job family and unit — Bookkeeper/Cashier → CM, FM; FS/CI → CSS; Parts Custodian/Technician → ASM; Branch Head → same-Area Branch Heads, back-office Supervisors, AH, DH, GM; all other branch staff → colleagues, BH, AH | A rules table, not code. Depends on §5.3. |
@@ -709,7 +709,31 @@ because dropping two real tasks to match a formula would be the wrong way round.
 
 ### Phase D — Peer review
 
-- [ ] **D1** The fixed 30-point instrument. **S** — §6.1
+- [x] **D1** The 30-point peer instrument — DONE (migration
+      `0041_peer_instrument.sql`). Mastery 5, Demeanour A 5, Demeanour B 5,
+      Customer Service 10, Promptness 5. Seeded as `PEER-30` in every tenant,
+      validated before it is written like the 100-point formats.
+
+      **Accepting an invitation now creates the review instance**, in the same
+      statement. D3 stopped at `accepted` because the instrument did not exist;
+      apart, the two leave somebody who has agreed to review with nothing to
+      fill in, and a panel that looks complete from one table and empty from
+      the other.
+
+      **Anonymity is not decided here, and must not be decided by accident.**
+      Q5 is open, and the existing rule (0014) lets a subject read any instance
+      about them once the review is released — which, applied to a peer
+      instance, discloses which colleague wrote it. Shipping that as a side
+      effect of adding a `reviewer_role` would answer Q5 for the client,
+      irreversibly, in the direction that cannot be taken back. So a
+      **RESTRICTIVE** policy removes exactly one audience: a subject never sees
+      a peer instance. The reviewer still sees their own work; HR still sees the
+      panel; the subject's other released reviews are untouched. Tests assert
+      all four.
+
+      When Q5 lands: **anonymous** keeps the policy and D4 shows the average
+      only; **attributed** drops it, and 0014's existing rule already does the
+      right thing. Either answer is one migration.
 - [x] **D2** Peer-review parameter rules — DONE (migration
       `0039_peer_review_rules.sql`). Their page-4 routing is now **rows, not
       code**: `peer_review_rule` selects the subject (job family, rank, unit

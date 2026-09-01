@@ -17,7 +17,7 @@ scans every text column on every build to keep it that way
 
 ## Status
 
-Phases 0–7 complete. **765 automated tests** — 636 against a real PostgreSQL via
+Phases 0–7 complete. **777 automated tests** — 648 against a real PostgreSQL via
 Testcontainers, 129 component and content tests, plus 14 Playwright journeys
 covering sign-in, the goal lifecycle, sign-off gating and responsive layout. RLS
 policies are the security boundary and cannot be verified against mocks.
@@ -39,7 +39,7 @@ policies are the security boundary and cannot be verified against mocks.
 | Per-employee history across reviews, evaluations, PIPs and employment | Complete |
 | Evaluation types as configuration — probationary, annual, semi-annual, project, KPI | Complete |
 | HCM target approval, and the Department Head review step | Complete |
-| Peer-review routing, sampling and the six-month eligibility gate | Complete; instrument and averaging next |
+| Peer review: routing, sampling, the eligibility gate and the 30-point instrument | Complete; averaging and anonymity await answers |
 | UI on the Industry design system, grouped navigation | Complete — all 24 screens |
 | In-app help — 14 bundled articles, role- and route-aware | Complete |
 | HR-authored help content, published from Setup | Complete |

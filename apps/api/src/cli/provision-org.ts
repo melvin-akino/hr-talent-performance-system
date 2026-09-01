@@ -20,6 +20,9 @@ import { Client } from 'pg';
 import {
   CLIENT_FORMATS, CLIENT_TEMPLATE_TOTAL, formatTemplate,
 } from '../reviews/client-templates';
+import {
+  PEER_TEMPLATE_CODE, PEER_TEMPLATE_TOTAL, peerTemplate,
+} from '../reviews/peer-instrument';
 import { assertScoringValid } from '../reviews/scoring';
 
 /** Every per-org seeder, in dependency order. Add new phases to the end. */
@@ -204,6 +207,34 @@ export async function provisionOrg(
     console.log(`  prepared formats: `
       + `${CLIENT_FORMATS.map((f) => f.code).join(', ')} `
       + `(${CLIENT_TEMPLATE_TOTAL} points each, unassigned)`);
+
+    // The 30-point peer instrument (§6.1). Published and unassigned, like the
+    // two 100-point formats: it is reached by accepting a peer invitation
+    // (app.accept_peer_solicitation), not by the ordinary form assignment.
+    {
+      const schema = peerTemplate();
+      assertScoringValid(schema);
+
+      const id = (await c.query<{ id: string }>(
+        `INSERT INTO form_template (org_id, code, name, description)
+              VALUES ($1,$2,'Peer review — 30 points',
+                      'The fixed peer instrument: mastery, demeanour, customer '
+                      || 'service and promptness.')
+         ON CONFLICT (org_id, code) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`, [org, PEER_TEMPLATE_CODE])).rows[0]!.id;
+
+      const exists = await c.query(
+        `SELECT 1 FROM form_version WHERE form_template_id = $1`, [id]);
+      if (exists.rowCount === 0) {
+        await c.query(
+          `INSERT INTO form_version (form_template_id, version, schema_json,
+                                     rating_scale_id, published_at, is_active)
+                VALUES ($1,1,$2::jsonb,$3,now(),TRUE)`,
+          [id, JSON.stringify(schema), scale]);
+      }
+    }
+    console.log(`  peer instrument: ${PEER_TEMPLATE_CODE} `
+      + `(${PEER_TEMPLATE_TOTAL} points)`);
 
     // The org-wide default: the row with no employment type and no role. Without
     // it resolve_form_version() returns NULL and every review is skipped.
