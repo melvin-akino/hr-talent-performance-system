@@ -135,6 +135,36 @@ lock_key() {
   fi
 }
 
+# This machine's public address, for the ssh ingress rule.
+#
+# Three ways, because the first one fails on any machine running TLS
+# interception -- antivirus HTTPS scanning, or a corporate proxy. curl carries
+# its own CA bundle and does not consult the Windows trust store, so it rejects
+# the intercepting certificate that every browser on the same machine accepts.
+# That presents as "SSL certificate problem: unable to get local issuer
+# certificate" from a script that was working yesterday.
+#
+# Nothing here disables verification. The AWS CLI's own ca_bundle is tried
+# second because it is the one already configured to cope; PowerShell is tried
+# third because it uses the Windows certificate store, which trusts the
+# interceptor by construction.
+my_ip() {
+  local IP CA
+  IP="$(curl -fsS --max-time 10 https://checkip.amazonaws.com 2>/dev/null \
+        | tr -d '[:space:]')"
+  if [ -z "$IP" ]; then
+    CA="$($AWS configure get ca_bundle 2>/dev/null || true)"
+    [ -n "$CA" ] && IP="$(curl -fsS --max-time 10 --cacert "$CA" \
+      https://checkip.amazonaws.com 2>/dev/null | tr -d '[:space:]')"
+  fi
+  if [ -z "$IP" ] && [ "$IS_WINDOWS" = "true" ]; then
+    IP="$(powershell.exe -NoProfile -Command \
+      '(Invoke-RestMethod https://checkip.amazonaws.com).Trim()' 2>/dev/null \
+      | tr -d '[:space:]')"
+  fi
+  printf '%s' "$IP"
+}
+
 # The instance's public name, resolved. getent is Linux-only; nslookup is
 # present on every Windows install and its output has to be parsed past the
 # resolver's own address, which is why the Answer section is split off first.
@@ -262,24 +292,55 @@ if [ -z "$SG_ID" ] || [ "$SG_ID" = "None" ]; then
     --description "HR system hosted demo" \
     --tag-specifications "ResourceType=security-group,Tags=[{Key=Project,Value=$TAG}]" \
     --query 'GroupId' --output text)"
-
-  # 80 and 443 must be open to the world: Let's Encrypt validates over HTTP,
-  # and the demo is meant to be visited.
-  $AWS ec2 authorize-security-group-ingress --group-id "$SG_ID" \
-    --ip-permissions \
-      'IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0}]' \
-      'IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges=[{CidrIp=0.0.0.0/0}]' >/dev/null
-
-  # SSH is restricted to the address running this script. Postgres and Keycloak
-  # are never published — they are reachable only inside the compose network.
-  MY_IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
-  $AWS ec2 authorize-security-group-ingress --group-id "$SG_ID" \
-    --ip-permissions \
-      "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${MY_IP}/32,Description=installer}]" >/dev/null
-  ok "security group $SG_ID (ssh limited to $MY_IP)"
+  ok "security group $SG_ID created"
 else
   ok "security group $SG_ID reused"
 fi
+
+# The rules are ensured on EVERY run, deliberately outside the branch above.
+#
+# They used to be applied only when the group was created, which is wrong in a
+# way that only shows up once something interrupts the middle: a run that
+# created the group and then failed before the ssh rule left a group that every
+# later run would find, report as "reused", and never finish. The deploy would
+# get all the way to "cannot ssh to <ip>" with an instance already running and
+# nothing explaining why.
+#
+# authorize-security-group-ingress is not idempotent -- it errors with
+# InvalidPermission.Duplicate -- so a duplicate is tolerated here rather than
+# avoided, which is what makes re-running safe.
+allow() {
+  # Output captured ONCE and classified, rather than piped into grep.
+  #
+  # `aws ... 2>&1 | grep -q Duplicate` reads correctly and is wrong under
+  # `set -o pipefail`: the pipeline takes its status from the failing aws call,
+  # so a successfully-matched duplicate still evaluates as failure. That turned
+  # "this rule already exists" into a fatal error on the second run of an
+  # otherwise idempotent script.
+  local OUT
+  OUT="$($AWS ec2 authorize-security-group-ingress --group-id "$SG_ID" \
+           --ip-permissions "$1" 2>&1)" && { ok "$2"; return 0; }
+
+  # Only a duplicate is acceptable. Anything else must surface, with the
+  # message AWS actually gave.
+  case "$OUT" in
+    *InvalidPermission.Duplicate*) ok "$2 (already present)" ;;
+    *) die "could not add rule to $SG_ID ($2):
+       $OUT" ;;
+  esac
+}
+
+# 80 and 443 must be open to the world: Let's Encrypt validates over HTTP, and
+# the demo is meant to be visited.
+allow 'IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0}]'   'http open'
+allow 'IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges=[{CidrIp=0.0.0.0/0}]' 'https open'
+
+# SSH is restricted to the address running this script. Postgres and Keycloak
+# are never published — they are reachable only inside the compose network.
+MY_IP="$(my_ip)"
+[ -n "$MY_IP" ] || die "could not determine this machine's public IP"
+allow "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${MY_IP}/32,Description=installer}]" \
+      "ssh limited to $MY_IP"
 
 # --- key pair ---------------------------------------------------------------
 if [ ! -f "$KEY_FILE" ]; then
