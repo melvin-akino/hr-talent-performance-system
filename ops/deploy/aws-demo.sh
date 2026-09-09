@@ -28,7 +28,7 @@ DESTROY="false"
 PREBUILT=""
 IMAGES_TAR="ops/deploy/hr-images.tar.gz"
 SWAP_GB="${SWAP_GB:-2}"
-STAFF_CSV="db/seeds/devcore-201.csv"
+STAFF_CSV="db/seeds/hcm-anonymised.example.csv"
 
 usage() {
   cat >&2 <<'USAGE'
@@ -41,7 +41,7 @@ usage: aws-demo.sh --host <fqdn> --acme-email <email> [options]
   --instance-type <t>   default t3.micro (free tier)
   --repo <git-url>      clone this repo on the instance; omit to upload the
                         working tree over ssh instead
-  --staff-csv <path>    demo staff file (default db/seeds/devcore-201.csv)
+  --staff-csv <path>    demo staff file (default db/seeds/hcm-anonymised.example.csv)
   --prebuilt            build images locally and upload them (default on
                         any *.micro/*.nano; nothing is compiled on the box)
   --build-on-instance   compile on the instance instead. Slow on a micro.
@@ -541,8 +541,8 @@ fi
 say "Running the installer"
 SSH "cd hr-system && bash ops/deploy/install.sh \
   --host '$PUBLIC_HOST' --mode demo --acme-email '$ACME_EMAIL' \
-  --org DEVCORE --org-name 'Devcore Solutions Inc.' \
-  --staff-csv '$STAFF_CSV' --hr-admin DEV-023 --seed-demo-users \
+  --org GGCHCM --org-name 'GGC Human Capital Management (anonymised pilot)' \
+  --staff-csv '$STAFF_CSV' --hr-admin HCM-001 --seed-demo-users \
   $LOW_MEMORY_FLAG $PREBUILT_FLAG"
 
 say "Demo is up"
