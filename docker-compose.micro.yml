@@ -1,0 +1,104 @@
+# Overlay for a 1 GB box — specifically AWS free tier t3.micro.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+#                  -f docker-compose.micro.yml up -d
+#
+# MUST come after docker-compose.demo.yml: overlays are merged in order and
+# this one exists to override the demo's limits, which assume a 2 GB box.
+#
+# WHY THIS FILE EXISTS.
+#
+# The demo overlay budgets 1g + 1g + 768m. That is 2.75 GB of ceilings on a
+# machine with 1 GB of RAM. Nothing enforces the sum, so the stack starts, looks
+# healthy, and then the kernel OOM-killer takes whichever container happens to
+# ask for a page at the wrong moment -- usually Postgres, usually mid-demo. A
+# container that vanishes under load is far harder to diagnose than one that
+# refused to start.
+#
+# So every ceiling here is real and they add up to less than the machine:
+#
+#   postgres  320m   keycloak  420m   api  224m   web  32m   caddy  48m
+#   ------------------------------------------------------ total  1044m
+#
+# That total slightly exceeds 1 GB on purpose. Limits are ceilings, not
+# reservations, and no two of these peak together: Keycloak's peak is startup,
+# Postgres's is a report query, the API's is an import. The swap file that
+# ops/deploy/aws-demo.sh puts on the instance absorbs the overlap. Without that
+# swap file these numbers are wrong -- see the check in install.sh.
+#
+# THIS IS A DEMO PROFILE, NOT A PRODUCTION ONE. Postgres is tuned here for
+# smallness rather than throughput. Do not put real staff on a box this size.
+
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 320m
+    command:
+      - postgres
+      # Tuned down from the defaults, which assume a machine with room. The
+      # base file's settings are kept -- slow-query logging is how a demo that
+      # feels sluggish gets diagnosed rather than guessed at.
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      # 40 is well above what a demo opens and well below what would let the
+      # connection slots alone exhaust the box.
+      - -c
+      - max_connections=40
+      - -c
+      - max_worker_processes=2
+      - -c
+      - max_parallel_workers=1
+      - -c
+      - max_parallel_workers_per_gather=0
+
+  keycloak:
+    deploy:
+      resources:
+        limits:
+          memory: 420m
+    environment:
+      # Keycloak sizes its heap from the CGROUP limit by default
+      # (MaxRAMPercentage), which would read 420m and leave nothing for the JVM
+      # itself -- metaspace, code cache, thread stacks and direct buffers live
+      # OUTSIDE the heap, and an OOM there kills the container with no Java
+      # stack trace to explain it. Capping the heap explicitly leaves that room.
+      JAVA_OPTS_KC_HEAP: "-Xms64m -Xmx256m"
+
+  api:
+    deploy:
+      resources:
+        limits:
+          memory: 224m
+    environment:
+      # Node's default old-space on a 1 GB host is roughly half the machine.
+      # Left alone it will happily grow past this container's ceiling and be
+      # killed; told the real budget, V8 collects instead.
+      NODE_OPTIONS: "--max-old-space-size=160"
+      # The demo overlay turns this up to debug. On a box this size the log
+      # volume is itself a cost, and debug logging a full staff import is
+      # measured in tens of megabytes.
+      LOG_LEVEL: info
+
+  web:
+    deploy:
+      resources:
+        limits:
+          memory: 32m
+
+  caddy:
+    deploy:
+      resources:
+        limits:
+          memory: 48m

@@ -39,6 +39,7 @@ COMPOSE_FILES=(-f docker-compose.yml)
 MODE="onprem"
 ACME_EMAIL=""
 SEED_DEMO_USERS="false"
+LOW_MEMORY="false"
 
 usage() {
   cat >&2 <<'USAGE'
@@ -57,6 +58,7 @@ optional
   --period-end <date>    goal period end          (default Dec 31 this year)
   --mode onprem|demo     demo enables public ACME TLS and demo logins
   --acme-email <email>   contact for Let's Encrypt (required with --mode demo)
+  --low-memory           tune for a 1 GB host (AWS free tier t3.micro)
   --seed-demo-users      create a Keycloak login per row in the staff CSV
                          (NEVER use on a system holding real employee data)
 USAGE
@@ -74,6 +76,7 @@ while [ $# -gt 0 ]; do
     --period-start)   PERIOD_START="$2"; shift 2 ;;
     --period-end)     PERIOD_END="$2"; shift 2 ;;
     --mode)           MODE="$2"; shift 2 ;;
+    --low-memory)     LOW_MEMORY="true"; shift ;;
     --acme-email)     ACME_EMAIL="$2"; shift 2 ;;
     --seed-demo-users) SEED_DEMO_USERS="true"; shift ;;
     -h|--help)        usage ;;
@@ -115,6 +118,27 @@ if [ "$MODE" = "demo" ]; then
   COMPOSE_FILES=(-f docker-compose.yml -f docker-compose.demo.yml)
   export ACME_EMAIL
   ok "demo mode — public TLS via Let's Encrypt"
+fi
+
+# Must be appended AFTER the demo overlay: overlays merge in order, and the
+# whole job of the micro file is to override the demo's 2.75 GB of ceilings.
+if [ "$LOW_MEMORY" = "true" ]; then
+  COMPOSE_FILES+=(-f docker-compose.micro.yml)
+
+  # The micro limits total slightly more than 1 GB on the assumption that swap
+  # absorbs the overlap. Without swap that assumption is simply wrong, and the
+  # way it fails is a container disappearing mid-demo with no error anyone can
+  # read -- so this is a hard stop, not a warning.
+  SWAP_KB="$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+  if [ "${SWAP_KB:-0}" -lt 2097152 ]; then
+    die "--low-memory needs at least 2 GB of swap, found $((${SWAP_KB:-0} / 1024)) MB.
+       ops/deploy/aws-demo.sh provisions 4 GB via cloud-init. To add it by hand:
+
+         sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
+         sudo mkswap /swapfile && sudo swapon /swapfile
+         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab"
+  fi
+  ok "low-memory profile — $((SWAP_KB / 1048576)) GB swap present"
 fi
 
 if [ -n "$STAFF_CSV" ] && [ ! -f "$STAFF_CSV" ]; then
@@ -184,7 +208,25 @@ DB_URL="postgres://${POSTGRES_MIGRATOR_USER}:${POSTGRES_MIGRATOR_PASSWORD}@postg
 
 # --- 3. build and start -----------------------------------------------------
 say "Building images"
-docker compose "${COMPOSE_FILES[@]}" build
+if [ "$LOW_MEMORY" = "true" ]; then
+  # One at a time, and in this order.
+  #
+  # `docker compose build` builds services CONCURRENTLY. The api and web images
+  # each run a pnpm install and a TypeScript build, and two Node compilers on a
+  # 1 GB box is not a slow build, it is a dead one -- the OOM-killer takes the
+  # instance's sshd as readily as it takes a compiler, so the failure often
+  # arrives as a lost connection rather than a build error.
+  #
+  # Keycloak first because it is the cheapest and its failure mode is the
+  # clearest; web last because it is the largest and, having no dependents, is
+  # the one worth retrying alone if it does fall over.
+  for SVC in keycloak api web; do
+    printf '    building %s\n' "$SVC"
+    docker compose "${COMPOSE_FILES[@]}" build "$SVC"
+  done
+else
+  docker compose "${COMPOSE_FILES[@]}" build
+fi
 ok "images built"
 
 say "Starting the stack"

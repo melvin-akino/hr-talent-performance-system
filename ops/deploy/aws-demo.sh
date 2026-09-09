@@ -19,9 +19,9 @@ set -euo pipefail
 
 PUBLIC_HOST=""
 ACME_EMAIL=""
-REGION="${AWS_REGION:-ap-southeast-1}"          # Singapore — nearest to PH
-INSTANCE_TYPE="t3.small"                        # 2 GB; the stack needs ~1.5 GB
-VOLUME_GB="30"
+REGION="${AWS_REGION:-ap-southeast-2}"          # Sydney
+INSTANCE_TYPE="t3.micro"                        # free tier; see --low-memory below
+VOLUME_GB="30"                                 # the entire EBS free-tier allowance
 TAG="hr-system-demo"
 REPO_URL="${REPO_URL:-}"
 DESTROY="false"
@@ -34,8 +34,8 @@ usage: aws-demo.sh --host <fqdn> --acme-email <email> [options]
 
   --host <fqdn>         public DNS name for the demo
   --acme-email <email>  Let's Encrypt contact
-  --region <region>     default ap-southeast-1
-  --instance-type <t>   default t3.small
+  --region <region>     default ap-southeast-2 (Sydney)
+  --instance-type <t>   default t3.micro (free tier)
   --repo <git-url>      clone this repo on the instance; omit to upload the
                         working tree over ssh instead
   --staff-csv <path>    demo staff file (default db/seeds/devcore-201.csv)
@@ -61,13 +61,126 @@ done
 cd "$(dirname "$0")/../.."
 KEY_FILE="$HOME/.ssh/${TAG}.pem"
 
+# --- Windows -------------------------------------------------------------
+#
+# This script is run from a workstation, and on Windows that workstation is
+# running Git Bash over Windows OpenSSH. Three things differ there, and each
+# fails in a way that does not name its cause:
+#
+#   * Windows OpenSSH does not read POSIX modes. It reads NTFS ACLs, and it
+#     REFUSES a private key any other account can open -- "UNPROTECTED PRIVATE
+#     KEY FILE", after which it falls through to asking for a password that
+#     does not exist. `chmod 600` writes a mode Windows OpenSSH never consults,
+#     so the fix is icacls, not chmod.
+#   * Windows OpenSSH is a native binary and cannot open a Git Bash path.
+#     `-i /c/Users/...` is a file it will not find. Arguments that are paths
+#     have to be converted with cygpath first.
+#   * getent does not exist, so the DNS gate below needs another way to ask.
+#
+# Git Bash ships its own MSYS ssh, which would sidestep the first two -- but
+# not the third, and it keeps a separate known_hosts and agent from the one the
+# operator already uses. Preferring the Windows binary keeps this consistent
+# with every other ssh they run on that machine.
+IS_WINDOWS="false"
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*) IS_WINDOWS="true" ;;
+esac
+
+# Path as the ssh binary will read it, which on Windows is not the path we use.
+winpath() {
+  if [ "$IS_WINDOWS" = "true" ] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+
+SSH_BIN="ssh"
+if [ "$IS_WINDOWS" = "true" ]; then
+  for CANDIDATE in \
+      "/c/Windows/System32/OpenSSH/ssh.exe" \
+      "/c/Program Files/OpenSSH/ssh.exe"; do
+    [ -x "$CANDIDATE" ] && { SSH_BIN="$CANDIDATE"; break; }
+  done
+  if [ "$SSH_BIN" = "ssh" ]; then
+    die "Windows OpenSSH was not found.
+       Install it with:  Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+       (an elevated PowerShell), or add its directory to PATH."
+  fi
+  # MSYS rewrites arguments that look like absolute POSIX paths before a native
+  # binary ever sees them. Harmless for -o options, wrong for anything else.
+  export MSYS_NO_PATHCONV=1
+fi
+
+# Restrict the key so ssh will accept it. On Windows that means stripping
+# inherited ACEs and granting only the current user -- the /inheritance:r is the
+# part that matters, since without it the parent directory's grants survive and
+# ssh still refuses.
+lock_key() {
+  if [ "$IS_WINDOWS" = "true" ]; then
+    local WIN_KEY; WIN_KEY="$(winpath "$1")"
+    icacls "$WIN_KEY" /inheritance:r >/dev/null 2>&1 \
+      && icacls "$WIN_KEY" /grant:r "${USERNAME:-$USER}:R" >/dev/null 2>&1 \
+      || warn "could not tighten ACLs on $1 — ssh may refuse it as unprotected"
+  else
+    chmod 600 "$1"
+  fi
+}
+
+# The instance's public name, resolved. getent is Linux-only; nslookup is
+# present on every Windows install and its output has to be parsed past the
+# resolver's own address, which is why the Answer section is split off first.
+resolve_a() {
+  if command -v getent >/dev/null 2>&1; then
+    getent hosts "$1" | awk '{print $1}' | head -1
+  elif command -v nslookup >/dev/null 2>&1; then
+    nslookup "$1" 2>/dev/null \
+      | awk '/^Name:/{seen=1} seen && /^Address(es)?:/{gsub(/^Address(es)?: */,""); print; exit}'
+  else
+    printf ''
+  fi
+}
+
+
 say()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 ok()   { printf '    \033[32mok\033[0m  %s\n' "$*"; }
 die()  { printf '\n\033[31mFAILED:\033[0m %s\n' "$*" >&2; exit 1; }
+warn() { printf '    \033[33mwarn\033[0m %s\n' "$*" >&2; }
 
 command -v aws >/dev/null 2>&1 || die "aws CLI is not installed"
 aws sts get-caller-identity >/dev/null 2>&1 || die "aws CLI is not authenticated"
 AWS="aws --region $REGION"
+
+# --- sizing --------------------------------------------------------------
+#
+# On anything under 2 GB the installer runs its low-memory profile: the micro
+# compose overlay, and a serial image build. Deciding it HERE, from the machine
+# actually being launched, rather than asking the operator to remember a second
+# flag that must agree with the first.
+case "$INSTANCE_TYPE" in
+  *.nano|*.micro) LOW_MEMORY_FLAG="--low-memory" ;;
+  *)              LOW_MEMORY_FLAG="" ;;
+esac
+
+# What the free tier actually covers, stated once so a surprise bill is not the
+# way it gets learned:
+#
+#   * 750 instance-hours/month of t3.micro for 12 months -- one instance running
+#     continuously, not two;
+#   * 30 GB of EBS general-purpose SSD, which is the whole of VOLUME_GB above,
+#     so there is no room for a second volume or for snapshots;
+#   * 750 hours/month of in-use public IPv4. The Elastic IP below is free ONLY
+#     while attached to a running instance. Stop the instance and keep the
+#     address and it starts costing about $3.60/month -- use --destroy, which
+#     releases it, rather than stopping the instance to save money.
+if [ "$DESTROY" != "true" ]; then
+  case "$INSTANCE_TYPE" in
+    t3.micro|t2.micro) : ;;
+    *) warn "$INSTANCE_TYPE is outside the EC2 free tier (t3.micro/t2.micro)" ;;
+  esac
+  [ "$VOLUME_GB" -le 30 ] || warn "${VOLUME_GB} GB exceeds the 30 GB EBS free-tier allowance"
+fi
+
 
 find_instance() {
   $AWS ec2 describe-instances \
@@ -139,7 +252,7 @@ if [ ! -f "$KEY_FILE" ]; then
   mkdir -p "$(dirname "$KEY_FILE")"
   $AWS ec2 create-key-pair --key-name "$TAG" \
     --query 'KeyMaterial' --output text > "$KEY_FILE"
-  chmod 600 "$KEY_FILE"
+  lock_key "$KEY_FILE"
   ok "key pair written to $KEY_FILE"
 else
   ok "key pair $KEY_FILE reused"
@@ -150,15 +263,63 @@ say "Instance"
 ID="$(find_instance)"
 
 if [ -z "$ID" ]; then
+  # Canonical publishes the current AMI id as a public SSM parameter, which is
+  # the tidy way to ask. But reading it needs ssm:GetParameters, and the policy
+  # people actually attach for this -- AmazonEC2FullAccess -- does not grant it.
+  # The failure is an AccessDenied on a service the operator never chose to use,
+  # thirty seconds into a script that had been working, so fall back rather than
+  # make them widen a policy to look up a public value.
   AMI="$($AWS ssm get-parameters \
     --names /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id \
-    --query 'Parameters[0].Value' --output text)"
+    --query 'Parameters[0].Value' --output text 2>/dev/null | grep -v '^None$' || true)"
 
+  if [ -z "$AMI" ]; then
+    # ec2:DescribeImages IS in AmazonEC2FullAccess. Owner 099720109477 is
+    # Canonical's account id -- filtering by it is what stops this matching
+    # somebody else's image that happens to be named like Ubuntu.
+    for PATTERN in 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*' \
+                   'ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*'; do
+      AMI="$($AWS ec2 describe-images --owners 099720109477 \
+        --filters "Name=name,Values=$PATTERN" \
+                  'Name=state,Values=available' \
+                  'Name=architecture,Values=x86_64' \
+        --query 'sort_by(Images,&CreationDate)[-1].ImageId' \
+        --output text 2>/dev/null | grep -v '^None$' || true)"
+      [ -n "$AMI" ] && break
+    done
+    [ -n "$AMI" ] || die "could not find an Ubuntu 24.04 AMI in $REGION"
+    ok "AMI $AMI (via describe-images; SSM lookup unavailable)"
+  else
+    ok "AMI $AMI"
+  fi
+
+  # SWAP IS NOT OPTIONAL ON A t3.micro.
+  #
+  # 1 GB of RAM has to build two Node images and then run Postgres, Keycloak, a
+  # Node API, nginx and Caddy. Without swap the build does not fail so much as
+  # the machine stops answering: the OOM-killer picks a victim by score, and
+  # sshd is as eligible as a compiler, so this typically presents as the deploy
+  # script losing its connection rather than as a build error.
+  #
+  # 4 GB, out of a 30 GB volume. Swap on EBS is slow, and that is fine -- it is
+  # there to absorb peaks that do not coincide, not to be a second tier of RAM.
+  # swappiness is dropped from 60 so the kernel prefers reclaiming page cache to
+  # paging out a running container.
   CLOUD_INIT="$(cat <<'CI'
 #cloud-config
 package_update: true
 packages: [docker.io, docker-compose-v2, git]
+swap:
+  filename: /swapfile
+  size: 4294967296
+  maxsize: 4294967296
+write_files:
+  - path: /etc/sysctl.d/99-hr-system.conf
+    content: |
+      vm.swappiness=10
+      vm.vfs_cache_pressure=50
 runcmd:
+  - sysctl --system
   - systemctl enable --now docker
   - usermod -aG docker ubuntu
 CI
@@ -208,45 +369,54 @@ printf '    Type yes once DNS resolves: '
 read -r CONFIRM
 [ "$CONFIRM" = "yes" ] || die "aborted"
 
-RESOLVED="$(getent hosts "$PUBLIC_HOST" | awk '{print $1}' | head -1 || true)"
+RESOLVED="$(resolve_a "$PUBLIC_HOST" | tr -d '[:space:]' || true)"
 [ "$RESOLVED" = "$EIP" ] || die "$PUBLIC_HOST resolves to '${RESOLVED:-nothing}', expected $EIP"
 ok "$PUBLIC_HOST -> $EIP"
 
 # --- ship the code ----------------------------------------------------------
-SSH="ssh -i $KEY_FILE -o StrictHostKeyChecking=accept-new ubuntu@$EIP"
+# A function, not a string. SSH_BIN can live under "C:\Program Files", and an
+# unquoted $SSH would split that into two words and two confusing errors.
+# known_hosts is left at the binary's own default: Windows OpenSSH already keeps
+# it in %USERPROFILE%\.ssh, which is the file the operator's other sessions use.
+SSH() {
+  "$SSH_BIN" -i "$(winpath "$KEY_FILE")" \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=10 \
+    "ubuntu@$EIP" "$@"
+}
 
 say "Waiting for the instance to accept ssh"
 for _ in $(seq 1 60); do
-  $SSH true 2>/dev/null && break
+  SSH true 2>/dev/null && break
   sleep 5
 done
-$SSH true 2>/dev/null || die "cannot ssh to $EIP"
-$SSH 'cloud-init status --wait' >/dev/null 2>&1 || true
+SSH true 2>/dev/null || die "cannot ssh to $EIP"
+SSH 'cloud-init status --wait' >/dev/null 2>&1 || true
 ok "instance ready"
 
 say "Copying the application"
 if [ -n "$REPO_URL" ]; then
-  $SSH "test -d hr-system || git clone '$REPO_URL' hr-system; cd hr-system && git pull --ff-only"
+  SSH "test -d hr-system || git clone '$REPO_URL' hr-system; cd hr-system && git pull --ff-only"
 else
   # No repo URL: ship the working tree, minus everything that must not travel.
   # .env is excluded deliberately — the demo generates its own secrets.
   tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=.env \
-      -czf - . | $SSH 'mkdir -p hr-system && tar -xzf - -C hr-system'
+      -czf - . | SSH 'mkdir -p hr-system && tar -xzf - -C hr-system'
 fi
 ok "code on the instance"
 
 # --- install ----------------------------------------------------------------
 say "Running the installer"
-$SSH "cd hr-system && bash ops/deploy/install.sh \
+SSH "cd hr-system && bash ops/deploy/install.sh \
   --host '$PUBLIC_HOST' --mode demo --acme-email '$ACME_EMAIL' \
   --org DEVCORE --org-name 'Devcore Solutions Inc.' \
-  --staff-csv '$STAFF_CSV' --hr-admin DEV-023 --seed-demo-users"
+  --staff-csv '$STAFF_CSV' --hr-admin DEV-023 --seed-demo-users $LOW_MEMORY_FLAG"
 
 say "Demo is up"
 cat <<DONE
     https://${PUBLIC_HOST}
 
-    ssh       ssh -i $KEY_FILE ubuntu@$EIP
+    ssh       "$SSH_BIN" -i "$(winpath "$KEY_FILE")" ubuntu@$EIP
     destroy   $0 --destroy
 
     The demo carries synthetic staff and shared-password logins. Never load

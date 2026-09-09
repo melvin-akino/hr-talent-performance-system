@@ -88,11 +88,16 @@ migrations, provisions the Keycloak realm, imports staff, derives roles from the
 org chart, opens a goal period, and finishes with a 19-point readiness check.
 Idempotent — safe to re-run.
 
-For the hosted demo on AWS:
+For the hosted demo on AWS — Sydney, free-tier t3.micro by default:
 
 ```bash
 ./ops/deploy/aws-demo.sh --host demo.example.com --acme-email you@example.com
 ```
+
+A t3.micro has 1 GiB of RAM against a stack that wants more, so the script
+provisions swap, applies `docker-compose.micro.yml` and builds serially. The
+details, the IAM policy and the free-tier limits:
+**[docs/aws-free-tier-deployment.md](docs/aws-free-tier-deployment.md)**.
 
 Full procedure, including Active Directory: **[docs/pilot-runbook.md](docs/pilot-runbook.md)**.
 

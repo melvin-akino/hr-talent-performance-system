@@ -342,7 +342,7 @@ Five block work. Q3 (a worked scoring example) unlocks the most.
 |---|---|
 | **Single-commit history** | The repo starts at the import commit; anything older lives in the docs, not the log (§1). |
 | Active Directory federation | Configured, **never tested against a real directory**. Blocks pilot; needs LDAP values from customer IT. |
-| `ops/deploy/aws-demo.sh` | Written, shellcheck-clean, **never run** — needs AWS credentials and a domain. |
+| `ops/deploy/aws-demo.sh` | Written, shellcheck-clean, **never run end to end** — needs AWS credentials and a domain. Free-tier t3.micro path (Sydney, swap, `--low-memory`, Windows OpenSSH) added and its helpers tested locally; the AWS calls themselves are still unexercised. |
 | Mobile layout | Verified via Playwright at 375/390px, not by eye on a device. |
 | Demo accounts on a real install | `preflight` now checks for them, but the check is only as good as its Keycloak credentials — it reports `skip` without them, which is not a pass. |
 | Bundle size | ~580 kB JS, no code splitting. Fine on a LAN; would matter over WAN. |
