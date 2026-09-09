@@ -181,8 +181,8 @@ pnpm --filter @hr/api hr provision-org --org GGCHCM --name "GGC Human Capital Ma
 # The five units must exist before the import, which resolves department_code
 # rather than creating it — otherwise it stops at "Department 'HCM' does not exist".
 psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seeds/ggchcm-departments.sql
-pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv --dry-run
-pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv
+pnpm --filter @hr/api hr import-201 --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv --dry-run
+pnpm --filter @hr/api hr import-201 --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv
 pnpm --filter @hr/api hr sync-roles   --org GGCHCM
 pnpm --filter @hr/api hr grant-admin  --org GGCHCM --employee-no HCM-001
 pnpm --filter @hr/api hr open-goal-period --org GGCHCM --name FY2026 --starts 2026-01-01 --ends 2026-12-31

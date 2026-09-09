@@ -37,3 +37,7 @@ Caddyfile*      text eol=lf
 *.pdf binary
 *.docx binary
 *.xlsx binary
+
+# Staff CSVs are read by the importer inside a Linux container; a stray CR
+# ends up mid-record and the header parses short.
+*.csv   text eol=lf
