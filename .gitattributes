@@ -1,0 +1,39 @@
+# Line endings.
+#
+# core.autocrlf=true is the default on Windows installs of Git, and without this
+# file every shell script in the repo is checked out CRLF. That is not a
+# cosmetic problem here, because these scripts do not stay on Windows:
+#
+#   * ops/deploy/install.sh is tarred to an Ubuntu instance by aws-demo.sh and
+#     run there. Linux bash does not tolerate a CRLF shebang -- `#!/usr/bin/env
+#     bash\r` fails as "bad interpreter: no such file or directory", naming a
+#     binary that plainly exists;
+#   * ops/postgres/init/*.sh are bind-mounted into the postgres container and
+#     run by its entrypoint on first init. The same failure, except it happens
+#     inside a container that then reports healthy while holding no roles;
+#   * ops/keycloak/*.mjs and the Dockerfiles travel into images the same way.
+#
+# Git Bash happens to tolerate CRLF scripts, which is what makes this worth
+# writing down: it works on the machine you test it on and fails on the machine
+# it is for.
+* text=auto
+
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sql   text eol=lf
+Dockerfile      text eol=lf
+Caddyfile*      text eol=lf
+.env.example    text eol=lf
+
+# Windows-only helpers stay CRLF.
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
