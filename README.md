@@ -94,9 +94,16 @@ For the hosted demo on AWS — Sydney, free-tier t3.micro by default:
 ./ops/deploy/aws-demo.sh --host demo.example.com --acme-email you@example.com
 ```
 
-A t3.micro has 1 GiB of RAM against a stack that wants more, so the script
-provisions swap, applies `docker-compose.micro.yml` and builds serially. The
-details, the IAM policy and the free-tier limits:
+A t3.micro has 1 GiB of RAM against a stack that wants more, so at that size
+the images are built on your workstation and shipped as a `docker save`
+archive — nothing is compiled on the instance. The script also provisions swap
+and applies `docker-compose.micro.yml`. To build without deploying:
+
+```bash
+./ops/deploy/build-local.sh --host demo.example.com
+```
+
+The details, the IAM policy and the free-tier limits:
 **[docs/aws-free-tier-deployment.md](docs/aws-free-tier-deployment.md)**.
 
 Full procedure, including Active Directory: **[docs/pilot-runbook.md](docs/pilot-runbook.md)**.

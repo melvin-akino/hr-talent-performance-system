@@ -28,6 +28,23 @@ RUN pnpm --filter @hr/web build
 
 
 FROM nginx:1.27-alpine AS runtime
+
+# Re-declared because ARGs do not cross stages, and recorded as labels because
+# this image is now built on one machine and run on another.
+#
+# Vite inlines these at build time, so an image built for the wrong hostname is
+# not detectably wrong from inside the container -- it serves happily and the
+# browser is redirected to an issuer that does not exist. That presents as a
+# login loop, which reads as a Keycloak misconfiguration and gets debugged as
+# one. The label lets the installer compare what the image was built for
+# against what it is being deployed as, and refuse.
+ARG VITE_API_BASE_URL
+ARG VITE_OIDC_ISSUER
+ARG VITE_OIDC_CLIENT_ID
+LABEL org.hr-system.api-base="$VITE_API_BASE_URL" \
+      org.hr-system.oidc-issuer="$VITE_OIDC_ISSUER" \
+      org.hr-system.oidc-client="$VITE_OIDC_CLIENT_ID"
+
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

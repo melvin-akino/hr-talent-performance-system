@@ -89,23 +89,49 @@ compiler, so it usually presents as your deploy losing its connection.
 
 Three changes make `t3.micro` genuinely work:
 
-1. **4 GB of swap**, provisioned by cloud-init before anything else runs, with
-   `vm.swappiness=10`. Swap on EBS is slow, and that is fine — it exists to
-   absorb peaks that do not coincide, not to be a second tier of RAM.
-2. **`docker-compose.micro.yml`**, real ceilings that add up to roughly the
-   machine: Postgres 320m (with `shared_buffers` and parallelism tuned down),
-   Keycloak 420m with the JVM heap capped at 256m explicitly, API 224m with
-   `--max-old-space-size=160`, nginx 32m, Caddy 48m.
-3. **A serial image build.** `docker compose build` builds concurrently; on
-   this box that is not a slow build, it is a dead one.
+**1. Nothing is compiled on the instance.** `ops/deploy/build-local.sh` builds
+all three images on your workstation and `aws-demo.sh` ships them as a single
+`docker save` archive. This is the default for any `*.micro`/`*.nano`; pass
+`--build-on-instance` to opt out.
 
-`install.sh --low-memory` turns all three on, and `aws-demo.sh` passes it
-automatically for any `*.micro` or `*.nano` instance type. It **refuses to
-start** if swap is missing, rather than proceeding on an assumption that fails
-invisibly later.
+> Why an archive and not ECR: pushing to ECR needs `ecr:GetAuthorizationToken`
+> and friends, and **AmazonEC2FullAccess grants none of them**. `docker save`
+> needs no AWS permissions, because it is not an AWS feature.
 
-**Expect the build to take 15–30 minutes.** That is swap doing its job, not a
-hang.
+Because Vite inlines the issuer URL at build time, the local build must know
+the hostname — so `build-local.sh --host` and `install.sh --host` **must
+agree**. An image built for the wrong host is not detectably wrong from inside
+the container: it serves happily and sends the browser to an issuer that does
+not exist, which presents as a login loop and gets debugged as a Keycloak
+problem. So the web image is stamped with what it was built for, and the
+installer refuses a mismatch.
+
+**2. 2 GB of swap**, provisioned by cloud-init with `vm.swappiness=10`. Sized
+for *running* the stack, which is enough only because nothing compiles there.
+If you use `--build-on-instance`, raise it: `SWAP_GB=4 ./ops/deploy/aws-demo.sh …`
+
+**3. `docker-compose.micro.yml`** — real ceilings that add up to roughly the
+machine: Postgres 320m (with `shared_buffers` and parallelism tuned down),
+Keycloak 420m with the JVM heap capped at 256m explicitly, API 224m with
+`--max-old-space-size=160`, nginx 32m, Caddy 48m.
+
+`install.sh --low-memory` applies the overlay and **refuses to start** without
+swap present. `--prebuilt` skips the build and verifies the image stamp.
+`aws-demo.sh` passes both automatically at this instance size.
+
+### What this costs you instead
+
+The compile moves to your machine, and the images move over your upload link.
+**Measured: 307 MB** compressed for all three images. On a home connection that
+is the slow part of the deploy, and it is silent while it happens. The archive
+stays on disk, so a dropped transfer costs the upload again — not the build.
+
+The build is run with `--provenance=false --sbom=false`. Buildx otherwise
+attaches attestations, which makes the result an OCI image *index*; `docker
+save` preserves that faithfully and the engine from Ubuntu's `docker.io`
+package does not reliably load it. That failure would land at `docker load`,
+after the whole archive had been uploaded. `build-local.sh` inspects the
+archive's `index.json` before you ship it rather than trusting the flags.
 
 ---
 
@@ -116,6 +142,11 @@ AWS_PROFILE=hr-demo ./ops/deploy/aws-demo.sh \
   --host demo.yourdomain.com \
   --acme-email you@yourdomain.com
 ```
+
+Order of operations, and one detail worth knowing: **the local build runs
+first, before anything billable is created.** A build that is going to fail
+should fail while the account is still untouched, not after an instance and an
+address are running and waiting on it.
 
 The script pauses twice, both times waiting on you:
 

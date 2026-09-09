@@ -40,6 +40,7 @@ MODE="onprem"
 ACME_EMAIL=""
 SEED_DEMO_USERS="false"
 LOW_MEMORY="false"
+PREBUILT="false"
 
 usage() {
   cat >&2 <<'USAGE'
@@ -59,6 +60,7 @@ optional
   --mode onprem|demo     demo enables public ACME TLS and demo logins
   --acme-email <email>   contact for Let's Encrypt (required with --mode demo)
   --low-memory           tune for a 1 GB host (AWS free tier t3.micro)
+  --prebuilt             images were built elsewhere and loaded; do not build
   --seed-demo-users      create a Keycloak login per row in the staff CSV
                          (NEVER use on a system holding real employee data)
 USAGE
@@ -77,6 +79,7 @@ while [ $# -gt 0 ]; do
     --period-end)     PERIOD_END="$2"; shift 2 ;;
     --mode)           MODE="$2"; shift 2 ;;
     --low-memory)     LOW_MEMORY="true"; shift ;;
+    --prebuilt)       PREBUILT="true"; shift ;;
     --acme-email)     ACME_EMAIL="$2"; shift 2 ;;
     --seed-demo-users) SEED_DEMO_USERS="true"; shift ;;
     -h|--help)        usage ;;
@@ -129,16 +132,21 @@ if [ "$LOW_MEMORY" = "true" ]; then
   # absorbs the overlap. Without swap that assumption is simply wrong, and the
   # way it fails is a container disappearing mid-demo with no error anyone can
   # read -- so this is a hard stop, not a warning.
+  # 1.5 GB, not 2. A 2 GiB swapfile reports slightly UNDER 2 GiB once its
+  # header is accounted for, so a threshold of exactly 2 GiB rejects the very
+  # size the deploy script provisions -- a guard that fires on the correct
+  # configuration is worse than no guard, because it gets disabled.
   SWAP_KB="$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)"
-  if [ "${SWAP_KB:-0}" -lt 2097152 ]; then
-    die "--low-memory needs at least 2 GB of swap, found $((${SWAP_KB:-0} / 1024)) MB.
-       ops/deploy/aws-demo.sh provisions 4 GB via cloud-init. To add it by hand:
+  if [ "${SWAP_KB:-0}" -lt 1572864 ]; then
+    die "--low-memory needs at least 1.5 GB of swap, found $((${SWAP_KB:-0} / 1024)) MB.
+       ops/deploy/aws-demo.sh provisions 2 GB via cloud-init (SWAP_GB).
+       To add it by hand:
 
-         sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
+         sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
          sudo mkswap /swapfile && sudo swapon /swapfile
          echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab"
   fi
-  ok "low-memory profile — $((SWAP_KB / 1048576)) GB swap present"
+  ok "low-memory profile — $((SWAP_KB / 1024)) MB swap present"
 fi
 
 if [ -n "$STAFF_CSV" ] && [ ! -f "$STAFF_CSV" ]; then
@@ -208,7 +216,45 @@ DB_URL="postgres://${POSTGRES_MIGRATOR_USER}:${POSTGRES_MIGRATOR_PASSWORD}@postg
 
 # --- 3. build and start -----------------------------------------------------
 say "Building images"
-if [ "$LOW_MEMORY" = "true" ]; then
+if [ "$PREBUILT" = "true" ]; then
+  # Built by ops/deploy/build-local.sh on a machine with the RAM for it, and
+  # loaded here. Nothing is compiled on this host.
+  for IMG in hr-system-keycloak hr-system-api hr-system-web; do
+    docker image inspect "$IMG" >/dev/null 2>&1 \
+      || die "--prebuilt, but image '$IMG' is not loaded on this host.
+       Build and ship it with:
+         ./ops/deploy/build-local.sh --host '$PUBLIC_HOST'
+       then load the archive here:
+         gunzip -c hr-images.tar.gz | docker load"
+  done
+
+  # THE CHECK THAT MATTERS.
+  #
+  # Vite inlines the issuer URL at build time, so a web image built for a
+  # different hostname is not detectably wrong from inside the container. It
+  # serves happily, and the browser is sent to an issuer that does not exist.
+  # That presents as a login loop, which reads as a Keycloak misconfiguration
+  # and gets debugged as one -- for as long as it takes somebody to think of
+  # the image. Comparing the stamp is cheap; that afternoon is not.
+  BUILT_FOR="$(docker image inspect hr-system-web \
+    --format '{{index .Config.Labels "org.hr-system.oidc-issuer"}}' 2>/dev/null || true)"
+  EXPECTED="https://${PUBLIC_HOST}/auth/realms/${KEYCLOAK_REALM}"
+  if [ -z "$BUILT_FOR" ]; then
+    warn "web image carries no build stamp — cannot verify it was built for $PUBLIC_HOST"
+  elif [ "$BUILT_FOR" != "$EXPECTED" ]; then
+    die "the loaded web image was built for a different deployment.
+       image expects:  $BUILT_FOR
+       this install:   $EXPECTED
+       Rebuild with:   ./ops/deploy/build-local.sh --host '$PUBLIC_HOST'"
+  else
+    ok "web image was built for $PUBLIC_HOST"
+  fi
+
+  # Stock images still have to arrive from somewhere; they are small and are
+  # not built by us.
+  docker compose "${COMPOSE_FILES[@]}" pull postgres caddy 2>/dev/null || true
+  ok "using prebuilt images — nothing compiled on this host"
+elif [ "$LOW_MEMORY" = "true" ]; then
   # One at a time, and in this order.
   #
   # `docker compose build` builds services CONCURRENTLY. The api and web images
@@ -230,7 +276,13 @@ fi
 ok "images built"
 
 say "Starting the stack"
-docker compose "${COMPOSE_FILES[@]}" up -d
+if [ "$PREBUILT" = "true" ]; then
+  # --no-build so a missing or mis-tagged image is an error here rather than
+  # the twenty-minute compile this mode exists to avoid.
+  docker compose "${COMPOSE_FILES[@]}" up -d --no-build
+else
+  docker compose "${COMPOSE_FILES[@]}" up -d
+fi
 
 printf '    waiting for services to report healthy'
 DEADLINE=$(( $(date +%s) + 300 ))

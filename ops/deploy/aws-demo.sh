@@ -25,6 +25,9 @@ VOLUME_GB="30"                                 # the entire EBS free-tier allowa
 TAG="hr-system-demo"
 REPO_URL="${REPO_URL:-}"
 DESTROY="false"
+PREBUILT=""
+IMAGES_TAR="ops/deploy/hr-images.tar.gz"
+SWAP_GB="${SWAP_GB:-2}"
 STAFF_CSV="db/seeds/devcore-201.csv"
 
 usage() {
@@ -39,6 +42,9 @@ usage: aws-demo.sh --host <fqdn> --acme-email <email> [options]
   --repo <git-url>      clone this repo on the instance; omit to upload the
                         working tree over ssh instead
   --staff-csv <path>    demo staff file (default db/seeds/devcore-201.csv)
+  --prebuilt            build images locally and upload them (default on
+                        any *.micro/*.nano; nothing is compiled on the box)
+  --build-on-instance   compile on the instance instead. Slow on a micro.
   --destroy             terminate the instance and remove the resources
 USAGE
   exit 1
@@ -52,6 +58,8 @@ while [ $# -gt 0 ]; do
     --instance-type) INSTANCE_TYPE="$2"; shift 2 ;;
     --repo)          REPO_URL="$2"; shift 2 ;;
     --staff-csv)     STAFF_CSV="$2"; shift 2 ;;
+    --prebuilt)          PREBUILT="true"; shift ;;
+    --build-on-instance) PREBUILT="false"; shift ;;
     --destroy)       DESTROY="true"; shift ;;
     -h|--help)       usage ;;
     *) echo "unknown option: $1" >&2; usage ;;
@@ -162,6 +170,22 @@ case "$INSTANCE_TYPE" in
   *)              LOW_MEMORY_FLAG="" ;;
 esac
 
+# Building on a 1 GB instance is possible with swap and takes twenty-odd
+# minutes of a machine that is paging. Building here and shipping the result
+# takes the compile off the box entirely, so it is the default at that size --
+# --build-on-instance opts back out.
+if [ -z "$PREBUILT" ]; then
+  case "$INSTANCE_TYPE" in
+    *.nano|*.micro) PREBUILT="true" ;;
+    *)              PREBUILT="false" ;;
+  esac
+fi
+if [ "$PREBUILT" = "true" ]; then
+  PREBUILT_FLAG="--prebuilt"
+else
+  PREBUILT_FLAG=""
+fi
+
 # What the free tier actually covers, stated once so a surprise bill is not the
 # way it gets learned:
 #
@@ -216,6 +240,17 @@ fi
 
 [ -n "$PUBLIC_HOST" ] || usage
 [ -n "$ACME_EMAIL" ] || usage
+
+# --- build locally ----------------------------------------------------------
+#
+# Deliberately BEFORE anything billable is created. A build that is going to
+# fail should fail while the account is still untouched, not after an instance
+# and an address are running and waiting on it.
+if [ "$PREBUILT" = "true" ]; then
+  say "Building images locally"
+  bash ops/deploy/build-local.sh --host "$PUBLIC_HOST" --out "$IMAGES_TAR"
+  [ -f "$IMAGES_TAR" ] || die "build-local.sh produced no archive at $IMAGES_TAR"
+fi
 
 # --- security group ---------------------------------------------------------
 say "Network"
@@ -295,24 +330,29 @@ if [ -z "$ID" ]; then
 
   # SWAP IS NOT OPTIONAL ON A t3.micro.
   #
-  # 1 GB of RAM has to build two Node images and then run Postgres, Keycloak, a
-  # Node API, nginx and Caddy. Without swap the build does not fail so much as
-  # the machine stops answering: the OOM-killer picks a victim by score, and
-  # sshd is as eligible as a compiler, so this typically presents as the deploy
-  # script losing its connection rather than as a build error.
+  # 1 GB of RAM has to run Postgres, Keycloak, a Node API, nginx and Caddy,
+  # whose ceilings total slightly more than the machine. Without swap the
+  # overshoot is not an error: the OOM-killer picks a victim by score and a
+  # container disappears mid-demo.
   #
-  # 4 GB, out of a 30 GB volume. Swap on EBS is slow, and that is fine -- it is
-  # there to absorb peaks that do not coincide, not to be a second tier of RAM.
-  # swappiness is dropped from 60 so the kernel prefers reclaiming page cache to
-  # paging out a running container.
-  CLOUD_INIT="$(cat <<'CI'
+  # SWAP_GB defaults to 2, which is sized for RUNNING the stack. That is enough
+  # only because images are built locally and shipped -- see --prebuilt. If you
+  # pass --build-on-instance, raise it: SWAP_GB=4 covers a compile, and even
+  # then the OOM-killer scores sshd as readily as a compiler, so a failure
+  # there arrives as a lost connection rather than a build error.
+  #
+  # Swap on EBS is slow, and that is fine: it exists to absorb peaks that do
+  # not coincide, not to be a second tier of RAM. swappiness drops from 60 so
+  # the kernel prefers reclaiming page cache to paging out a running container.
+  SWAP_BYTES=$(( SWAP_GB * 1024 * 1024 * 1024 ))
+  CLOUD_INIT="$(cat <<CI
 #cloud-config
 package_update: true
 packages: [docker.io, docker-compose-v2, git]
 swap:
   filename: /swapfile
-  size: 4294967296
-  maxsize: 4294967296
+  size: ${SWAP_BYTES}
+  maxsize: ${SWAP_BYTES}
 write_files:
   - path: /etc/sysctl.d/99-hr-system.conf
     content: |
@@ -400,17 +440,49 @@ if [ -n "$REPO_URL" ]; then
 else
   # No repo URL: ship the working tree, minus everything that must not travel.
   # .env is excluded deliberately — the demo generates its own secrets.
+  #
+  # hr-images.tar.gz is excluded because it is uploaded separately below.
+  # Without this line the image archive travels TWICE -- once buried in this
+  # tarball and once on its own -- which on a home connection is not a
+  # rounding error, it is another half-hour.
   tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=.env \
+      --exclude=hr-images.tar.gz --exclude=test-results --exclude=playwright-report \
       -czf - . | SSH 'mkdir -p hr-system && tar -xzf - -C hr-system'
 fi
 ok "code on the instance"
+
+# --- ship the images --------------------------------------------------------
+if [ "$PREBUILT" = "true" ]; then
+  TAR_MB="$(du -m "$IMAGES_TAR" | cut -f1)"
+  say "Uploading images (${TAR_MB} MB)"
+  echo "    This is the slow part, and it is silent. On a home connection"
+  echo "    budget roughly a minute per 5 MB of upload bandwidth."
+
+  # Streamed through the ssh function rather than scp: it reuses the key, the
+  # path conversion and the host, so there is one place where the Windows
+  # specifics live. The archive stays on disk either way, so a dropped transfer
+  # costs the upload again and not the build.
+  SSH 'cat > hr-images.tar.gz' < "$IMAGES_TAR" \
+    || die "upload failed — the archive is still at $IMAGES_TAR, re-run to retry"
+  ok "archive uploaded"
+
+  say "Loading images on the instance"
+  SSH 'gunzip -c hr-images.tar.gz | docker load' \
+    || die "docker load failed on the instance"
+
+  # Loaded, and no longer worth the disk on a 30 GB volume.
+  SSH 'rm -f hr-images.tar.gz'
+  SSH 'docker image ls --format "{{.Repository}}:{{.Tag}}" | grep ^hr-system- | sort'
+  ok "images loaded"
+fi
 
 # --- install ----------------------------------------------------------------
 say "Running the installer"
 SSH "cd hr-system && bash ops/deploy/install.sh \
   --host '$PUBLIC_HOST' --mode demo --acme-email '$ACME_EMAIL' \
   --org DEVCORE --org-name 'Devcore Solutions Inc.' \
-  --staff-csv '$STAFF_CSV' --hr-admin DEV-023 --seed-demo-users $LOW_MEMORY_FLAG"
+  --staff-csv '$STAFF_CSV' --hr-admin DEV-023 --seed-demo-users \
+  $LOW_MEMORY_FLAG $PREBUILT_FLAG"
 
 say "Demo is up"
 cat <<DONE

@@ -40,3 +40,9 @@ playwright-report/
 # Client source workbooks and spreadsheets. Kept locally for reference; they
 # are the client's material and may hold staff names and targets.
 docs/handoff/*.xlsx
+
+# Image archives written by ops/deploy/build-local.sh. ~300 MB, machine- and
+# hostname-specific (Vite inlines the public URL), and regenerated in minutes.
+# Nothing about one is worth a place in history.
+ops/deploy/hr-images.tar.gz
+*.tar.gz
