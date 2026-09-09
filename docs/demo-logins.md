@@ -178,7 +178,9 @@ All 28 exist in Keycloak. `alonzo.dimalanta` is the only HR administrator.
 ```bash
 export ADMIN_DATABASE_URL="postgresql://postgres:postgres@localhost:15432/hr"
 pnpm --filter @hr/api hr provision-org --org GGCHCM --name "GGC Human Capital Management (anonymised pilot)"
-# the five sections must exist as departments first — HCM, and HS/CB/ER/OD beneath it
+# The five units must exist before the import, which resolves department_code
+# rather than creating it — otherwise it stops at "Department 'HCM' does not exist".
+psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seeds/ggchcm-departments.sql
 pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv --dry-run
 pnpm --filter @hr/api hr import-employees --org GGCHCM --file ./db/seeds/hcm-anonymised.example.csv
 pnpm --filter @hr/api hr sync-roles   --org GGCHCM
