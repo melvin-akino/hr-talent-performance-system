@@ -2,6 +2,7 @@ import {
   BadRequestException, ForbiddenException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { z } from 'zod';
+import type { PoolClient } from 'pg';
 import { DbService, RequestContext } from '../db/db.service';
 
 /**
@@ -48,6 +49,29 @@ export const createEmploymentType = z.object({
   code: z.string().trim().min(1).max(16).regex(/^[A-Z0-9_-]+$/),
   name: z.string().trim().min(1),
   isEligibleForReview: z.boolean().default(true),
+});
+
+/**
+ * A rung on the ladder.
+ *
+ * rankNo is NOT bounded here beyond sanity. The client's ladder runs 6..11 and
+ * the importer enforces 1..99, but a tenant is entitled to number its own
+ * grades however it likes; a range invented in this file would be a rule nobody
+ * agreed to, enforced in the one place least able to explain itself.
+ */
+export const createRank = z.object({
+  code: z.string().trim().min(1).max(16)
+    .regex(/^[A-Z0-9_-]+$/, 'Use uppercase letters, digits, hyphen or underscore'),
+  name: z.string().trim().min(1),
+  rankNo: z.number().int().min(1).max(99),
+});
+
+export const createPosition = z.object({
+  title: z.string().trim().min(1),
+  departmentId: z.string().uuid().nullish(),
+  jobFamily: z.string().trim().nullish(),
+  jobLevel: z.string().trim().nullish(),
+  rankId: z.string().uuid().nullish(),
 });
 
 /**
@@ -103,10 +127,7 @@ export class ReferenceDataService {
 
   async createDepartment(ctx: RequestContext, input: z.infer<typeof createDepartment>) {
     return this.db.withContext(ctx, async (client) => {
-      const org = await client.query<{ org_id: string }>(
-        'SELECT org_id FROM employee WHERE id = $1', [ctx.employeeId]);
-      const orgId = org.rows[0]?.org_id;
-      if (!orgId) throw new NotFoundException('Requesting employee not found');
+      const orgId = await this.orgOf(client, ctx);
 
       const res = await this.wrap(() => client.query<{ id: string }>(
         `INSERT INTO department (org_id, code, name, unit_type,
@@ -291,6 +312,44 @@ export class ReferenceDataService {
     });
   }
 
+  /**
+   * Adds a rung.
+   *
+   * Until this existed the ladder could only arrive by CSV import, which is
+   * exactly how GGCHCM ended up with no ranks at all: the seed file had no rank
+   * column, and there was no other way in. A structure you can only create by
+   * re-importing every employee is one that stays empty.
+   */
+  async createRank(ctx: RequestContext, input: z.infer<typeof createRank>) {
+    return this.db.withContext(ctx, async (client) => {
+      const orgId = await this.orgOf(client, ctx);
+      const res = await this.wrap(() => client.query<{ id: string }>(
+        `INSERT INTO job_rank (org_id, code, name, rank_no)
+              VALUES ($1,$2,$3,$4) RETURNING id`,
+        [orgId, input.code, input.name, input.rankNo]));
+
+      const id = res.rows[0]?.id;
+      if (!id) throw new ForbiddenException('Not permitted to create ranks');
+      return { id };
+    });
+  }
+
+  async createPosition(ctx: RequestContext, input: z.infer<typeof createPosition>) {
+    return this.db.withContext(ctx, async (client) => {
+      const orgId = await this.orgOf(client, ctx);
+      const res = await this.wrap(() => client.query<{ id: string }>(
+        `INSERT INTO position (org_id, department_id, title, job_family,
+                               job_level, rank_id)
+              VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [orgId, input.departmentId ?? null, input.title,
+         input.jobFamily ?? null, input.jobLevel ?? null, input.rankId ?? null]));
+
+      const id = res.rows[0]?.id;
+      if (!id) throw new ForbiddenException('Not permitted to create positions');
+      return { id };
+    });
+  }
+
   async updatePosition(
     ctx: RequestContext, id: string,
     patch: {
@@ -324,7 +383,23 @@ export class ReferenceDataService {
    * ("2 employee(s) are still assigned to it"). Surfacing them as 400s is the
    * whole point; swallowing them would leave an unexplained 500.
    */
+  /**
+   * The caller's tenant.
+   *
+   * Read from the employee row rather than taken from the request: org_id is
+   * what RLS scopes every insert by, so a value the caller could influence
+   * would be a tenant boundary decided by the caller.
+   */
+  private async orgOf(client: PoolClient, ctx: RequestContext): Promise<string> {
+    const org = await client.query<{ org_id: string }>(
+      'SELECT org_id FROM employee WHERE id = $1', [ctx.employeeId]);
+    const orgId = org.rows[0]?.org_id;
+    if (!orgId) throw new NotFoundException('Requesting employee not found');
+    return orgId;
+  }
+
   private async wrap<T>(fn: () => Promise<T>): Promise<T> {
+
     try {
       return await fn();
     } catch (err) {

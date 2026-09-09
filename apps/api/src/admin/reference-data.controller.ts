@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
 import {
   ReferenceDataService, closeDepartment, createDepartment, createEmploymentType,
-  updateDepartment, updateEmploymentType,
+  createPosition, createRank, updateDepartment, updateEmploymentType,
 } from './reference-data.service';
 
 const updatePosition = z.object({
@@ -90,9 +90,19 @@ export class ReferenceDataController {
     return this.ref.listRanks(req.auth);
   }
 
+  @Post('ranks')
+  createRank(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    return this.ref.createRank(req.auth, createRank.parse(body));
+  }
+
   @Get('positions')
   listPositions(@Req() req: AuthenticatedRequest) {
     return this.ref.listPositions(req.auth);
+  }
+
+  @Post('positions')
+  createPosition(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    return this.ref.createPosition(req.auth, createPosition.parse(body));
   }
 
   @Patch('positions/:id')
