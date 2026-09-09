@@ -126,7 +126,7 @@ async function seed(): Promise<void> {
   for (const fn of ['seed_baseline_roles', 'seed_phase1_grants', 'seed_phase3_grants',
                     'seed_line_role_grants', 'seed_dept_head_review_grants',
                     'seed_notification_templates', 'seed_hcm_target_templates',
-                    'seed_workflow_event_templates']) {
+                    'seed_workflow_event_templates', 'seed_reminder_templates']) {
     await admin.query(`SELECT app.${fn}($1)`, [org]);
   }
   const role = async (c: string) => (await admin.query(
@@ -195,9 +195,6 @@ describe('every seeded template has an emitter, or is deliberately pending', () 
     // Keeping the list here, rather than in a comment somewhere, is what stops
     // a silent template quietly becoming normal.
     const pending: Record<string, string> = {
-      // Needs a scheduler to notice a deadline is near. Recorded as F5b;
-      // seeding a template without its scanner is what produced this mess.
-      'goal.checkin_overdue': 'needs the deadline scanner (F5b)',
       // Assembled by the worker from what is already queued, rather than
       // enqueued by name like the others.
       digest: 'assembled by the notification worker',
@@ -205,6 +202,12 @@ describe('every seeded template has an emitter, or is deliberately pending', () 
       // its caller today; routing that to HCM belongs with D4.
       'peer.panel_short': 'sent when D4 enforces the minimum',
     };
+
+    // The scanner's own templates must be in scope here, or F5b reopens the
+    // hole F5 closed: an audit that cannot see a template cannot flag it.
+    expect(codes).toEqual(expect.arrayContaining(
+      ['review.due_soon', 'review.overdue', 'peer.invitation_pending',
+       'evaluation.overdue']));
 
     const silent = codes.filter((c) => !emitted(c) && !(c in pending));
     expect(silent).toEqual([]);

@@ -61,6 +61,17 @@ const schema = z.object({
   NOTIFY_POLL_MS: z.coerce.number().int().positive().default(15_000),
   NOTIFY_BATCH: z.coerce.number().int().positive().max(500).default(50),
   DIGEST_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  /*
+   * How often to look for work that has gone past its deadline.
+   *
+   * Hourly, and that is not a typo for daily: the scan is idempotent by
+   * milestone rather than by day (0043), so running it often costs a few
+   * queries and gains a reminder that arrives the morning something falls
+   * due rather than a day later.
+   */
+  REMINDER_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  /* How many days ahead counts as "due soon". */
+  REMINDER_DAYS_AHEAD: z.coerce.number().int().positive().max(90).default(7),
   /** Clock skew tolerance for token exp/nbf, in seconds. */
   OIDC_CLOCK_TOLERANCE: z.coerce.number().int().nonnegative().default(30),
 });

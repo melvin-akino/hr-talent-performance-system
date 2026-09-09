@@ -247,6 +247,18 @@ const commands: Record<string, () => Promise<void>> = {
     const { preflight } = await import('./preflight');
     process.exitCode = await preflight(org);
   },
+  // The API worker runs this hourly. The command exists for installations
+  // without SMTP (where the worker declines to start) and for an operator who
+  // needs to tell "nothing is overdue" apart from "the scan is broken".
+  'send-reminders': async () => {
+    const { sendReminders } = await import('./send-reminders');
+    const days = arg('days-ahead');
+    await sendReminders({
+      ...(arg('as-of') ? { asOf: arg('as-of')! } : {}),
+      ...(days ? { daysAhead: Number(days) } : {}),
+      dryRun: flag('dry-run'),
+    });
+  },
   'seed-demo': async () => {
     const { seedDemo } = await import('./seed-demo');
     // --yes-i-mean-it overrides the "this organisation holds people I did not

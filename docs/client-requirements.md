@@ -314,7 +314,7 @@ unchanged: an aggregate carries no forbidden field, so it should.
 | 7.5 | Defaults shown automatically, manual override by evaluator level | **Partial** | Resolution exists (`app.resolve_form_version`); the override path and its permission do not. |
 | 7.6 | System walkthrough guide | **Have** | In-app help: 14 bundled articles, route- and role-aware, plus HR-authored content from Setup. |
 | 7.7 | Integrates PIP and goal/target setting | **Have** | Both exist, linked to periods and cycles. |
-| 7.8 | Messaging: reminders, acknowledgement, results, eval notifications | **Partial** | Acknowledgement, results and evaluation notifications done (F5, 17 templates). Reminders need the deadline scanner, F5b. |
+| 7.8 | Messaging: reminders, acknowledgement, results, eval notifications | **Complete** | Durable outbox with retry, 21 templates, in-app + email, per-user preferences and digest. Deadline reminders scan hourly and dedupe per milestone (F5b). |
 | 7.9 | Requests: DH asks for extra competency / special eval / scoring adjustment | **Missing** | No request-and-approval entity anywhere in the system. |
 
 ---
@@ -869,11 +869,32 @@ because dropping two real tasks to match a formula would be the wrong way round.
       reviewer, who cannot answer the six-month question otherwise; nothing
       travels the other way, and 0041's restrictive policy keeps it so.
 
-- [ ] **F5b** The deadline scanner: something that notices a review or check-in
-      is due and fires on a schedule. **M** — §7.8 ("reminders").
-      `goal.checkin_overdue` has been seeded since 0021 with nothing emitting
-      it, which is the same failure F5 just cleaned up — so the reminder
-      templates are deliberately *not* seeded until the scanner exists.
+- [x] **F5b** The deadline scanner — DONE (migration
+      `0043_deadline_reminders.sql`). Four reminder templates and
+      `app.enqueue_due_reminders()`, which scans five places where work stalls
+      *invisibly* — nobody is sitting on a screen that shows the problem: a
+      review unsubmitted as its cycle closes and after it has closed, a goal
+      whose check-in cadence has lapsed, a peer invitation nobody has answered,
+      and a task evaluation left in draft after its period ended.
+      `goal.checkin_overdue`, seeded since 0021 and emitted by nothing, is now
+      finally sent.
+
+      **Idempotence is the whole design.** A scan that runs hourly must not
+      send hourly, and getting that wrong does not look like a bug — it looks
+      like the system working and people ignoring it, which is worse because
+      the fix is then invisible too. So every reminder dedupes on the
+      **milestone** it is about rather than the day it was noticed: "closes in
+      7 days" carries the instance and the threshold; an overdue check-in
+      dedupes on how many whole cadence periods have been missed, so a second
+      missed week sends a second nudge and a hundred scans inside that week
+      send none. That makes the scan interval a free choice.
+
+      Runs hourly on the notification worker (`REMINDER_INTERVAL_MS`,
+      `REMINDER_DAYS_AHEAD`) and by hand as `hr send-reminders` — for an
+      installation with no SMTP, where the worker declines to start, and for an
+      operator who needs to know whether a quiet week means nothing is overdue
+      or the scan is broken. Those look identical from outside; the command
+      prints every template including the zeroes.
 - [ ] **F6** Branch ranking. **M** — §2.2 *(Q9)*
 
 ### Phase G — Promotion programmes

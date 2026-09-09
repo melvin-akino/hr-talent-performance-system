@@ -34,6 +34,7 @@ export class NotificationWorkerService implements OnModuleDestroy {
   private transporter?: Transporter;
   private timer?: NodeJS.Timeout;
   private digestTimer?: NodeJS.Timeout;
+  private reminderTimer?: NodeJS.Timeout;
   private running = false;
 
   constructor(private readonly db: DbService) {}
@@ -49,15 +50,19 @@ export class NotificationWorkerService implements OnModuleDestroy {
     this.timer = setInterval(() => void this.tick(), config.NOTIFY_POLL_MS);
     this.digestTimer = setInterval(() => void this.buildDigests(),
                                    config.DIGEST_INTERVAL_MS);
+    this.reminderTimer = setInterval(() => void this.scanForDeadlines(),
+                                     config.REMINDER_INTERVAL_MS);
     // unref so a pending timer never holds the process open during shutdown.
     this.timer.unref();
     this.digestTimer.unref();
+    this.reminderTimer.unref();
     logger.info({ pollMs: config.NOTIFY_POLL_MS }, 'notification worker started');
   }
 
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
     if (this.digestTimer) clearInterval(this.digestTimer);
+    if (this.reminderTimer) clearInterval(this.reminderTimer);
     this.transporter?.close();
   }
 
@@ -127,6 +132,30 @@ export class NotificationWorkerService implements OnModuleDestroy {
 
     if (sent || failed) logger.info({ sent, failed }, 'notification pass complete');
     return { sent, failed };
+  }
+
+  /**
+   * Looks for work that has gone past its deadline and enqueues reminders.
+   *
+   * Safe to call as often as the timer likes: every message the scan produces
+   * dedupes on the milestone it is about rather than the moment it was noticed,
+   * so an hourly scan sends a given reminder once (0043).
+   *
+   * Returns what it enqueued, by template, so a quiet log line can be told
+   * apart from a broken scan.
+   */
+  async scanForDeadlines(): Promise<Record<string, number>> {
+    return this.db.withSystemContext(randomUUID(), async (client) => {
+      const res = await client.query<{ template_code: string; enqueued: number }>(
+        'SELECT * FROM app.enqueue_due_reminders(CURRENT_DATE, $1)',
+        [config.REMINDER_DAYS_AHEAD]);
+
+      const byTemplate = Object.fromEntries(
+        res.rows.map((r) => [r.template_code, Number(r.enqueued)]));
+      const total = Object.values(byTemplate).reduce((a, b) => a + b, 0);
+      if (total > 0) logger.info({ reminders: byTemplate }, 'reminders enqueued');
+      return byTemplate;
+    });
   }
 
   async buildDigests(): Promise<number> {
