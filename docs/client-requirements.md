@@ -814,6 +814,38 @@ because dropping two real tasks to match a formula would be the wrong way round.
 
 ### Phase F — Surfaces
 
+- [x] **F0a** Import a 201 file from the UI — DONE (migration
+      `0044_employee_insert_policy.sql`). `GET /import/template` and
+      `/import/columns`, `POST /import/employees/preview` and
+      `/import/employees`; Setup → **Import staff** walks the three steps.
+      Management can load staff without a developer and a database URL.
+
+      **The template is generated from the parser's alias table**, not written
+      out separately. A hand-kept one drifts silently: this repo's own seed file
+      carried `job_level=R11` where the ladder needs `rank_no=11`, and every
+      import succeeded, created no ranks, and said nothing. A test feeds the
+      template back through the importer, so the two cannot disagree for long.
+
+      **RLS could not express "create an employee".** `employee_insert` asked
+      `can_access('employee','write', id)`, and 0015 requires the target to
+      already exist — unsatisfiable for a row being created. `RETURNING` and
+      `ON CONFLICT` failed the same way through the SELECT policy, and the
+      importer's write is an upsert with `RETURNING`, so it hit both. 0044 adds
+      `app.has_org_grant()` — the target-free half of `can_access` — and rebuilds
+      the three policies on it. Nothing became newly visible or editable: an
+      org-scoped grant already covered every employee in the tenant. Narrower
+      scopes still go through `can_access`, so a department-scoped `hr_partner`
+      deliberately cannot import.
+
+      Also fixed: the importer called `seed_baseline_roles()` on **every** run.
+      Harmless from the CLI, fatal from a request. Now guarded on their absence.
+
+- [x] **F0b** Create ranks and positions — DONE. `POST /ranks`, `POST /positions`.
+      The ladder could previously only arrive inside an import file, which is
+      how GGCHCM ended up with none: the seed file had no `rank_no` column and
+      there was no second route in.
+
+
 - [x] **F1** Per-employee history — DONE (migration `0035_employee_timeline.sql`).
       `app.employee_timeline(employee, from, to)` gathers reviews, task
       evaluations, PIPs, competency assessments and employment events into one
