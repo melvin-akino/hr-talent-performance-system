@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { parse } from 'csv-parse/sync';
 import { randomUUID } from 'node:crypto';
-import { DbService } from '../db/db.service';
+import type { PoolClient } from 'pg';
+import { DbService, type RequestContext } from '../db/db.service';
 import { EmployeeImportService, type ImportReport } from './employee-import.service';
 import { logger } from '../common/logger';
 
@@ -81,6 +82,59 @@ const UNIT_LEVELS: { field: string; unitType: string; depth: number }[] = [
   { field: 'area', unitType: 'area', depth: 5 },
   { field: 'branch', unitType: 'branch', depth: 6 },
 ];
+
+/**
+ * The template offered for download, and the explanation beside it.
+ *
+ * Derived from COLUMN_ALIASES above rather than written out separately: a
+ * hand-kept template drifts from the parser and the drift is silent. The seed
+ * file in this repository carried `job_level=R11` where the ladder needs
+ * `rank_no=11`; the import succeeded, created no ranks, and said nothing. The
+ * first alias is used as the header because it is the canonical spelling.
+ */
+export const TEMPLATE_COLUMNS: {
+  column: string; required: boolean; note: string; example: string;
+}[] = [
+  { column: 'employee_id', required: true,
+    note: 'Your own staff number. This is the key the file is matched on, so it must not change between imports.',
+    example: 'HCM-001' },
+  { column: 'first_name', required: true, note: '', example: 'Alonzo' },
+  { column: 'middle_name', required: false, note: '', example: 'Cruz' },
+  { column: 'last_name', required: true, note: '', example: 'Dimalanta' },
+  { column: 'work_email', required: true,
+    note: 'Must match the directory exactly. First sign-in is matched on this, once — after that the account is bound and the email is never trusted again.',
+    example: 'alonzo.dimalanta@company.com' },
+  { column: 'date_hired', required: true, note: 'YYYY-MM-DD.', example: '2014-01-01' },
+  { column: 'department', required: true,
+    note: 'The NAME, not a code. The code is derived from it ("Hiring & Selection" becomes HS), and the unit is created if it does not exist.',
+    example: 'Human Capital Management' },
+  { column: 'section', required: false,
+    note: 'Nests under department. Leave empty for someone who sits in the department itself. Use area instead of section for branch staff — never both.',
+    example: 'Hiring & Selection' },
+  { column: 'position', required: true,
+    note: 'Job title. Title plus unit identifies a position, so everyone holding it shares its rank.',
+    example: 'Department Manager' },
+  { column: 'job_family', required: false, note: '', example: 'Human Capital Management' },
+  { column: 'rank_no', required: false,
+    note: 'A NUMBER, and LOWER IS MORE SENIOR (6 outranks 11). Leave the whole column out if you do not use a rank ladder; filling it wrongly misroutes peer review.',
+    example: '6' },
+  { column: 'rank_title', required: false,
+    note: 'Name of that rung, e.g. Department Manager. One name per number across the whole file.',
+    example: 'Department Manager' },
+  { column: 'employment_status', required: true,
+    note: 'regular, probationary, project, casual, consultant. Determines who is in a review cycle.',
+    example: 'regular' },
+  { column: 'reports_to', required: false,
+    note: "The supervisor's employee_id. Exactly one person — the top of the chart — should leave this empty.",
+    example: '' },
+];
+
+/** A blank file with the right headers, plus one example row. */
+export function buildTemplate(): string {
+  const header = TEMPLATE_COLUMNS.map((c) => c.column).join(',');
+  const example = TEMPLATE_COLUMNS.map((c) => c.example).join(',');
+  return `${header}\n${example}\n`;
+}
 
 /** The client's ladder runs 6..11. Anything outside it is a typo, not a rank. */
 const RANK_MIN = 1;
@@ -180,9 +234,23 @@ export class Ph201ImportService {
     return name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   }
 
+  /**
+   * @param opts.as  Run inside the CALLER's RLS context instead of the
+   *   privileged operator connection.
+   *
+   *   The operator CLI has no authenticated user and legitimately runs
+   *   privileged; a request does not. db.service reserves withAdminContext for
+   *   the former in as many words -- "it must never be called from a request
+   *   path" -- so the HTTP importer passes the caller here and every insert is
+   *   subject to the same policies as every other screen. Creating an employee
+   *   became expressible in RLS in migration 0044; before that this option
+   *   could not have worked.
+   */
   async import(
-    csv: string, orgCode: string, opts: { dryRun?: boolean } = {},
+    csv: string, orgCode: string,
+    opts: { dryRun?: boolean; as?: RequestContext } = {},
   ): Promise<Ph201Report> {
+
     const report: Ph201Report = {
       dryRun: opts.dryRun ?? false,
       totalRows: 0, created: 0, updated: 0, reportingLines: 0, errors: [],
@@ -439,7 +507,13 @@ export class Ph201ImportService {
       ...out.map((r) => r.map(escape).join(',')),
     ].join('\n');
 
-    await this.db.withAdminContext(randomUUID(), async (client) => {
+    const run = opts.as
+      ? <T,>(fn: (c: PoolClient) => Promise<T>) => this.db.withContext(opts.as!, fn)
+      : <T,>(fn: (c: PoolClient) => Promise<T>) =>
+          this.db.withAdminContext(randomUUID(), fn);
+
+    await run(async (client) => {
+
       const org = await client.query<{ id: string }>(
         'SELECT id FROM organization WHERE code = $1', [orgCode]);
       const orgId = org.rows[0]?.id;

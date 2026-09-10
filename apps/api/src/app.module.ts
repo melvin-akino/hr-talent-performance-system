@@ -19,6 +19,7 @@ import { EvaluationDefinitionsService } from './reviews/evaluation-definitions.s
 import { CompetenciesController } from './competencies/competencies.controller';
 import { CompetenciesService } from './competencies/competencies.service';
 import { ReferenceDataController } from './admin/reference-data.controller';
+import { ImportController } from './import/import.controller';
 import { ReferenceDataService } from './admin/reference-data.service';
 import { Ph201ImportService } from './import/ph201-import.service';
 import { NotificationsController } from './notifications/notifications.controller';
@@ -41,6 +42,7 @@ import { EvaluationsService } from './metrics/evaluations.service';
   controllers: [
     EmployeesController, HealthController, GoalsController, PipController,
     ReviewsController, CompetenciesController, ReferenceDataController,
+    ImportController,
     NotificationsController, DevelopmentController, AnalyticsController,
     HelpController, MetricsController, EvaluationsController,
   ],

@@ -238,7 +238,27 @@ export class EmployeeImportService {
         report.reportingLines += res.rowCount ?? 0;
       }
 
-      await client.query('SELECT app.seed_baseline_roles($1)', [orgId]);
+      // Only for an organisation that has none yet.
+      //
+      // This used to run on every import. Harmless from the CLI, where the
+      // connection bypasses RLS and the statement is an idempotent
+      // ON CONFLICT DO NOTHING -- and fatal from a request, where app_role's
+      // policies refuse the insert. Postgres cannot tell "would insert
+      // nothing" from "may not insert": to detect the conflict it must read
+      // the existing rows through the SELECT policy, and what it cannot see it
+      // treats as new.
+      //
+      // Seeding roles is provisioning, not importing. An org whose staff file
+      // is being uploaded through the UI necessarily has roles already -- the
+      // person uploading holds one. So the guard is not a workaround for the
+      // policy; it is the condition that should always have been here.
+      const seeded = await client.query<{ present: boolean }>(
+        'SELECT EXISTS (SELECT 1 FROM app_role WHERE org_id = $1) AS present',
+        [orgId]);
+      if (!seeded.rows[0]?.present) {
+        await client.query('SELECT app.seed_baseline_roles($1)', [orgId]);
+      }
+
     };
 
     if (opts.client) {
