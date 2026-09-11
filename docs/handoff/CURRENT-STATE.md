@@ -214,7 +214,20 @@ governs how a tally converts to a score, not how metrics are stored.
   directory.** Keycloak OIDC works with its own realm; pointing it at their AD
   is untested. A successful demo proves nothing about it.
 
+## Roles, and what the demo cannot show
+
+Only three roles are assigned in GGCHCM: `employee` (28), `manager` (5, derived
+from the reporting lines by `hr sync-roles`) and `hr_admin` (1, Alonzo).
+**`dept_head`, `hr_partner`, `area_head`, `gm` and `scoring_admin` have zero
+holders**, so the Department Head approval step — their §4.5b, and a slide in
+the client deck — is built and tested but **has no login to demonstrate it**.
+
+Assigning `dept_head` needs a `role_assignment` with `scope_department_id` set;
+department-scoped grants resolve through it and fail closed without it. Alonzo
+(HCM-001, R6) is the organisationally correct holder.
+
 The client deck in [../client/](../client/) is built only from requirements
+
 marked **Have** in the tracker, and closes on both of these honestly.
 `demo-deck-build.js` regenerates it (`node demo-deck-build.js`, needs
 `pptxgenjs`).
