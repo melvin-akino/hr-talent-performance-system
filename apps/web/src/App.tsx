@@ -20,6 +20,7 @@ import Evaluations from './pages/Evaluations';
 import EmployeeHistory from './pages/EmployeeHistory';
 import EmployeeGoals from './pages/EmployeeGoals';
 import Monitoring from './pages/Monitoring';
+import UnitDashboard from './pages/UnitDashboard';
 import Pips from './pages/Pips';
 import Reviews from './pages/Reviews';
 import ReviewForm from './pages/ReviewForm';
@@ -154,6 +155,7 @@ function Shell() {
           <Route path="/development" element={<Development />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/monitoring" element={<Monitoring />} />
+          <Route path="/unit" element={<UnitDashboard />} />
           <Route path="/pips" element={<Pips />} />
           <Route path="/hr" element={<HrConsole />} />
           <Route path="/kpis" element={<KpiLibrary />} />

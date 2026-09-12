@@ -81,6 +81,10 @@ export function buildGroups(roles: string[], hasReports: boolean): Group[] {
       items: [
         { to: '/team', label: 'Team', icon: icons.users },
         { to: '/monitoring', label: 'Monitoring', icon: icons.activity },
+        // Offered to managers and HR; the page itself declines for anyone
+        // whose scope is only themselves, because RLS is the real gate and a
+        // hidden menu item is not a permission.
+        { to: '/unit', label: 'My unit', icon: icons.layers ?? icons.activity },
         { to: '/evaluations', label: 'Evaluations', icon: icons.gauge },
         // Everyone can reach a PIP by URL — an employee on a plan must be able
         // to read it — but only managers are offered the list.

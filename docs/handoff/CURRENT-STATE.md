@@ -18,7 +18,7 @@ Read in this order:
 
 ## Build status
 
-**Phases 0–7 complete.** 828 automated tests: 699 API against a real PostgreSQL
+**Phases 0–7 complete.** 838 automated tests: 708 API against a real PostgreSQL
 via Testcontainers, 129 web, plus 14 Playwright journeys. Every screen listed in
 the README is built.
 
@@ -26,6 +26,8 @@ Delivered beyond the original phases, most recent first:
 
 | | |
 |---|---|
+| **F3** | Unit dashboard for Department/Area/Regional Heads, and `hr grant-role` (0046) |
+| **A5** | ADR D-015: attendance crosses as a count, never a record |
 | **F0c** | Employee lifecycle: add, correct, record a change, end employment (0045) |
 | **F0a** | 201 import from the UI — template, preview, apply (migration 0044) |
 | **F0b** | `POST /ranks`, `POST /positions` — the ladder is creatable, not only importable |
@@ -49,9 +51,8 @@ Delivered beyond the original phases, most recent first:
 | **B4–B6** | The KPI composite, incentive bands, competency scoring | **R1, Q1, Q2, Q3** |
 | **E1–E2** | Attendance aggregates | **Q8** — the boundary itself is decided (D-015) |
 
-**F3** is the most demo-visible of the remaining items, and pairs with the gap
-below — the Department Head approval step cannot be shown to anyone until
-`dept_head` has a holder.
+**F2** and **F4** are the remaining unblocked items. Everything else waits on
+the 21 questions.
 
 **Do not trust a stale "next" in this file.** B3 was listed here as the next
 item for weeks after it had shipped; the tracker had it as `[x]` and this file
@@ -71,6 +72,12 @@ Breaking any of these produces a system that still passes a casual demo.
 - **`withAdminContext` bypasses RLS and must never be reached from a request
   path.** It is for the operator CLI. The HTTP importer passes the caller
   (`opts.as`) and runs under their own policies instead — see 0044.
+- **Any predicate that reads `access_grant` must be `SECURITY DEFINER`.**
+  That table is itself protected — only `hr_admin` holds `access_grant:read` —
+  so a caller cannot read their own grants. Written inline, such a check answers
+  "no" for exactly the people it should pass. This has now cost a debug session
+  twice: `app.has_org_grant` (0044) and `app.has_scope_wider_than_self` (0046).
+  The tell is a check that denies somebody whose grant you can see in psql.
 - **`app.can_access(resource, action, target)` is target-scoped.** Migration
   0015 put a tenant guard in front of it, so it returns **false for a NULL
   target, always**. For a row that does not exist yet use
@@ -232,12 +239,18 @@ governs how a tally converts to a score, not how metrics are stored.
 Only three roles are assigned in GGCHCM: `employee` (28), `manager` (5, derived
 from the reporting lines by `hr sync-roles`) and `hr_admin` (1, Alonzo).
 **`dept_head`, `hr_partner`, `area_head`, `gm` and `scoring_admin` have zero
-holders**, so the Department Head approval step — their §4.5b, and a slide in
-the client deck — is built and tested but **has no login to demonstrate it**.
+holders on the live demo**, so the Department Head approval step — their §4.5b,
+and a slide in the client deck — still has no login to demonstrate it.
 
-Assigning `dept_head` needs a `role_assignment` with `scope_department_id` set;
-department-scoped grants resolve through it and fail closed without it. Alonzo
-(HCM-001, R6) is the organisationally correct holder.
+`hr grant-role` now exists to fix that, and it refuses an unscoped assignment
+for a department-scoped role rather than granting something powerless:
+
+```bash
+hr grant-role --org GGCHCM --employee-no HCM-001 --role dept_head --department HCM
+```
+
+Alonzo (HCM-001, R6) is the organisationally correct holder. **Run this before
+the next client session.**
 
 The client deck in [../client/](../client/) is built only from requirements
 

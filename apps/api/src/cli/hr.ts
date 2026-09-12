@@ -61,6 +61,102 @@ async function importEmployees(): Promise<void> {
  * the very first admin cannot be created through the application. This is a
  * deliberate one-way door: run it once, from the host, then use the app.
  */
+/**
+ * Assigns any baseline or line role, with the department scope the grants need.
+ *
+ *   hr grant-role --org GGCHCM --employee-no HCM-001 --role dept_head --department HCM
+ *
+ * `grant-admin` exists below and stays, because granting hr_admin is the one
+ * that happens on every install and deserves its own name. This is for the rest
+ * — and for `dept_head` in particular, which migration 0038 seeded with grants
+ * and left unassigned, so the Department Head review step was built, tested,
+ * and impossible to demonstrate.
+ *
+ * SCOPE IS NOT OPTIONAL FOR A DEPARTMENT-SCOPED ROLE. `app.can_access` reads
+ * `ra.scope_department_id` for those, and its 'department' branch begins
+ * `ra.scope_department_id IS NOT NULL` — so an unscoped assignment fails
+ * closed and grants nothing at all. That is the correct behaviour and a
+ * miserable thing to debug, so this refuses up front.
+ */
+async function grantRole(): Promise<void> {
+  const org = arg('org');
+  const employeeNo = arg('employee-no');
+  const role = arg('role');
+  const department = arg('department');
+
+  if (!org || !employeeNo || !role) {
+    console.error('usage: hr grant-role --org <CODE> --employee-no <NO> '
+      + '--role <code> [--department <CODE>]');
+    process.exit(1);
+  }
+
+  const url = process.env.ADMIN_DATABASE_URL;
+  if (!url) {
+    console.error('ADMIN_DATABASE_URL must be set');
+    process.exit(1);
+  }
+
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.request_id', $1, true)`, [randomUUID()]);
+
+    // Does this role hold any department-scoped grant? If so a scope is
+    // required, because without one those grants silently do nothing.
+    const scoped = await client.query<{ n: string }>(
+      `SELECT count(*)::text AS n
+         FROM app_role r
+         JOIN access_grant ag ON ag.role_id = r.id
+         JOIN organization o ON o.id = r.org_id
+        WHERE o.code = $1 AND r.code = $2 AND ag.scope_type = 'department'`,
+      [org, role]);
+
+    if (Number(scoped.rows[0]?.n ?? 0) > 0 && !department) {
+      await client.query('ROLLBACK');
+      console.error(
+        `'${role}' carries department-scoped grants, so it needs `
+        + '--department <CODE>. Without a scope those grants resolve to '
+        + 'nothing and the role appears assigned but powerless.');
+      process.exit(1);
+    }
+
+    const res = await client.query(
+      `INSERT INTO role_assignment (org_id, employee_id, role_id,
+                                    scope_department_id, effective_from)
+       SELECT o.id, e.id, r.id, d.id, CURRENT_DATE
+         FROM organization o
+         JOIN employee e ON e.org_id = o.id AND e.employee_no = $2
+         JOIN app_role r ON r.org_id = o.id AND r.code = $3
+         LEFT JOIN department d
+           ON d.org_id = o.id AND d.code = $4 AND d.effective_to IS NULL
+        WHERE o.code = $1
+          AND ($4::text IS NULL OR d.id IS NOT NULL)
+          AND NOT EXISTS (
+              SELECT 1 FROM role_assignment ra
+               WHERE ra.employee_id = e.id AND ra.role_id = r.id
+                 AND (ra.effective_to IS NULL OR ra.effective_to > CURRENT_DATE))
+      RETURNING id`,
+      [org, employeeNo, role, department ?? null]);
+
+    await client.query('COMMIT');
+
+    if (res.rowCount) {
+      console.log(`Granted ${role} to ${employeeNo}`
+        + (department ? ` scoped to ${department}.` : '.'));
+    } else {
+      // Four ways to change nothing, and guessing which is unhelpful.
+      console.log('No change. Either the employee, the role or the department '
+        + 'was not found, or they already hold this role.');
+    }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    await client.end();
+  }
+}
+
 async function grantAdmin(): Promise<void> {
   const org = arg('org');
   const employeeNo = arg('employee-no');
@@ -200,6 +296,7 @@ const commands: Record<string, () => Promise<void>> = {
   'import-employees': importEmployees,
   'import-201': import201,
   'grant-admin': grantAdmin,
+  'grant-role': grantRole,
   'provision-org': async () => {
     const org = arg('org');
     const name = arg('name');

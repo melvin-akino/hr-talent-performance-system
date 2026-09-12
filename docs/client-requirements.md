@@ -961,7 +961,27 @@ because dropping two real tasks to match a formula would be the wrong way round.
       assertions live in `employee-timeline.spec.ts`, which connects as `hr_app`
       and fails the run if it ever finds itself a superuser.
 - [ ] **F2** Report builder: by name, type, period; PIP results. **M** — §7.2
-- [ ] **F3** DH and AH/RH dashboards. **M** — §7.3
+- [x] **F3** DH and AH/RH dashboards — DONE (migration
+      `0046_unit_scope_predicate.sql`). `GET /dashboards/unit/:periodId`, screen
+      at `/unit`. Also `hr grant-role`, without which `dept_head` had grants and
+      no holders and the step could not be demonstrated.
+
+      **One endpoint and one screen for all four roles, with no role named in
+      either.** A DH sees their section and an Area Head their area because RLS
+      answers differently for each, not because anything branches on title.
+      Writing `if (role === 'dept_head')` would re-implement the authorization
+      boundary above the database, and would drift the moment a scope is edited.
+      A test gives the same request to holders of different grants and asserts
+      the answers differ correctly — the only way to show the scoping is real.
+
+      **Two things found by testing rather than reasoning.** An employee holding
+      `employee:read` at `self` came back with one unit: their own department,
+      headcount 1. Nothing leaked — they saw only themselves — but "one person,
+      none with targets" is a false statement about a section, so the view now
+      requires a scope wider than self. And that predicate had to become
+      `SECURITY DEFINER` (0046), because **`access_grant` is itself protected**:
+      written inline it answered "no" for every Department Head, since a caller
+      cannot read their own grants.
 - [ ] **F4** Request-and-approval flow (extra competency, special eval, scoring
       adjustment). **M** — §7.9
 - [x] **F5** Workflow notification events — DONE (migration

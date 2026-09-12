@@ -138,6 +138,150 @@ export class DashboardService {
     });
   }
 
+  /**
+   * The unit view: Department Head, Area Head, Regional Head, GM (§7.3, F3).
+   *
+   * ONE METHOD FOR ALL FOUR ROLES, AND THAT IS THE DESIGN.
+   *
+   * A Department Head sees their section; an Area Head sees their area; a GM
+   * sees further. The difference is entirely in what RLS lets each of them
+   * read, so the queries below are identical for all of them and there is no
+   * branch on role anywhere in this method. Writing
+   * `if (role === 'dept_head')` would be re-implementing the authorization
+   * boundary in TypeScript, which is the one thing this codebase does not do —
+   * and it would drift from the grants the moment somebody edits a scope.
+   *
+   * What differs is not what they SEE but what is waiting for THEM, and that
+   * follows from their own review assignments rather than from their title.
+   */
+  async unit(ctx: RequestContext, goalPeriodId: string) {
+    return this.db.withContext(ctx, async (client) => {
+      /*
+       * A unit view needs a unit. Found by testing it rather than by reasoning:
+       * an ordinary employee, holding employee:read at 'self' only, came back
+       * with ONE unit — their own department, headcount 1. Nothing leaked;
+       * they saw only themselves. But "Hiring & Selection · 1 person · 0 with
+       * goals" is a false statement about a section, and a dashboard whose
+       * numbers are silently scoped to the reader is worse than one that
+       * declines to answer.
+       *
+       * So the view requires employee:read at some scope WIDER than self. Which
+       * scope it is does not matter and is deliberately not enumerated here —
+       * RLS decides how far they then see, and this only establishes that
+       * "how far" is a meaningful question for them.
+       *
+       * The predicate is a SECURITY DEFINER function (0046) and had to be:
+       * access_grant is itself protected, so written inline here it answered
+       * "no" for every Department Head — they cannot read their own grants.
+       */
+
+      const scoped = await client.query<{ ok: boolean }>(
+        `SELECT app.has_scope_wider_than_self('employee','read') AS ok`);
+
+      if (!scoped.rows[0]?.ok) {
+        return {
+          units: [], reviewProgress: [], waitingOnYou: [], blockingSignOff: [],
+        };
+      }
+
+      // The units in reach, with goal coverage. Headcount comes from current
+      // employment rather than from the goal rows, so a section where nobody
+      // has set a target still appears — with a zero. A unit that vanishes
+      // when it is failing is the opposite of a dashboard.
+      const units = await client.query(
+        `SELECT d.id, d.code, d.name, d.unit_type::text AS "unitType",
+                COUNT(DISTINCT e.id)::int AS "headcount",
+                COUNT(DISTINCT g.employee_id)::int AS "withGoals",
+                ROUND(AVG(att.pct), 1)::text AS "attainment"
+           FROM department d
+           JOIN employment em
+             ON em.department_id = d.id AND em.effective_to IS NULL
+           JOIN employee e
+             ON e.id = em.employee_id
+            AND e.deleted_at IS NULL AND e.status = 'active'
+           LEFT JOIN goal g
+             ON g.employee_id = e.id
+            AND g.goal_period_id = $1
+            AND g.state NOT IN ('cancelled', 'draft')
+           LEFT JOIN LATERAL (
+             SELECT AVG(t.attainment_pct) AS pct FROM goal_target t
+              WHERE t.goal_id = g.id AND t.attainment_pct IS NOT NULL
+           ) att ON TRUE
+          WHERE d.effective_to IS NULL
+          GROUP BY d.id, d.code, d.name, d.unit_type
+          ORDER BY d.name`,
+        [goalPeriodId],
+      );
+
+      // Where every open cycle has actually reached, per unit. This is the
+      // number a DH is asked for in a management meeting and currently has to
+      // count by hand.
+      const reviewProgress = await client.query(
+        `SELECT d.name AS "department",
+                c.name AS "cycle",
+                COUNT(*)::int AS "total",
+                COUNT(*) FILTER (WHERE ri.state = 'submitted')::int AS "submitted",
+                COUNT(*) FILTER (WHERE ri.state = 'returned')::int AS "returned",
+                COUNT(*) FILTER (WHERE ri.state <> 'submitted')::int AS "outstanding"
+           FROM review_instance ri
+           JOIN review_cycle c ON c.id = ri.review_cycle_id AND c.state = 'open'
+           JOIN employment em
+             ON em.employee_id = ri.subject_employee_id
+            AND em.effective_to IS NULL
+           JOIN department d ON d.id = em.department_id
+          GROUP BY d.name, c.name
+          ORDER BY d.name, c.name`,
+      );
+
+      // Assigned to the caller and not finished. Their own queue, whatever
+      // their title — a DH's approval step arrives here as a dept_head
+      // instance, so no role check is needed to surface it.
+      const waitingOnYou = await client.query(
+        `SELECT ri.id,
+                s.first_name || ' ' || s.last_name AS "subjectName",
+                ri.reviewer_role::text AS "asRole",
+                ri.state::text AS "state",
+                c.name AS "cycle",
+                c.closes_on::text AS "closesOn"
+           FROM review_instance ri
+           JOIN review_cycle c ON c.id = ri.review_cycle_id AND c.state = 'open'
+           JOIN employee s ON s.id = ri.subject_employee_id
+          WHERE ri.reviewer_employee_id = $1
+            AND ri.state <> 'submitted'
+          ORDER BY c.closes_on, s.last_name`,
+        [ctx.employeeId],
+      );
+
+      // Subjects whose sign-off is blocked, and by whom. signOff refuses while
+      // any instance is unsubmitted (0038), so this is the list that explains
+      // why a cycle will not close — the question that otherwise gets answered
+      // by opening twenty records one at a time.
+      const blockingSignOff = await client.query(
+        `SELECT s.first_name || ' ' || s.last_name AS "subjectName",
+                c.name AS "cycle",
+                COUNT(*)::int AS "outstanding",
+                string_agg(DISTINCT ri.reviewer_role::text, ', '
+                           ORDER BY ri.reviewer_role::text) AS "roles"
+           FROM review_instance ri
+           JOIN review_cycle c ON c.id = ri.review_cycle_id AND c.state = 'open'
+           JOIN employee s ON s.id = ri.subject_employee_id
+          WHERE ri.state <> 'submitted'
+            AND ri.subject_employee_id <> $1
+          GROUP BY s.first_name, s.last_name, c.name
+          ORDER BY COUNT(*) DESC, s.last_name
+          LIMIT 50`,
+        [ctx.employeeId],
+      );
+
+      return {
+        units: units.rows,
+        reviewProgress: reviewProgress.rows,
+        waitingOnYou: waitingOnYou.rows,
+        blockingSignOff: blockingSignOff.rows,
+      };
+    });
+  }
+
   /** HR view: org-wide completion, coverage gaps, weight problems. */
   async hr(ctx: RequestContext, goalPeriodId: string) {
     return this.db.withContext(ctx, async (client) => {

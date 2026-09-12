@@ -190,6 +190,23 @@ export class GoalsController {
     return this.dashboards.manager(req.auth, periodId);
   }
 
+  /**
+   * The unit view — Department Head, Area Head, Regional Head, GM (§7.3).
+   *
+   * One route for all four. RLS decides how far each of them sees, so there is
+   * no role in the path and no branch in the service: a DH gets their section
+   * and an Area Head gets their area from the same queries. Naming the role in
+   * the URL would invite a check against it, which is how authorization ends up
+   * re-implemented above the database.
+   */
+  @Get('dashboards/unit/:periodId')
+  unitDashboard(
+    @Req() req: AuthenticatedRequest,
+    @Param('periodId', ParseUUIDPipe) periodId: string,
+  ) {
+    return this.dashboards.unit(req.auth, periodId);
+  }
+
   @Get('dashboards/hr/:periodId')
   hrDashboard(
     @Req() req: AuthenticatedRequest,
