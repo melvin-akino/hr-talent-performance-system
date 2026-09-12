@@ -108,10 +108,16 @@ AWS_PROFILE=hr-demo ./ops/deploy/aws-demo.sh --host hr.summitlogicsolutions.com 
 AWS_PROFILE=hr-demo ./ops/deploy/aws-demo.sh --destroy    # releases the IP too
 ```
 
-**The instance is running an older build.** Everything through F5b is deployed;
-**F0a and F0b (the UI importer and the rank/position creates) are not** — they
-need a rebuild and a ~307 MB image upload. Slide 5 of the client deck describes
-a feature nobody can click on the live site until that happens.
+**Up to date as of 2026-09-13** — everything through F0a/F0b is deployed,
+including migration 0044 and the UI importer. Verified after the deploy rather
+than assumed: `/api/import/template` and `/api/import/columns` answer 401 while
+a bogus route answers 404, so the routes exist and are guarded; `app.has_org_grant`
+is present; the web bundle contains the Import staff tab; 622 MB of 909 in use
+with 538 MB of swap, unchanged by the new code.
+
+A redeploy is ~8 minutes of build plus a 307 MB upload. It reuses the security
+group, key pair, instance and address, and leaves `.env` alone, so secrets and
+seeded activity survive.
 
 **Cost note:** an Elastic IP is free only while attached to a *running*
 instance. Stopping the instance and keeping the address costs about
