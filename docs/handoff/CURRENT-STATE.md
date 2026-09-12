@@ -248,14 +248,19 @@ confers `review:approve`, so it is doing the work rather than being masked.
 hr grant-role --org GGCHCM --employee-no HCM-001 --role dept_head --department HCM
 ```
 
-**One thing to say out loud in a demo, rather than let someone notice.** Alonzo
-now holds `employee`, `manager`, `hr_admin` **and** `dept_head`. That is
-organisationally correct — in their structure the HCM Department Head *is* the
-Department Manager — but it means the Department Head approval and the HCM
-approval are the same person on this demo, so the four-role story on slide 3–6
-of the role pack cannot be walked as four logins. Either say so, or grant
-`hr_admin` to a second person (Beatriz, HCM-002, is the Assistant Department
-Manager) so Alonzo reads as DH-only.
+**Alonzo holds `employee`, `manager`, `hr_admin` and `dept_head`, and the demo
+says so out loud.** Decided 2026-09-13: *say it, do not grant `hr_admin` to a
+second person.* Granting it to Beatriz would have made the four-role story
+cleaner and would have invented a role assignment their org chart does not
+state, which is not ours to invent.
+
+The overlap is organisationally correct — in their structure the HCM Department
+Head *is* the Department Manager — and the role pack now carries it: slide 5's
+`who` line names it, its speaker note says to state it plainly, and the
+walkthrough is four sign-ins ending on Alonzo, where the presenter explains that
+the Department Head approval and the HCM approval are the same person *here* and
+would be two people in a branch. **Do not silently fix this by granting the role
+elsewhere** — the deck now depends on it being said.
 
 `hr_partner`, `area_head`, `gm` and `scoring_admin` still have no holders. Only
 `area_head`/`gm` would change what a demo can show, and neither maps onto a

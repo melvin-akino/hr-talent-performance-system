@@ -222,7 +222,7 @@ rolePage({
   kicker: 'Role 3 of 4',
   title: 'Department Head',
   chip: 'DEPT HEAD', chipFill: TEAL, chipInk: WHITE,
-  who: 'Configured, not yet assigned to anyone in the demo. Intended for Alonzo Dimalanta, Department Manager (R6).',
+  who: 'Held by Alonzo Dimalanta, Department Manager (R6), scoped to Human Capital Management — who also administers the system. See the note below.',
   can: [
     'See the whole department, across every section',
     'Revise, approve or send back an evaluation — your §4.5b',
@@ -235,10 +235,12 @@ rolePage({
     'Assign roles to people',
     'See another department',
   ],
-  notes: 'BE STRAIGHT HERE: the role and its approval step are built and tested, but '
-    + 'nobody is assigned to it in the demo tenant, so there is no login to show. Say '
-    + 'that plainly and offer to assign it before the next session rather than '
-    + 'clicking around it.',
+  notes: 'SAY THIS PLAINLY, do not let anyone notice it instead. In your structure the '
+    + 'HCM Department Head IS the Department Manager, so on this demo Alonzo holds the '
+    + 'Department Head role AND administers the system — the approval on the left and '
+    + 'the HCM approval two slides on are the same person here. In a branch they would '
+    + 'be two people, and the system does not care which: the permissions are the same '
+    + 'either way. What the right-hand column describes is the role, not Alonzo.',
 });
 
 rolePage({
@@ -381,7 +383,7 @@ rolePage({
     x: M, y: 0.7, w: 8, h: 0.35, isTextBox: true, margin: 0,
     fontFace: BODY, fontSize: 12, bold: true, charSpacing: 3, color: '8FBDB2',
   });
-  s.addText('Three sign-ins, in this order', {
+  s.addText('Four sign-ins, in this order', {
     x: M, y: 1.1, w: 10.5, h: 0.7, isTextBox: true, margin: 0,
     fontFace: HEAD, fontSize: 32, bold: true, color: WHITE,
   });
@@ -393,9 +395,11 @@ rolePage({
      'His eight people, their targets, the evaluations he owes. Approve a target to show the first gate.'],
     ['dalisay.zamora', 'Section Head, R7 — different section',
      'Same rank, same screens, and Crisanto’s eight have vanished. This is the moment worth pausing on.'],
+    ['alonzo.dimalanta', 'Department Manager, R6 — and HCM',
+     'The whole department, the approval step, and the setup screens. He holds the Department Head role and administers the system, which in this department is the same person — say so here.'],
   ];
   steps.forEach(([user, rank, what], i) => {
-    const y = 2.15 + i * 1.35;
+    const y = 2.05 + i * 1.06;
     s.addShape(pres.ShapeType.ellipse, {
       x: M, y, w: 0.5, h: 0.5, fill: { color: AMBER }, line: { color: AMBER },
     });
@@ -435,7 +439,7 @@ rolePage({
   );
 
   s.addNotes(
-    'Run these three in order and the point makes itself. Step 3 is the one to slow '
+    'Run these four in order and the point makes itself. Step 3 is the one to slow '
     + 'down for: same rank, same screens, different people — and nothing was '
     + 'configured to produce it. Do not skip saying the people are invented.',
   );
