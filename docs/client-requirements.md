@@ -257,9 +257,9 @@ sits below its parent's level; rename the concept to "org unit" in the UI; keep
 the table name. Small migration, large payoff, and it does not disturb the RLS
 predicate.
 
-### 5.4 Attendance from payroll — decision required
+### 5.4 Attendance from payroll — the boundary is decided (D-015)
 
-**Status: Blocked.**
+**Status: Decided; implementation blocked on Q8 only for the adapter.**
 
 30 of the 100 KPI points are "15 No tardiness, 15 No absences", sourced from the
 payroll system. Today [D-002](decisions.md) puts timekeeping out of scope and
@@ -275,9 +275,14 @@ The distinction that keeps the architecture intact:
 - **Refuse**: raw time records, biometric logs, leave balances — anything that
   makes this a timekeeping system by accretion.
 
-This needs a new ADR (proposed **D-015**) before implementation, because it
-modifies the boundary D-002 drew. `test/ph201.spec.ts` must keep passing
-unchanged: an aggregate carries no forbidden field, so it should.
+**[D-015](decisions.md) now records this**, plus the parts §5.4 left open: the
+counts are stored rather than only the derived score, so a recalculation stays
+reproducible; aggregates snapshot on release like every other input; HCM accepts
+and may override with an audited reason, because a feed is not an authority; and
+a period with no figures reads as **unknown, never as zero absences** — zero is
+a score of 30, so a broken feed would otherwise award everyone full marks on a
+third of their KPI and look like good attendance. `test/ph201.spec.ts` keeps
+passing unchanged: an aggregate carries no forbidden field.
 
 ---
 
@@ -439,8 +444,22 @@ calendar commitments.
       Regularisation takes the **earliest** such event (extended probation
       produces more than one); promotion takes the **latest**.
 
-- [ ] **A5** ADR **D-015**: inbound attendance aggregates — what may cross the
-      boundary and what may not. *Decision, not code.* **S** — §5.4
+- [x] **A5** ADR **D-015** — DONE. Attendance crosses as a **count, never a
+      record**: one row per employee per period carrying absence and tardiness
+      counts, refusing time records, biometric logs, leave balances and
+      schedules. §5.4 had already drawn the accept/refuse line; the ADR decides
+      the parts that were ours.
+
+      **It does not wait on Q8.** Which payroll system they run and what it can
+      export changes the *adapter*, not what we accept. Waiting would have been
+      waiting for permission to draw our own boundary.
+
+      **The decision that matters most: a missing feed is not perfect
+      attendance.** Zero absences scores 30 of 100, so an unknown read as zero
+      would quietly award every employee full marks on a third of their KPI —
+      and would look like unusually good attendance rather than a bug. Unknown
+      is nullable, and the composite refuses to finalise a period that has one.
+      See [decisions.md D-015](decisions.md).
 
 ### Phase B — Scoring engine *(the core gap)*
 

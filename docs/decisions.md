@@ -403,6 +403,78 @@ priced and staffed as one — not absorbed into this codebase by degrees.
 
 ---
 
+## D-015 — Attendance crosses the boundary as a count, never as a record
+**Status:** ACCEPTED (2026-09-13)
+
+**Decision:** This system accepts, per employee and per period, an **aggregate**:
+an absence count, a tardiness count, or a pre-computed 0–15 score for each. It
+refuses raw time records, biometric logs, leave balances, schedules, and
+anything else from which those aggregates could be recomputed.
+
+The exchange unit is one row per employee per period, carrying the counts, the
+source that supplied them, when it was supplied, and who accepted them. Nothing
+else.
+
+**Rationale:** 30 of the 100 KPI points are "15 no tardiness, 15 no absences",
+and their source is the payroll system. That is a real requirement and it points
+inward across a boundary two earlier decisions drew:
+[D-002](#d-002--scope-performance--talent-only-payroll-excluded) put
+timekeeping, biometrics and leave out of scope, and
+[D-014](#d-014--no-payroll-integrate-instead) made "no payroll" permanent while
+anticipating exactly this — *an export/integration surface for payroll systems
+becomes a real requirement, and should be designed as a first-class boundary.*
+
+A count is a fact about a period. A time record is a fact about a person's day,
+and once a day's records are here, the next request is the one that needs
+yesterday's, and then the roster that explains it. **That is how a performance
+system becomes a timekeeping system: not by decision, but by accretion.** The
+boundary has to be drawn where it can be defended by inspection — "does this row
+describe a period or a moment?" — rather than by judgement each time.
+
+**Note what this decision does NOT depend on.** Q8 asks which payroll system
+they run, what it can export, and at what grain. That answer changes the
+*adapter*; it does not change what we accept. Waiting for it would be waiting
+for permission to draw our own boundary.
+
+**Consequences:**
+
+- **A missing feed is not perfect attendance.** The most dangerous failure here
+  is silent: a period with no aggregate must read as *unknown*, never as zero
+  absences. Zero is a score of 30, so a broken feed would quietly award every
+  employee full marks on a third of their KPI — and it would look like unusually
+  good attendance rather than like a bug. The column is therefore nullable, the
+  composite refuses to finalise a period with an unknown, and it says whose
+  figures are missing.
+- **Counts are stored, not just the score.** The 15 + 15 conversion is a rule
+  that may change; the counts are the evidence it was applied to. Storing only
+  the derived score would make a recalculation unreproducible, and "why was I
+  scored 22" unanswerable.
+- **Aggregates are snapshotted on release**, like every other input. A revised
+  figure arriving after sign-off does not silently restate a released result; it
+  is a correction with its own trail (the same reasoning as
+  [D-016](#d-016--editing-an-employee-is-four-operations-not-one)).
+- **HCM accepts them, and may override with a reason** — their §4.5c has HCM
+  supplying the figures, and a feed is not an authority. The override is audited
+  because a hand-adjusted attendance score is exactly what a disputed appraisal
+  turns on.
+- **`test/ph201.spec.ts` keeps passing unchanged.** Its data-protection case
+  asserts the system imports no statutory identifiers or personal data, and an
+  aggregate carries none — which is the cheapest available proof that this
+  boundary holds.
+- **Salary stays out**, which also answers the shape of R7: "selection of
+  subject by salary level" cannot be honoured with an amount, because
+  [D-009](#d-009--employee-master-data-performance-relevant-fields-only) stores
+  none. A pay *grade* is a rank, and the rank ladder already exists.
+- The adapter is deliberately unwritten. Until Q8 names the system, a CSV of
+  counts and a screen to accept them cover every case, and both are E1's job.
+
+**Revisit this decision if:** the client asks for tardiness *reasons* or
+excused-absence handling. That is leave management, it lives on the other side
+of this line, and it should be priced as an integration with their payroll
+system rather than absorbed here.
+
+---
+
 ## D-016 — Editing an employee is four operations, not one
 **Status:** ACCEPTED (2026-09-13), implemented in migration 0045
 
