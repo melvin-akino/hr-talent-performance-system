@@ -122,7 +122,7 @@ AWS_PROFILE=hr-demo ./ops/deploy/aws-demo.sh --host hr.summitlogicsolutions.com 
 AWS_PROFILE=hr-demo ./ops/deploy/aws-demo.sh --destroy    # releases the IP too
 ```
 
-**Up to date as of 2026-09-13** — everything through F0a/F0b is deployed,
+**Up to date as of 2026-09-13** (through F3 / migration 0046) — everything through F0a/F0b is deployed,
 including migration 0044 and the UI importer. Verified after the deploy rather
 than assumed: `/api/import/template` and `/api/import/columns` answer 401 while
 a bogus route answers 404, so the routes exist and are guarded; `app.has_org_grant`
@@ -238,19 +238,28 @@ governs how a tally converts to a score, not how metrics are stored.
 
 Only three roles are assigned in GGCHCM: `employee` (28), `manager` (5, derived
 from the reporting lines by `hr sync-roles`) and `hr_admin` (1, Alonzo).
-**`dept_head`, `hr_partner`, `area_head`, `gm` and `scoring_admin` have zero
-holders on the live demo**, so the Department Head approval step — their §4.5b,
-and a slide in the client deck — still has no login to demonstrate it.
-
-`hr grant-role` now exists to fix that, and it refuses an unscoped assignment
-for a department-scoped role rather than granting something powerless:
+**`dept_head` is now held by HCM-001 (Alonzo Dimalanta), scoped to HCM** — done
+2026-09-13 with `hr grant-role`, which refuses an unscoped assignment for a
+department-scoped role rather than granting something powerless. Verified by
+suspending his `hr_admin` assignment and re-asking: the `dept_head` grant alone
+confers `review:approve`, so it is doing the work rather than being masked.
 
 ```bash
 hr grant-role --org GGCHCM --employee-no HCM-001 --role dept_head --department HCM
 ```
 
-Alonzo (HCM-001, R6) is the organisationally correct holder. **Run this before
-the next client session.**
+**One thing to say out loud in a demo, rather than let someone notice.** Alonzo
+now holds `employee`, `manager`, `hr_admin` **and** `dept_head`. That is
+organisationally correct — in their structure the HCM Department Head *is* the
+Department Manager — but it means the Department Head approval and the HCM
+approval are the same person on this demo, so the four-role story on slide 3–6
+of the role pack cannot be walked as four logins. Either say so, or grant
+`hr_admin` to a second person (Beatriz, HCM-002, is the Assistant Department
+Manager) so Alonzo reads as DH-only.
+
+`hr_partner`, `area_head`, `gm` and `scoring_admin` still have no holders. Only
+`area_head`/`gm` would change what a demo can show, and neither maps onto a
+single-department tenant.
 
 The client deck in [../client/](../client/) is built only from requirements
 
