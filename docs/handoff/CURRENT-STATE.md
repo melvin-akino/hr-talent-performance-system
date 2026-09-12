@@ -41,16 +41,25 @@ Delivered beyond the original phases, most recent first:
 
 | | | Blocked on |
 |---|---|---|
-| **B3** | Seed the two real 100-point templates | nothing — next |
+| **A5** | ADR **D-015**: what may cross the attendance boundary. *Decision, not code* — and it blocks all of Phase E | nothing |
+| **F2** | Report builder: by name, type, period, PIP results (§7.2) | nothing — the eval types it needed arrived with C1 |
+| **F3** | Department Head and Area/Regional Head dashboards (§7.3) | nothing |
+| **F4** | Request-and-approval flow: extra competency, special eval, scoring adjustment (§7.9) | nothing |
 | **C2** | Employee-relative scheduling + averaging execution | **Q7** |
 | **D4 / D5** | Peer averaging, min/max; anonymity model | **Q4 / Q5** |
 | **B4–B6** | The KPI composite, incentive bands, competency scoring | **R1, Q1, Q2, Q3** |
 | **E1–E2** | Attendance aggregates | **Q8**, and ADR D-015 is unwritten |
 | **A5** | ADR D-015 itself — ours to write, needed before any Phase E code |
 
-**B3** is next and unblocked: seed the two real 100-point templates from
-their §3 defaults as prepared formats. Everything after it in Phase B waits on
-R1 and Q1–Q3.
+**A5 is the cheapest and unblocks the most**: it is a decision document we owe
+ourselves, it is small, and every Phase E item waits behind it. **F3** is the
+most demo-visible, and pairs with the gap below — the Department Head approval
+step cannot be shown to anyone until `dept_head` has a holder.
+
+**Do not trust a stale "next" in this file.** B3 was listed here as the next
+item for weeks after it had shipped; the tracker had it as `[x]` and this file
+did not. `docs/client-requirements.md` is the authority — check the checkbox
+there before starting anything.
 
 ---
 
