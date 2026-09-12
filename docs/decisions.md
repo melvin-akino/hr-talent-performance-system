@@ -404,7 +404,7 @@ priced and staffed as one — not absorbed into this codebase by degrees.
 ---
 
 ## D-016 — Editing an employee is four operations, not one
-**Status:** PROPOSED (2026-09-13, for Phase 3)
+**Status:** ACCEPTED (2026-09-13), implemented in migration 0045
 
 **Decision:** The employee screens expose four distinct operations, and there is
 deliberately **no generic Edit button**:

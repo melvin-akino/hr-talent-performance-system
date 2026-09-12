@@ -18,7 +18,7 @@ Read in this order:
 
 ## Build status
 
-**Phases 0–7 complete.** 809 automated tests: 680 API against a real PostgreSQL
+**Phases 0–7 complete.** 828 automated tests: 699 API against a real PostgreSQL
 via Testcontainers, 129 web, plus 14 Playwright journeys. Every screen listed in
 the README is built.
 
@@ -26,6 +26,7 @@ Delivered beyond the original phases, most recent first:
 
 | | |
 |---|---|
+| **F0c** | Employee lifecycle: add, correct, record a change, end employment (0045) |
 | **F0a** | 201 import from the UI — template, preview, apply (migration 0044) |
 | **F0b** | `POST /ranks`, `POST /positions` — the ladder is creatable, not only importable |
 | **F5b** | Deadline scanner: hourly, dedupes per milestone (0043) |
@@ -40,20 +41,16 @@ Delivered beyond the original phases, most recent first:
 
 | | | Blocked on |
 |---|---|---|
-| **Phase 3** | Employee lifecycle: Add · Correct · Record a change · End employment | nothing — next |
-| **B3** | Seed the two real 100-point templates | nothing |
+| **B3** | Seed the two real 100-point templates | nothing — next |
 | **C2** | Employee-relative scheduling + averaging execution | **Q7** |
 | **D4 / D5** | Peer averaging, min/max; anonymity model | **Q4 / Q5** |
 | **B4–B6** | The KPI composite, incentive bands, competency scoring | **R1, Q1, Q2, Q3** |
 | **E1–E2** | Attendance aggregates | **Q8**, and ADR D-015 is unwritten |
 | **A5** | ADR D-015 itself — ours to write, needed before any Phase E code |
 
-Phase 3 is the recommended next piece and the design rule matters more than the
-code: **editing an employee is four operations, never one Edit button.**
-Employment is effective-dated. Correcting a misspelt surname and recording a
-promotion look identical in a form and are opposites in the data — if a transfer
-overwrites the old row, every goal and review pointing at the old department
-silently re-parents itself.
+**B3** is next and unblocked: seed the two real 100-point templates from
+their §3 defaults as prepared formats. Everything after it in Phase B waits on
+R1 and Q1–Q3.
 
 ---
 
@@ -83,6 +80,10 @@ Breaking any of these produces a system that still passes a casual demo.
   last year's results.
 - **The staff file is not the authority on org structure.** The importer reports
   differences and changes nothing.
+- **A correction is not a change** (D-016). A correction amends a row that was
+  always wrong; a change closes the current period and opens a new one. Collapse
+  them and a transfer silently re-parents every past review.
+  `app.record_employment_event` refuses `event_type = 'correction'` outright.
 
 ---
 

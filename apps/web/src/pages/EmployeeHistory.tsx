@@ -4,6 +4,7 @@ import { api } from '../auth';
 import type { Employee, TimelineEvent, TimelineKind } from '../types';
 import { ErrorNote, Spinner } from '../components/ui';
 import { Card, EmptyState, Icon, PageHead, Section, Tag, paths } from '../components/ds';
+import EmploymentActions from './admin/EmploymentActions';
 
 /**
  * One employee's history, in one place (requirements §7.1).
@@ -69,6 +70,12 @@ export default function EmployeeHistory() {
       >
         <Link className="btn btn-ghost" to={`/employees/${employeeId}/goals`}>Goals</Link>
       </PageHead>
+
+      {/* The actions sit above the history because the history is what records
+          them — you decide what happened by reading what already has. They
+          render for everybody; the API and RLS decide who may actually use
+          them, and hiding a button is not a permission. */}
+      <EmploymentActions employeeId={employeeId!} name={name} />
 
       {events.length === 0 ? (
         <EmptyState title="Nothing recorded yet">

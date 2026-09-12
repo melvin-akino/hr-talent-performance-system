@@ -21,6 +21,7 @@ import { CompetenciesService } from './competencies/competencies.service';
 import { ReferenceDataController } from './admin/reference-data.controller';
 import { ImportController } from './import/import.controller';
 import { ReferenceDataService } from './admin/reference-data.service';
+import { EmployeeLifecycleService } from './employees/employee-lifecycle.service';
 import { Ph201ImportService } from './import/ph201-import.service';
 import { NotificationsController } from './notifications/notifications.controller';
 import { NotificationsService } from './notifications/notifications.service';
@@ -52,6 +53,7 @@ import { EvaluationsService } from './metrics/evaluations.service';
     PipService, MonitoringService,
     ReviewsService, FormsService, EvaluationDefinitionsService,
     CompetenciesService, ReferenceDataService, Ph201ImportService,
+    EmployeeLifecycleService,
     NotificationsService, NotificationWorkerService, FeedbackService,
     DevelopmentService, AnalyticsService, HelpService, MetricsService,
     EvaluationsService,

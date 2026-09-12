@@ -840,7 +840,12 @@ because dropping two real tasks to match a formula would be the wrong way round.
       Also fixed: the importer called `seed_baseline_roles()` on **every** run.
       Harmless from the CLI, fatal from a request. Now guarded on their absence.
 
-- [ ] **F0c** Employee lifecycle — **next, and unblocked**. **M** — see
+- [x] **F0c** Employee lifecycle — DONE (migration
+      `0045_employment_lifecycle.sql`). `POST /employees`,
+      `PATCH /employees/:id`, `POST /employees/:id/employment-events`,
+      `POST /employees/:id/separation`, plus
+      `GET /employees/:id/separation-blockers`. The actions sit on
+      `/employees/:id/history` — beside the history that records them. See
       **[decisions.md D-016](decisions.md)** for why this is four operations and
       not one Edit button.
 
@@ -868,7 +873,7 @@ because dropping two real tasks to match a formula would be the wrong way round.
       transaction, because `hr sync-roles` derives the supervisor role from
       reporting lines and access must not lag the transfer.
 
-      **Steps, in order**
+      **What it does, and what was learned building it**
 
       1. **Migration**: `app.record_employment_event(employee, event_type,
          effective_from, position, department, employment_type, status, reason)`
