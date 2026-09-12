@@ -840,6 +840,67 @@ because dropping two real tasks to match a formula would be the wrong way round.
       Also fixed: the importer called `seed_baseline_roles()` on **every** run.
       Harmless from the CLI, fatal from a request. Now guarded on their absence.
 
+- [ ] **F0c** Employee lifecycle — **next, and unblocked**. **M** — see
+      **[decisions.md D-016](decisions.md)** for why this is four operations and
+      not one Edit button.
+
+      **It exposes a model that already exists.** Migration 0029 added
+      `employment.event_type` (`hire`, `regularization`, `promotion`,
+      `lateral_transfer`, `demotion`, `rehire`, `correction`) and
+      `app.employment_milestones()` reads the client's three 201 dates back out
+      of those events. Nothing about the data model needs designing; the writes
+      simply have no API yet. `employees.controller.ts` is `@Get` only.
+
+      **The four operations**
+
+      | Endpoint | Effect |
+      |---|---|
+      | `POST /employees` | `employee` + first `employment` (`hire`) + `reporting_line`, one transaction |
+      | `PATCH /employees/:id` | **Correction only** — names, emails, `employee_no`, `hired_on`. Never touches employment periods |
+      | `POST /employees/:id/employment-events` | Closes the open `employment` row and opens a new one with the named `event_type` and a required `change_reason` |
+      | `POST /employees/:id/separation` | Closes the open row, sets `status` and `separated_on` |
+
+      **The one hard part is atomicity.** `employment` and `reporting_line` each
+      carry a GiST exclusion constraint forbidding overlapping periods, so a
+      change is close-then-open in a single transaction or the second statement
+      is rejected and the first is already committed — leaving a gap, which is
+      worse than an error. A supervisor change belongs in the *same*
+      transaction, because `hr sync-roles` derives the supervisor role from
+      reporting lines and access must not lag the transfer.
+
+      **Steps, in order**
+
+      1. **Migration**: `app.record_employment_event(employee, event_type,
+         effective_from, position, department, employment_type, status, reason)`
+         — one function doing close-and-open, so the invariant lives in the
+         database rather than in a service that is not the only writer. The
+         importer is the other writer, and it must keep working unchanged.
+      2. **A separation guard**, in the migration: refuse to separate somebody
+         holding an open review instance or an active PIP without an explicit
+         override, and say which. Silently separating mid-cycle orphans work.
+      3. **Service + controller**, following `reference-data.service.ts`:
+         `orgOf()` for the tenant, zod schemas mirroring the DB constraints for
+         readable errors, and `wrap()` to surface constraint violations as 400s
+         with the message the trigger wrote.
+      4. **RLS**: `employee_insert` already permits creation as of 0044.
+         Employment and reporting-line inserts were verified permitted for an
+         org-scoped writer during Phase 1 — re-verify rather than assume, and
+         note that `hr_partner` is department-scoped and cannot create people.
+      5. **Tests** against a real PostgreSQL, and these are the ones that
+         matter: a change leaves **no gap and no overlap**; a correction to a
+         closed row does not shift its neighbours; a backdated change is
+         accepted; `app.employment_milestones()` still returns the right three
+         dates after a correction *and* after a second regularisation; an
+         ordinary employee is refused; a department-scoped `hr_partner` is
+         refused creation.
+      6. **UI**: extend `/employees/:id/history` — the timeline already shows
+         employment events, so the actions belong beside the history that will
+         record them, not on a separate form. Four buttons, four dialogs.
+
+      **Out of scope, deliberately:** bulk edits (that is the importer, which
+      already previews and upserts idempotently), and anything touching
+      compensation (D-014).
+
 - [x] **F0b** Create ranks and positions — DONE. `POST /ranks`, `POST /positions`.
       The ladder could previously only arrive inside an import file, which is
       how GGCHCM ended up with none: the seed file had no `rank_no` column and

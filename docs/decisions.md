@@ -400,3 +400,69 @@ entrenched incumbents.
 **Revisit this decision if:** a customer makes payroll a condition of sale. That
 is a different product with a different compliance posture, and it should be
 priced and staffed as one — not absorbed into this codebase by degrees.
+
+---
+
+## D-016 — Editing an employee is four operations, not one
+**Status:** PROPOSED (2026-09-13, for Phase 3)
+
+**Decision:** The employee screens expose four distinct operations, and there is
+deliberately **no generic Edit button**:
+
+| | | Writes |
+|---|---|---|
+| **Add** | A person who is not in the system yet | `employee` + first `employment` (`event_type = 'hire'`) + `reporting_line` |
+| **Correct** | Fix something that was always wrong — a misspelt surname, a mistyped hire date | Amends the existing row in place |
+| **Record a change** | Something happened in the real world — regularisation, promotion, transfer, demotion | **Closes** the current `employment` row and **opens** a new one, in one transaction |
+| **End employment** | They left | Closes the open row, sets `employee.status` and `separated_on` |
+
+**Rationale:** Employment is effective-dated, and `employment` /
+`reporting_line` each carry a GiST exclusion constraint forbidding overlapping
+periods. So "changing a person" is not one operation in the data even though it
+is one word in English:
+
+- A **correction** rewrites history, because the old value was never true.
+- A **change** appends to history, because the old value *was* true until a date.
+
+Collapse them into one form and a transfer overwrites the row it should have
+closed. Nothing errors. But every goal, review and evaluation that pointed at
+the old department silently re-parents itself to the new one, and the answer to
+"which section was this person in when they were rated" quietly changes for
+every past cycle. That is the kind of defect nobody finds until an appraisal is
+disputed a year later.
+
+The vocabulary already exists: migration **0029** added `employment.event_type`
+with `hire`, `regularization`, `promotion`, `lateral_transfer`, `demotion`,
+`rehire` and `correction`, and its own comment already draws this distinction —
+*"a row fixing a typo in last month's transfer is not itself a transfer"*.
+`app.employment_milestones()` reads the 201 sheet's three dates back out of
+those events rather than storing them separately, and it depends on corrections
+not counting: it takes the **earliest** regularisation (probation extended
+twice still became regular once) and the **latest** promotion.
+
+**Phase 3 therefore exposes a model that already exists rather than inventing
+one.** If the API had been built with a single `PATCH /employees/:id`, 0029's
+event vocabulary would have had nothing to write into it.
+
+**Consequences:**
+- Four endpoints, not one. Each names its event, and `change_reason` is
+  required on a change — an undated, unexplained transfer is not auditable.
+- **A change is one transaction.** Close-then-open must be atomic or the
+  exclusion constraint rejects the second statement and leaves the first
+  committed, which is worse than failing: the person now has a gap.
+- **Recording a change in the past is legitimate** and must be supported —
+  HCM learns about a transfer after it happened. Recording one in the future is
+  also legitimate. Both are ordinary effective-dating, not edge cases.
+- A correction to an already-closed row is allowed, and does **not** shift the
+  rows around it. Re-dating a boundary is a change, not a correction.
+- **Nothing is deleted.** Separation closes a row and sets a date; the person
+  stays queryable, because their past reviews still reference them.
+- The supervisor role is derived from reporting lines by `hr sync-roles`, so a
+  transfer moves access on its own — but only once the reporting line is
+  written, which makes the reporting line part of the same transaction rather
+  than a follow-up screen.
+
+**Revisit this decision if:** a customer asks for bulk edits across many people
+at once. That is the importer's job — `POST /import/employees` already upserts
+idempotently — and a bulk path through these four operations would need its own
+preview, which is what the importer already has.
