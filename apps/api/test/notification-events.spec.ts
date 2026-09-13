@@ -126,7 +126,10 @@ async function seed(): Promise<void> {
   for (const fn of ['seed_baseline_roles', 'seed_phase1_grants', 'seed_phase3_grants',
                     'seed_line_role_grants', 'seed_dept_head_review_grants',
                     'seed_notification_templates', 'seed_hcm_target_templates',
-                    'seed_workflow_event_templates', 'seed_reminder_templates']) {
+                    'seed_workflow_event_templates', 'seed_reminder_templates',
+                    // F4's two, so the audit below can see them. A template
+                    // the audit cannot see is one it cannot flag.
+                    'seed_change_request_grants', 'seed_change_request_templates']) {
     await admin.query(`SELECT app.${fn}($1)`, [org]);
   }
   const role = async (c: string) => (await admin.query(

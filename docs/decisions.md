@@ -538,3 +538,43 @@ event vocabulary would have had nothing to write into it.
 at once. That is the importer's job — `POST /import/employees` already upserts
 idempotently — and a bulk path through these four operations would need its own
 preview, which is what the importer already has.
+
+---
+
+## D-017 — Approving a request records a decision; it does not apply the change
+
+**Status:** accepted (F4, migration `0048_change_request.sql`)
+
+The request-and-approval flow (§7.9) lets a Department Head ask for an extra
+competency, a special evaluation or a scoring adjustment. The obvious next step
+is to have approval carry it out: add the competency, open the evaluation,
+write the new score. It does not.
+
+**Why.** A score that moves as a side effect of an approval is a score that
+changed with no separate act behind it. The audit trail would show a request,
+an approval, and then a different number — with no row saying who changed it,
+on what screen, against which version of the form. "Who changed this score" is
+a question that has to have an answer, and the only way to guarantee one is to
+make the change where it is already audited as a change.
+
+There is a second reason, less obvious and probably more important in practice:
+an approval is frequently **conditional**. "Yes, but only for the branch staff",
+"yes, once the cycle reopens", "yes at 3.6 rather than 3.8". A flow that applies
+the request verbatim has nowhere to put any of that, so the approver either
+declines something they meant to allow, or approves something they did not
+quite mean.
+
+**Consequences:**
+- `change_request` has no write path into any other table, and a test asserts
+  that approving one changes nothing about the subject's records.
+- The screen and the decision email both say so, in as many words. People read
+  an approval as the thing being done, and then nobody does it — saying it
+  once in a migration comment would not have been enough.
+- The cost is a second step, and it is a real cost. If the client tells us the
+  step is being skipped in practice, the answer is a link from the decided
+  request to the screen that applies it — not an automatic write.
+
+**Revisit this decision if:** the client asks for it explicitly, with the audit
+question answered. A "create the assessment from the approval" button that
+lands on the competency screen with the fields filled in would honour both
+halves; an approval that writes the row would not.

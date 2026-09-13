@@ -320,7 +320,7 @@ passing unchanged: an aggregate carries no forbidden field.
 | 7.6 | System walkthrough guide | **Have** | In-app help: 14 bundled articles, route- and role-aware, plus HR-authored content from Setup. |
 | 7.7 | Integrates PIP and goal/target setting | **Have** | Both exist, linked to periods and cycles. |
 | 7.8 | Messaging: reminders, acknowledgement, results, eval notifications | **Complete** | Durable outbox with retry, 21 templates, in-app + email, per-user preferences and digest. Deadline reminders scan hourly and dedupe per milestone (F5b). |
-| 7.9 | Requests: DH asks for extra competency / special eval / scoring adjustment | **Missing** | No request-and-approval entity anywhere in the system. |
+| 7.9 | Requests: DH asks for extra competency / special eval / scoring adjustment | **Have** | `change_request` with a state machine, RLS, approver lookup and both notifications; screen at `/requests`. Approving records the decision and does not apply the change (D-017, F4). |
 
 ---
 
@@ -1008,8 +1008,36 @@ because dropping two real tasks to match a formula would be the wrong way round.
       `SECURITY DEFINER` (0046), because **`access_grant` is itself protected**:
       written inline it answered "no" for every Department Head, since a caller
       cannot read their own grants.
-- [ ] **F4** Request-and-approval flow (extra competency, special eval, scoring
-      adjustment). **M** — §7.9
+- [x] **F4** Request-and-approval flow — DONE (migration
+      `0048_change_request.sql`). `change_request` plus `/requests`, screen at
+      `/requests`.
+
+      **One table for three types, because they are one workflow**: somebody
+      with a unit asks, somebody with authority answers. The difference is
+      entirely in WHAT is asked for, so it sits in typed columns with a CHECK
+      per type rather than a JSONB payload — a blob would have let a scoring
+      adjustment be filed with no score in it, and it would have surfaced
+      months later as a report summing nulls.
+
+      **Approving does not apply the change (D-017).** A score that moves as a
+      side effect of an approval is a score that changed with nobody's name on
+      it. The request records the decision; the change is made where it is
+      audited as a change. The screen and the email both say so, because people
+      read an approval as the thing being done.
+
+      **The subject cannot see a request about them.** A request to adjust
+      somebody's score is assessment in motion — the same category as a draft
+      evaluation (0033) — and what they are entitled to is the result once it
+      is applied, not the argument about whether to.
+
+      **Found by a test:** the UPDATE policy has to let an approver write a
+      submitted request, and nothing stopped one setting the state to
+      'withdrawn' instead of 'declined' — no decider, no reason, and it reads
+      afterwards as though the requester thought better of it. Now refused by
+      the transition trigger. **Also found:** `seed_workflow_event_templates`
+      and `seed_reminder_templates` were never on the provisioning list, so
+      every org created after 0042 and 0043 had the F5/F5b emitters and none of
+      their templates.
 - [x] **F5** Workflow notification events — DONE (migration
       `0042_notification_events.sql`). Six new templates, and emitters wired
       into the paths that were silent: `evaluation.assigned`,

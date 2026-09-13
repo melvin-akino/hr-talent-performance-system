@@ -49,6 +49,22 @@ const SEEDERS = [
   'app.seed_hcm_target_templates',
   // C3: the Department Head's place in the review chain.
   'app.seed_dept_head_review_grants',
+  /*
+   * F5 and F5b's templates, which were NOT on this list and should have been.
+   *
+   * 0042 and 0043 seeded them into every organisation that existed at the time
+   * the migration ran, and every org provisioned afterwards got none — so a
+   * new tenant had the deadline scanner, the workflow emitters and no
+   * templates for either. Nothing would have failed loudly: enqueue against a
+   * missing template is a message that does not arrive, which is the exact
+   * failure the notification audit test was written to catch and could not see
+   * from here. Found while adding F4's own templates below.
+   */
+  'app.seed_workflow_event_templates',
+  'app.seed_reminder_templates',
+  // F4: the request-and-approval flow (§7.9).
+  'app.seed_change_request_grants',
+  'app.seed_change_request_templates',
 ] as const;
 
 const EMPLOYMENT_TYPES: [string, string, boolean][] = [
