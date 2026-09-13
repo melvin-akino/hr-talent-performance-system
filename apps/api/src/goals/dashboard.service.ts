@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DbService, RequestContext } from '../db/db.service';
+import { toCsv } from '../common/csv';
 
 /**
  * The three dashboards named in the source meeting notes: HR, Employee (EE),
@@ -389,21 +390,9 @@ export class DashboardService {
       return res.rows;
     });
 
-    if (rows.length === 0) return '';
-    const headers = Object.keys(rows[0]!);
-
-    // Excel interprets a leading =, +, -, or @ as a formula. An unescaped cell
-    // is a CSV injection vector, and this file is opened in Excel by default.
-    const escape = (v: string | null): string => {
-      if (v === null || v === undefined) return '';
-      const s = String(v);
-      const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-      return /[",\n\r]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
-    };
-
-    return [
-      headers.join(','),
-      ...rows.map((r) => headers.map((h) => escape(r[h] ?? null)).join(',')),
-    ].join('\r\n');
+    // Serialised by the shared helper (common/csv.ts) rather than inline: the
+    // Excel formula-injection guard it carries must not exist in two copies,
+    // because the second copy is the one written from memory without it.
+    return toCsv(rows);
   }
 }

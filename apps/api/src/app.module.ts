@@ -37,6 +37,8 @@ import { MetricsController } from './metrics/metrics.controller';
 import { MetricsService } from './metrics/metrics.service';
 import { EvaluationsController } from './metrics/evaluations.controller';
 import { EvaluationsService } from './metrics/evaluations.service';
+import { ReportsController } from './reports/reports.controller';
+import { ReportsService } from './reports/reports.service';
 
 @Global()
 @Module({
@@ -46,6 +48,7 @@ import { EvaluationsService } from './metrics/evaluations.service';
     ImportController,
     NotificationsController, DevelopmentController, AnalyticsController,
     HelpController, MetricsController, EvaluationsController,
+    ReportsController,
   ],
   providers: [
     DbService, AuthGuard, EmployeesService, EmployeeImportService,
@@ -56,7 +59,7 @@ import { EvaluationsService } from './metrics/evaluations.service';
     EmployeeLifecycleService,
     NotificationsService, NotificationWorkerService, FeedbackService,
     DevelopmentService, AnalyticsService, HelpService, MetricsService,
-    EvaluationsService,
+    EvaluationsService, ReportsService,
   ],
   exports: [DbService],
 })

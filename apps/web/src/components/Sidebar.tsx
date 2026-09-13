@@ -55,6 +55,7 @@ const icons = {
   settings: icon(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 16 4.6h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>),
   gauge: icon(<><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></>),
   checklist: icon(<><path d="M11 4h9" /><path d="M11 12h9" /><path d="M11 20h9" /><path d="m3 5 1.5 1.5L7 4" /><path d="m3 13 1.5 1.5L7 12" /><path d="m3 21 1.5 1.5L7 20" /></>),
+  fileText: icon(<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M15 2v5h5" /><path d="M9 13h6M9 17h4" /></>),
   bell: icon(<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>),
 };
 
@@ -86,6 +87,11 @@ export function buildGroups(roles: string[], hasReports: boolean): Group[] {
         // hidden menu item is not a permission.
         { to: '/unit', label: 'My unit', icon: icons.layers ?? icons.activity },
         { to: '/evaluations', label: 'Evaluations', icon: icons.gauge },
+        // Under "My team" rather than "Company": the report is scoped by RLS,
+        // so a Department Head running it gets their section. Filing it under
+        // the HR-only group would have hidden it from the people the §7.2
+        // requirement was written for.
+        { to: '/reports', label: 'Reports', icon: icons.fileText },
         // Everyone can reach a PIP by URL — an employee on a plan must be able
         // to read it — but only managers are offered the list.
         { to: '/pips', label: 'PIPs', icon: icons.lifeBuoy },

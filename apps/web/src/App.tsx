@@ -31,6 +31,7 @@ import Feedback from './pages/Feedback';
 import Notifications from './pages/Notifications';
 import Development from './pages/Development';
 import Analytics from './pages/Analytics';
+import Reports from './pages/Reports';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -149,6 +150,7 @@ function Shell() {
           <Route path="/reviews/:id" element={<ReviewForm />} />
           <Route path="/review-admin" element={<ReviewAdmin />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/competencies" element={<Competencies />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/feedback" element={<Feedback />} />

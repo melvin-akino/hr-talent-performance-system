@@ -313,7 +313,7 @@ passing unchanged: an aggregate carries no forbidden field.
 | # | Requirement | Status | Evidence / gap |
 |---|---|---|---|
 | 7.1 | Employee history: evaluation results and actions taken | **Have** | `app.employee_timeline` consolidates reviews, task evaluations, PIPs, competency assessments and employment events; screen at `/employees/:id/history` (F1). |
-| 7.2 | Reports by name / eval type / period / PIP results | **Partial** | Analytics endpoints exist (distribution, nine-box, rater comparison, calibration movement, progress, trend) plus CSV export. No filtered report builder; "by eval type" needs types first. |
+| 7.2 | Reports by name / eval type / period / PIP results | **Have** | `app.evaluation_report` over the same union as the history screen; filters for person, source, evaluation type, period, unit subtree and result; screen at `/reports` with CSV export (F2). |
 | 7.3 | Dashboards per user level (HCM, DH, Supervisor, RH/AH) | **Partial** | HR console, Team and Monitoring cover the HCM and Supervisor shapes. DH and AH/RH do not exist. |
 | 7.4 | Form creation **plus** prepared formats by employee type | **Have** | Versioned `form_template` / `form_version` with assignment; the §3 defaults become seeded prepared formats. |
 | 7.5 | Defaults shown automatically, manual override by evaluator level | **Partial** | Resolution exists (`app.resolve_form_version`); the override path and its permission do not. |
@@ -960,7 +960,33 @@ because dropping two real tasks to match a formula would be the wrong way round.
       appeared to see everything and the check proved nothing. The confidentiality
       assertions live in `employee-timeline.spec.ts`, which connects as `hr_app`
       and fails the run if it ever finds itself a superuser.
-- [ ] **F2** Report builder: by name, type, period; PIP results. **M** — §7.2
+- [x] **F2** Report builder — DONE (migration `0047_evaluation_report.sql`).
+      `GET /reports/evaluations`, `/reports/evaluations.csv`, screen at
+      `/reports`.
+
+      **It did not write a second union.** 0035 already unioned reviews, task
+      evaluations, PIPs, competency assessments and employment events for one
+      person. So the union moved down into `app.evaluation_events`, which takes
+      an optional employee, and `app.employee_timeline` became a wrapper over
+      it with the identical signature — nothing above the database changed. A
+      second copy would have meant every future source had to be remembered
+      twice, and the day somebody forgot, the history screen and the report
+      would describe the same person differently with nothing on either screen
+      to say so. A test asserts the two entry points return the same events.
+
+      **SECURITY INVOKER, and that is the load-bearing decision.** A
+      cross-employee report is the likeliest place in the system for
+      confidential assessment to leak. Nothing here re-implements visibility: a
+      draft task evaluation stays invisible to its subject because 0033 says
+      so, proved by a test that puts one in the database and fails if the
+      subject can see it.
+
+      **Two things that look like one.** `kind` is the source; `eval_type` is
+      the client's Type I–V and exists only for reviews run from a definition
+      (0036). Filtering by type therefore excludes every PIP and task
+      evaluation — so the screen says so, because otherwise an empty report
+      reads as missing data. The filters live in the URL: a report nobody can
+      link to is one that gets rebuilt by hand, differently each time.
 - [x] **F3** DH and AH/RH dashboards — DONE (migration
       `0046_unit_scope_predicate.sql`). `GET /dashboards/unit/:periodId`, screen
       at `/unit`. Also `hr grant-role`, without which `dept_head` had grants and
