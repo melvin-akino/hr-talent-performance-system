@@ -624,6 +624,104 @@ textarea.input { min-height: 90px; resize: vertical; }
 .hr-help-body p, .hr-help-body li { font-size: 14px; }
 .hr-help-body table { font-size: 13px; }
 
+/* ── the visual layer of the help centre ───────────────────────────────────
+   Diagrams, step strips and callouts. Every colour is a token, so the same
+   markup is legible in both themes without a second copy — and the diagrams
+   themselves are inline SVG using the same variables (see help/diagrams.tsx).
+*/
+
+.hr-help-figure {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-divider);
+  border-radius: 8px;
+  background: var(--color-bg);
+  /* The drawer is 460px and these are drawn at 560 units wide. Left to scale
+     down, a 10px label rendered at about 6px — technically present, actually
+     unreadable, which is worse than no diagram because it looks finished.
+     So they keep their size and the narrow case scrolls, exactly as the help's
+     tables already do. */
+  overflow-x: auto;
+}
+.hr-help-figure svg { min-width: 520px; }
+.hr-help-figure figcaption {
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--color-neutral-600);
+  line-height: 1.45;
+}
+
+/* A sequence, numbered down the left. The numbers are the point: a reader
+   scanning for "where am I now" finds a step, not a sentence. */
+.hr-help-steps {
+  list-style: none;
+  margin: var(--space-3) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hr-help-steps li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  font-size: 14px;
+}
+.hr-help-step-no {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-bg);
+  background: var(--color-accent-800);
+}
+
+.hr-help-callout {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border-radius: 8px;
+  border: 1px solid var(--color-divider);
+  border-left-width: 3px;
+  background: var(--color-surface);
+}
+.hr-help-callout > div > :first-child { margin-top: 0; }
+.hr-help-callout > div > :last-child { margin-bottom: 0; }
+.hr-help-callout-kind {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+  margin-bottom: 4px;
+}
+.hr-help-callout.is-note    { border-left-color: var(--color-neutral-500); }
+.hr-help-callout.is-tip     { border-left-color: var(--color-accent-600); }
+/* Warnings are the only place the help raises its voice, so the marker has to
+   be distinguishable from the other two at a glance and not only by hue. */
+.hr-help-callout.is-warning { border-left-color: var(--color-accent-900); }
+.hr-help-callout.is-warning .hr-help-callout-kind { font-weight: 700; }
+
+/* Loud on purpose. A missing diagram is a content bug and the build already
+   fails on it — this is the belt to that pair of braces. */
+.hr-help-missing {
+  font-size: 12px;
+  color: var(--color-neutral-600);
+  border: 1px dashed var(--color-divider);
+  padding: var(--space-2);
+}
+
+/* Section headings on the drawer's landing view. */
+.hr-help-sectionhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hr-help-sectionhead svg { opacity: 0.65; flex: 0 0 auto; }
+
 @media (max-width: 560px) {
   .hr-help { width: 100%; border-left: 0; }
 }

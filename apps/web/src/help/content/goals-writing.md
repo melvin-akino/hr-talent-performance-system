@@ -58,10 +58,18 @@ at 25 each is fine. Three at 30 is not — it leaves 10% of you unaccounted for.
 You draft the goal, then submit it. Your manager approves it, or sends it back
 with comments.
 
+:::diagram goal-lifecycle
+
+Where your organisation has switched on HCM approval for the period, there is
+one more gate after your supervisor: HCM releases the target before it counts.
+You will be told when it reaches them, and told again if it is sent back.
+
+:::warning
 **Until it is approved, it is not counted.** A goal sitting in draft at the end
 of the period contributes nothing to your attainment, no matter how much work
 went into it. If your manager has not acted, chase them — the deadline does not
 care whose queue it is sitting in.
+:::
 
 ## Changing a goal mid-period
 

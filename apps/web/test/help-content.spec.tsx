@@ -12,6 +12,8 @@ import {
   articlesFor, articlesForRoute, loadArticles, parseFrontmatter, toArticle,
 } from '../src/help';
 import { APP_ROUTES, AUDIENCES, SECTIONS } from '../src/help/schema';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { DIAGRAMS, DIAGRAM_IDS } from '../src/help/diagrams';
 
 const articles = loadArticles();
 
@@ -238,5 +240,94 @@ describe('frontmatter parsing', () => {
       '---\r\nid: x\r\nroutes: []\r\n---\r\nBody text.', 'x.md');
     expect(fields.id).toBe('x');
     expect(body).toBe('Body text.');
+  });
+});
+
+/**
+ * The visual blocks.
+ *
+ * These fail the same way a mistyped route does — silently, and only for the
+ * reader. A `:::diagram` naming a drawing that does not exist renders a
+ * placeholder nobody reports, because a reader has no idea a picture was meant
+ * to be there. So the names are checked here, against the registry itself,
+ * which is the same discipline APP_ROUTES already applies to routes.
+ */
+describe('diagrams, steps and callouts', () => {
+  const blocks = (body: string) =>
+    // `\s` includes newlines, so `:::\s*(\w…)` happily matched the closing
+    // fence and then the first word of the paragraph after it, and reported
+    // ":::That" as an unknown block. The renderer is safe from this because it
+    // matches line by line; this scan is not.
+    [...body.matchAll(/^:::[^\S\r\n]*(\w[\w-]*)[^\S\r\n]*(.*)$/gm)]
+      .map((m) => ({ kind: m[1]!, arg: (m[2] ?? '').trim() }));
+
+  it('only names diagrams that exist', () => {
+    for (const a of articles) {
+      for (const b of blocks(a.body)) {
+        if (b.kind !== 'diagram') continue;
+        expect(DIAGRAM_IDS, `${a.id} draws unknown diagram "${b.arg}"`)
+          .toContain(b.arg);
+      }
+    }
+  });
+
+  it('only uses block kinds the renderer understands', () => {
+    const known = ['diagram', 'steps', 'note', 'tip', 'warning'];
+    for (const a of articles) {
+      for (const b of blocks(a.body)) {
+        expect(known, `${a.id} uses unknown block ":::${b.kind}"`).toContain(b.kind);
+      }
+    }
+  });
+
+  it('closes every block it opens', () => {
+    // An unclosed :::steps swallows the rest of the article. The renderer
+    // reaches the end of the lines and stops, so the article simply ends early
+    // — which looks like a short article, not like a bug.
+    for (const a of articles) {
+      const fences = a.body.split(/\r?\n/).filter((l) => l.trim().startsWith(':::'));
+      const opens = fences.filter((l) => l.trim() !== ':::' && !/^:::\s*diagram/.test(l.trim()));
+      const closes = fences.filter((l) => l.trim() === ':::');
+      expect(closes.length, `${a.id} has ${opens.length} open blocks and ${closes.length} closers`)
+        .toBe(opens.length);
+    }
+  });
+
+  it('gives every step a title before its dash', () => {
+    // The step number and the bold title are what a scanning reader lands on.
+    // A step written as one long sentence renders as a numbered paragraph and
+    // buys nothing over the list it replaced.
+    for (const a of articles) {
+      const lines = a.body.split(/\r?\n/);
+      let inSteps = false;
+      for (const line of lines) {
+        if (/^:::\s*steps/.test(line.trim())) { inSteps = true; continue; }
+        if (line.trim() === ':::') { inSteps = false; continue; }
+        if (!inSteps || !/^[-*] /.test(line)) continue;
+        const title = line.slice(2).split(' — ')[0]!;
+        expect(title.length, `${a.id} has a step with no short title: ${line}`)
+          .toBeLessThan(70);
+      }
+    }
+  });
+
+  it('renders every diagram without throwing', () => {
+    // They are React elements built from a viewBox and a handful of numbers,
+    // and a typo in one is not a type error.
+    for (const id of DIAGRAM_IDS) {
+      expect(() => renderToStaticMarkup(<>{DIAGRAMS[id]!()}</>), id).not.toThrow();
+    }
+  });
+
+  it('gives every diagram a text alternative', () => {
+    // The drawing is the point for a reader who learns visually. It must not be
+    // the ONLY way to get the information: every figure carries both an
+    // aria-label for a screen reader and a visible caption for anybody who
+    // cannot parse the picture.
+    for (const id of DIAGRAM_IDS) {
+      const html = renderToStaticMarkup(<>{DIAGRAMS[id]!()}</>);
+      expect(html, `${id} has no aria-label`).toContain('aria-label');
+      expect(html, `${id} has no caption`).toContain('<figcaption');
+    }
   });
 });

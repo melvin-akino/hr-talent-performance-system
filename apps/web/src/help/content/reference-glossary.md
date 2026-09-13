@@ -101,3 +101,23 @@ while keeping their history.
 **Twin-notice rule** — the requirement for a written notice to explain, a real
 opportunity to be heard, and a written notice of decision before terminating for
 just cause. **A PIP does not satisfy it.** Involve HR early.
+
+---
+
+## Ranks, and why the numbers look backwards
+
+The ladder uses the group's own numbering, where **a lower number is more
+senior**. Rank 6 sits above rank 11.
+
+:::diagram rank-ladder
+
+:::warning
+This catches people out constantly, so it is worth reading twice. "Two ranks up"
+from a Team Leader at rank 10 means rank **8**, not rank 12. Anywhere the system
+says *above*, *senior to* or *ranks up*, it means a smaller number.
+:::
+
+The numbering was kept as the group writes it rather than reversed to feel more
+natural. A system that quietly renumbered the ladder would disagree with every
+document, org chart and conversation outside it — which is a worse problem than
+a counter-intuitive direction that is stated plainly.

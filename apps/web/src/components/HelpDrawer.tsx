@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../auth';
@@ -30,6 +30,34 @@ import { Icon, Tag, paths } from './ds';
  */
 
 const ALL = loadArticles();
+
+/**
+ * A mark per section.
+ *
+ * Not decoration: the landing view is seven headings of similar length, and a
+ * reader who has been here before is looking for the one they used last time.
+ * A shape is found faster than a word is read, and it is the same shape every
+ * time — which a label is not, because labels get rewritten.
+ *
+ * Inline, at the same stroke weight as the sidebar's, because nothing may be
+ * fetched at runtime.
+ */
+const mark = (d: ReactNode) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {d}
+  </svg>
+);
+
+const SECTION_ICONS: Record<string, ReactNode> = {
+  basics: mark(<><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></>),
+  goals: mark(<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></>),
+  reviews: mark(<><rect width="8" height="4" x="8" y="2" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></>),
+  growth: mark(<><path d="M7 20h10M12 20V8" /><path d="M12 8C12 5 9 3 6 4c0 3 3 5 6 4Z" /><path d="M12 10c0-3 3-5 6-4 0 3-3 5-6 4Z" /></>),
+  managing: mark(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /></>),
+  administering: mark(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>),
+  reference: mark(<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></>),
+};
 
 const SECTION_LABELS: Record<string, string> = {
   basics: 'Getting started',
@@ -183,7 +211,10 @@ export function HelpDrawer(
                   if (items.length === 0) return null;
                   return (
                     <div className="hr-help-group" key={section}>
-                      <div className="card-kicker">{SECTION_LABELS[section] ?? section}</div>
+                      <div className="card-kicker hr-help-sectionhead">
+                        {SECTION_ICONS[section]}
+                        {SECTION_LABELS[section] ?? section}
+                      </div>
                       {list(items)}
                     </div>
                   );

@@ -89,4 +89,10 @@ export const APP_ROUTES = [
   '/pips',
   '/hr',
   '/kpis',
+  '/metrics',
+  '/evaluations',
+  '/unit',
+  '/employees/:employeeId/history',
+  '/reports',
+  '/requests',
 ] as const;

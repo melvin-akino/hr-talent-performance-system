@@ -20,16 +20,29 @@ building.
 
 Most people open this a handful of times a year:
 
-1. **At the start of a period** — write your goals and agree them with your
-   manager.
-2. **Every month or so** — post a check-in saying how each goal is going.
-3. **At review time** — write your self-review, then read your manager's once it
-   is released.
-4. **Occasionally** — give a colleague feedback when they ask, or look at your
-   competency gaps and development plan.
+:::steps
+- At the start of a period — write your goals and agree them with your manager.
+- Every month or so — post a check-in saying how each goal is going.
+- At review time — write your self-review, then read your manager's once it is released.
+- Occasionally — give a colleague feedback when they ask, or look at your competency gaps and development plan.
+:::
 
 That is the whole product for most staff. Managers and HR have more to do; see
 the sections for those roles.
+
+## Why two people see different numbers
+
+Everybody uses the same screens. What differs is how far each person can see,
+and the system works that out from your role rather than from which page you
+opened.
+
+:::diagram who-sees-what
+
+:::note
+This is why a figure on your manager's screen can differ from the same figure on
+yours: it is not a different calculation, it is a different set of people. You
+can always see your own record.
+:::
 
 ## What this system does not do
 

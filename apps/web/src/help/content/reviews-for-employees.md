@@ -13,14 +13,24 @@ order: 20
 
 A review cycle moves through four stages, in order:
 
-1. **Self** — you assess yourself.
-2. **Supervisor** — your manager assesses you.
-3. **Calibration** — HR and managers compare ratings across the organisation.
-4. **Sign-off** — the rating is finalised and released to you.
+:::steps
+- Self — you assess yourself.
+- Supervisor — your manager assesses you.
+- Calibration — HR and managers compare ratings across the organisation.
+- Sign-off — the rating is finalised and released to you.
+:::
+
+:::diagram review-chain
 
 You participate in stage 1 and read the result after stage 4. Stages 2 and 3
 happen without you, which is normal and not a sign that something is being
 hidden — see *Calibration* below.
+
+:::note
+One unfinished part holds up the whole result. If your review seems stuck, it
+is usually waiting on somebody who has not written theirs yet — not on a
+decision about you.
+:::
 
 ## Writing your self-review
 

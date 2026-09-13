@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
+import { DIAGRAMS } from './diagrams';
 
 /**
  * A markdown renderer for exactly the subset the bundled help uses.
@@ -15,6 +16,20 @@ import { Fragment, type ReactNode } from 'react';
  *
  * Anything unsupported renders as literal text rather than disappearing —
  * visible wrong beats silently missing, and the content test catches it.
+ *
+ * THREE VISUAL BLOCKS, ADDED BECAUSE PROSE WAS DOING WORK IT IS BAD AT.
+ *
+ *   `:::diagram goal-lifecycle`  — a named drawing from ./diagrams.
+ *   `:::steps` … `:::`           — a numbered sequence rendered as a strip.
+ *   `:::note|tip|warning` … `:::` — a callout.
+ *
+ * They are markers in the markdown rather than HTML, for the same reason this
+ * renderer returns elements rather than setting innerHTML: the day this is
+ * pointed at HR-authored content from the database, nothing in the content can
+ * become markup. An unknown diagram name or callout kind renders as a visible
+ * placeholder AND fails the content test — silently missing is the failure
+ * mode worth engineering against, because nobody reports a picture they never
+ * knew was meant to be there.
  */
 
 const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
@@ -87,6 +102,78 @@ export function renderMarkdown(body: string): ReactNode[] {
       i++; continue;
     }
 
+    // ::: blocks. Matched before everything else that starts a line, because a
+    // ':::' left unclosed would otherwise be swallowed into a paragraph and
+    // the block would vanish.
+    const fence = /^:::\s*(\w[\w-]*)\s*(.*)$/.exec(line.trim());
+    if (fence) {
+      const [, kind, arg] = fence;
+
+      if (kind === 'diagram') {
+        const name = arg!.trim();
+        const draw = DIAGRAMS[name];
+        push(draw
+          ? draw()
+          // Visible, not blank. A diagram that silently does not render is one
+          // nobody reports, because the reader has no idea it was meant to be
+          // there.
+          : <p className="hr-help-missing">[missing diagram: {name}]</p>);
+        i++; continue;
+      }
+
+      const inner: string[] = [];
+      i++;
+      while (i < lines.length && lines[i]!.trim() !== ':::') { inner.push(lines[i]!); i++; }
+      i++; // the closing fence
+
+      if (kind === 'steps') {
+        // Each step is "Title — the rest", split on the first em dash. The
+        // title is what the eye lands on when scanning, which is the whole
+        // reason this is not a numbered list.
+        const steps = inner
+          .filter((l) => /^[-*] /.test(l))
+          .map((l) => {
+            const text = l.slice(2);
+            const at = text.indexOf(' — ');
+            return at === -1
+              ? { title: text, detail: '' }
+              : { title: text.slice(0, at), detail: text.slice(at + 3) };
+          });
+        push(
+          <ol className="hr-help-steps">
+            {steps.map((s, n) => (
+              <li key={n}>
+                <span className="hr-help-step-no" aria-hidden="true">{n + 1}</span>
+                <span>
+                  <strong>{inline(s.title, `st${n}`)}</strong>
+                  {/* The dash is put back. Dropping it ran the title into the
+                      detail — "You raise it choosing the type" — which reads
+                      as a typo rather than as two parts of a step. */}
+                  {s.detail && (
+                    <span className="text-muted"> — {inline(s.detail, `sd${n}`)}</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>,
+        );
+        continue;
+      }
+
+      if (kind === 'note' || kind === 'tip' || kind === 'warning') {
+        push(
+          <aside className={`hr-help-callout is-${kind}`}>
+            <span className="hr-help-callout-kind">{kind}</span>
+            <div>{renderMarkdown(inner.join('\n'))}</div>
+          </aside>,
+        );
+        continue;
+      }
+
+      push(<p className="hr-help-missing">[unknown block: {kind}]</p>);
+      continue;
+    }
+
     // Table: a header row followed by a divider.
     if (line.startsWith('|') && isTableDivider(lines[i + 1] ?? '')) {
       const head = tableRow(line);
@@ -144,7 +231,7 @@ export function renderMarkdown(body: string): ReactNode[] {
     // Paragraph: consecutive prose lines joined, as markdown does.
     const para: string[] = [];
     while (i < lines.length && lines[i]!.trim() !== ''
-           && !/^(#{2,3} |[-*] |\d+\. |\|)/.test(lines[i]!)
+           && !/^(#{2,3} |[-*] |\d+\. |\||:::)/.test(lines[i]!)
            && !/^---+$/.test(lines[i]!.trim())) {
       para.push(lines[i]!.trim());
       i++;
