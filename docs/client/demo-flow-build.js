@@ -139,12 +139,57 @@ function TBL(headers, rows, widths) {
 
 const children = [];
 
+/** A question with a plain answer, and optionally the precise wording. */
+const faq = (q, a, extra) => {
+  children.push(new Paragraph({
+    spacing: { before: 200, after: 80 },
+    children: [new TextRun({ text: q, size: 20, bold: true, color: ACCENT })],
+  }));
+  (Array.isArray(a) ? a : [a]).forEach((para) => {
+    if (para === '') return;
+    children.push(Array.isArray(para) ? RP(para) : P(para));
+  });
+  if (extra) extra.forEach((e) => children.push(e));
+};
+
+/* Normalise a string, a single [text, opts] pair, or a list of pairs into a
+   list of pairs. Same ambiguity the table cells had; solved the same way. */
+const asPairs = (v) => {
+  if (typeof v === 'string') return [[v, {}]];
+  if (Array.isArray(v) && typeof v[0] === 'string') return [v];
+  return v;
+};
+
+/** Technical Q: what to say in plain words, then the exact version if pushed. */
+const TQ = (q, say, precise) => {
+  children.push(new Paragraph({
+    spacing: { before: 220, after: 80 },
+    children: [new TextRun({ text: q, size: 20, bold: true, color: ACCENT })],
+  }));
+  children.push(new Paragraph({
+    spacing: { after: 80 },
+    children: [
+      new TextRun({ text: 'Say: ', size: 20, bold: true }),
+      ...asPairs(say).map(([t, o = {}]) => new TextRun({ text: t, size: 20, ...o })),
+    ],
+  }));
+  if (precise) {
+    children.push(new Paragraph({
+      spacing: { after: 140 },
+      indent: { left: 360 },
+      children: [
+        new TextRun({ text: 'If they want the exact terms: ', size: 18, italics: true, color: MUTED }),
+        ...asPairs(precise).map(([t, o = {}]) =>
+          new TextRun({ text: t, size: 18, color: MUTED, ...o })),
+      ],
+    }));
+  }
+};
+
 // Title
 children.push(new Paragraph({
   spacing: { after: 60 },
-  children: [new TextRun({
-    text: 'Guanzon Human Capital Management', size: 22, color: MUTED,
-  })],
+  children: [new TextRun({ text: 'Guanzon Human Capital Management', size: 22, color: MUTED })],
 }));
 children.push(new Paragraph({
   spacing: { after: 100 },
@@ -156,231 +201,228 @@ children.push(new Paragraph({
   spacing: { after: 240 },
   border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: ACCENT, space: 6 } },
   children: [new TextRun({
-    text: 'Meeting flow by access role, an HR Manager setup Q&A, and the technical evaluation',
+    text: 'How to run the meeting, what to say, and how to answer the hard questions',
     size: 22, color: MUTED,
   })],
 }));
 
 children.push(RP([
   ['Prepared by ', {}], ['Summit Logic Solutions', { bold: true }],
-  ['  ·  25 September 2026  ·  Demo host: ', {}],
+  ['  ·  25 September 2026  ·  Demo site: ', {}],
   ['https://hr.summitlogicsolutions.com', { bold: true }],
 ], { after: 200 }));
 
-children.push(BOX('Before you present — read this first', [
-  [['The demo tenant is ', {}], ['GGCHCM', { bold: true }],
-   [': the client’s own HCM structure — five sections, ranks 6–11, their real reporting lines — with ', {}],
-   ['28 invented people', { bold: true }],
-   ['. No real name from their workbook exists anywhere in the system. Say this early; it answers the data-privacy question before it is asked.', {}]],
-  [['Every login shares the password ', {}], ['test1234', { bold: true }],
-   ['. That is deliberate for a demo and must never be true of a pilot — staff sign in through Active Directory there.', {}]],
-  [['Two features built this week — ', {}], ['Reports', { bold: true }],
-   [' and ', {}], ['Requests', { bold: true }],
-   [' — are ', {}], ['not yet deployed to the demo host', { bold: true, color: WARN }],
-   ['. Section 7 covers them as “next” rather than “now”. If they are deployed before the meeting, fold Section 7 into the HR Manager segment instead.', {}]],
+children.push(BOX('Read this before you present', [
+  [['The demo uses ', {}], ['your own company structure', { bold: true }],
+   [' — five sections, ranks 6 to 11, your real reporting lines — but ', {}],
+   ['all 28 people in it are made up', { bold: true }],
+   ['. No real name from your workbook is in the system anywhere. Say this early. It answers the privacy question before anyone asks it.', {}]],
+  [['Every demo login uses the same password, ', {}], ['test1234', { bold: true }],
+   ['. That is fine for a demo and must never be true in real use, where staff sign in with their normal office password.', {}]],
+  [['Two new features — ', {}], ['Reports', { bold: true }], [' and ', {}], ['Requests', { bold: true }],
+   [' — are ', {}], ['finished but not yet installed on the demo site', { bold: true, color: WARN }],
+   ['. Section 7 presents them as coming soon. Do not open them unless they have been installed before the meeting.', {}]],
 ]));
 
 children.push(SPACER());
 
 children.push(RP([
-  ['This document is in three parts. ', {}],
+  ['This document has three parts. ', {}],
   ['Part One', { bold: true }], [' is the meeting itself, minute by minute. ', {}],
-  ['Part Two', { bold: true }], [' is the HR Manager’s questions about setting it up and running it. ', {}],
-  ['Part Three', { bold: true }],
-  [' is for the technical person in the room — read it even if you are not technical, because the three things it tells you ', {}],
-  ['not', { italics: true }], [' to claim are the ones that cost the most when claimed.', {}],
+  ['Part Two', { bold: true }], [' answers the HR Manager’s questions about setting it up and running it. ', {}],
+  ['Part Three', { bold: true }], [' answers the IT person’s questions ', {}],
+  ['in plain English', { bold: true }],
+  [', with the technical wording underneath each answer for when they push. You do not need a technical background to use it.', {}],
 ], { after: 200 }));
 
-/* ── Section 0 ───────────────────────────────────────────────────── */
+/* ── Section 1 ───────────────────────────────────────────────────── */
 children.push(H1('1. The shape of the meeting'));
 
 children.push(P(
-  'Sixty minutes, built around three sign-ins. The order matters: it climbs from '
-  + 'the person with the least access to the person with the most, so each role adds '
-  + 'to a picture the audience has already seen rather than replacing it.',
+  'One hour, built around three logins. Start with the person who can see the '
+  + 'least and finish with the person who can see the most. Each one then adds '
+  + 'to a picture the room has already built.',
 ));
 
 children.push(TBL(
-  ['#', 'Segment', 'Who is driving', 'Time'],
+  ['#', 'Part of the meeting', 'Who you log in as', 'Time'],
   [
-    ['1', 'Framing — what this is and is not', 'Presenter, no screen', '5 min'],
-    ['2', 'The employee', ['josefina.gonzaga', { bold: true }], '8 min'],
-    ['3', 'The supervisor', ['crisanto.rivera', { bold: true }], '12 min'],
+    ['1', 'Setting the scene', 'No screen yet', '5 min'],
+    ['2', 'An ordinary employee', ['josefina.gonzaga', { bold: true }], '8 min'],
+    ['3', 'A supervisor', ['crisanto.rivera', { bold: true }], '12 min'],
     ['4', 'The HR Manager', ['alonzo.dimalanta', { bold: true }], '18 min'],
-    ['5', 'The security model — the moment that lands', 'Two sign-ins, side by side', '6 min'],
-    ['6', 'What we have deliberately not built', 'Presenter, no screen', '6 min'],
-    ['7', 'Shipping next, and what we need from you', 'Presenter', '5 min'],
+    ['5', 'Proving the privacy rules', 'Two logins, back to back', '6 min'],
+    ['6', 'What we have not built yet', 'No screen', '6 min'],
+    ['7', 'What comes next, and what we need', 'No screen', '5 min'],
   ],
   [520, 4100, 3660, 1800],
 ));
 
 children.push(SPACER());
 
-children.push(BOX('One rule for the whole session', [
-  [['Never say “the system hides that from you.” Say ', {}],
-   ['“the database will not return it.”', { bold: true, italics: true }],
-   [' Hiding is a screen doing you a favour. This product enforces access in the ', {}],
-   ['database', { bold: true }],
-   [', underneath every screen, every report and every export — which is why a hidden menu item is a convenience here and not a permission. It is the single strongest thing you have to say, and it survives every follow-up question.', {}]],
+children.push(BOX('One rule for the whole meeting', [
+  [['Do not say “the screen hides that from you.” Say ', {}],
+   ['“the system will not give it to them.”', { bold: true, italics: true }],
+   [' Hiding is a screen being polite. In this product the rule sits ', {}],
+   ['inside the database', { bold: true }],
+   [', underneath every screen, every report and every download. That is the strongest thing you can say all day, and it holds up no matter what they ask next.', {}]],
 ], 'EAF0F6', ACCENT));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 2: framing ──────────────────────────────────────────── */
-children.push(H1('2. Framing (5 minutes, no screen)'));
+/* ── Section 2 ───────────────────────────────────────────────────── */
+children.push(H1('2. Setting the scene (5 minutes, no screen)'));
 
-children.push(H3('What to establish, in this order'));
+children.push(H3('Four things to establish, in this order'));
 children.push(RNUM([['What it replaces.', { bold: true }],
-  [' A performance and talent system: targets, check-ins, evaluations, competencies, improvement plans, development. It runs on ', {}],
-  ['your', { italics: true }], [' server, on your own network.', {}]]));
+  [' Targets, monthly check-ins, evaluations, skills, improvement plans and development. It runs on ', {}],
+  ['your own', { italics: true }], [' server, in your own office.', {}]]));
 children.push(RNUM([['What it is not.', { bold: true }],
-  [' Not payroll, not timekeeping, not leave. No salaries, no payslips, no DTR, no statutory IDs — and no salary is stored anywhere in the database, by design.', {}]]));
+  [' Not payroll. Not timekeeping. Not leave. No salaries, no payslips, no daily time records, and no government ID numbers. We do not store a single salary figure anywhere.', {}]]));
 children.push(RNUM([['Where it came from.', { bold: true }],
-  [' Built against your own 5-pager and KPI workbook. The structure on screen is yours; only the people are invented.', {}]]));
+  [' Built from your own 5-page document and your KPI workbook. The structure on screen is yours. Only the people are invented.', {}]]));
 children.push(RNUM([['What today is for.', { bold: true }],
-  [' Showing what already works, and being precise about what is waiting on decisions only they can make.', {}]]));
+  [' Showing what works now, and being clear about what is waiting on decisions only you can make.', {}]]));
 
 children.push(SAY(
   'Everything you are about to see runs on one server inside your own office. '
-  + 'Your review data never leaves the building. The structure on screen is your '
-  + 'org chart from the HCM workbook — five sections, ranks 6 to 11, your real '
-  + 'reporting lines. Every person in it is invented, because we were not going to '
-  + 'put your staff’s names in a development database before you had signed anything.',
+  + 'Your staff’s review data never leaves the building. The structure on screen '
+  + 'is your own chart from the HCM workbook. Every person in it is invented, '
+  + 'because we were not going to put your staff’s names into a test system '
+  + 'before you had signed anything.',
 ));
 
-children.push(H3('Do not do these in the first five minutes'));
-children.push(BULLET('Do not open the analytics screens. They are impressive and they mean nothing until the audience knows whose data they are looking at.'));
-children.push(BULLET('Do not mention the KPI composite yet. It is the one visible gap and it belongs in Section 6, framed as a question for them, not an apology from you.'));
-children.push(BULLET('Do not promise Active Directory works. It is built and it has never been tested against a real directory. Section 6.'));
+children.push(H3('Three things not to do in the first five minutes'));
+children.push(BULLET('Do not open the charts and graphs yet. They look impressive and they mean nothing until people know whose information they are looking at.'));
+children.push(BULLET('Do not bring up the KPI scoring yet. It is the one visible gap, and it belongs in Section 6 as a question for them, not an apology from you.'));
+children.push(BULLET('Do not promise that the office login integration works. It is built and it has never been tested on a real office directory. That also belongs in Section 6.'));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 3: employee ─────────────────────────────────────────── */
-children.push(H1('3. The employee — Josefina Gonzaga (8 minutes)'));
+/* ── Section 3 ───────────────────────────────────────────────────── */
+children.push(H1('3. An ordinary employee — Josefina Gonzaga (8 minutes)'));
 
 children.push(TBL(
   ['', ''],
   [
     [['Login', { bold: true }], 'josefina.gonzaga / test1234'],
-    [['Who she is', { bold: true }], 'Associate — Screening. Rank 11, the bottom of the ladder. No reports.'],
-    [['Roles held', { bold: true }], 'employee, and nothing else.'],
-    [['The point of this segment', { bold: true }],
-      'Most of the company is Josefina. If the product is unpleasant for her it fails, no matter how good the HR console is.'],
+    [['Who she is', { bold: true }], 'Associate in Screening. Rank 11, the most junior level. Nobody reports to her.'],
+    [['What she can do', { bold: true }], 'Only things about herself.'],
+    [['Why this matters', { bold: true }],
+      'Most of your company is Josefina. If the system is annoying for her, it fails — no matter how good the HR screens are.'],
   ],
-  [2400, 7680],
+  [2200, 7880],
 ));
 
 children.push(SPACER());
-children.push(H3('Show, in this order'));
+children.push(H3('Show these, in this order'));
 
-children.push(RNUM([['My goals.', { bold: true }],
-  [' Her own targets for the period, each with a measure, a baseline, a target and a weight. Point out that the weights total 100% — and that the system is the thing that knows whether they do.', {}]]));
-children.push(RNUM([['One goal, opened.', { bold: true }],
-  [' Show a check-in. This is the habit the whole product depends on: a short note, monthly, against a number.', {}]]));
-children.push(RNUM([['Reviews.', { bold: true }],
-  [' Her self-review. Show that once submitted it cannot be edited — and say why that is a feature.', {}]]));
-children.push(RNUM([['Competencies.', { bold: true }],
-  [' Her assessed levels against what her position requires, and the gap between them.', {}]]));
-children.push(RNUM([['Help.', { bold: true }],
-  [' Open the help drawer on the screen you are already on. It opens on articles about ', {}],
-  ['that', { italics: true }], [' screen. Search for something in Taglish-adjacent plain English and show it finds it.', {}]]));
+children.push(RNUM([['Her targets.', { bold: true }],
+  [' Each one has something being measured, a starting point, a goal and a weight. Point out that the weights add up to 100% — and that the system is what knows whether they do.', {}]]));
+children.push(RNUM([['Open one target.', { bold: true }],
+  [' Show a monthly update. This small habit is what the whole system runs on: a short note against a number, once a month.', {}]]));
+children.push(RNUM([['Her self-evaluation.', { bold: true }],
+  [' Show that once she submits it she cannot change it — and explain why that protects her as much as anyone.', {}]]));
+children.push(RNUM([['Her skills.', { bold: true }],
+  [' What her job requires, what she has been assessed at, and the gap between the two.', {}]]));
+children.push(RNUM([['The help button.', { bold: true }],
+  [' Open it on whatever screen you are on. It shows help for ', {}], ['that', { italics: true }],
+  [' screen first. Type a plain-English question and show that it finds the answer.', {}]]));
 
 children.push(SAY(
-  'This is the whole product for most of your staff. They will open it perhaps '
-  + 'six times a year — at target-setting, once a month for a check-in, and at '
-  + 'review time. Everything we built for them is shaped around that: they should '
-  + 'never need training to use it, and the help is in the screen rather than in a '
-  + 'manual somebody has to find.',
+  'This is the whole system for most of your staff. They will open it maybe six '
+  + 'times a year — when targets are set, once a month for an update, and at '
+  + 'evaluation time. Everything here is built around that. They should never '
+  + 'need training, and the help is inside the screen rather than in a manual '
+  + 'nobody can find.',
 ));
 
-children.push(H3('What she cannot do — show it, do not assert it'));
+children.push(H3('What she cannot do — show it, do not just say it'));
 
 children.push(TBL(
-  ['Try this in front of them', 'What happens', 'The line'],
+  ['Do this in front of them', 'What happens', 'What to say'],
   [
-    ['Look for Team, HR console, Analytics, Setup in her sidebar',
+    ['Look for Team, HR, Reports or Settings in her menu',
      'They are not there',
-     'Not offered — and that is only tidiness. The real gate is next.'],
-    ['Paste a colleague’s record URL into the address bar',
-     ['404 Not Found', { bold: true }],
-     'Not “forbidden” — not found. The database filtered the row out before the screen ever saw it. A 403 would have confirmed the record exists.'],
-    ['Look for her own rating before it is released',
+     'The menu simply does not offer them. That part is only tidiness — the real protection is the next row.'],
+    ['Paste a colleague’s record address into the browser',
+     ['“Not found”', { bold: true }],
+     'Not “you are not allowed” — not found. As far as her login is concerned, that record does not exist. Saying “not allowed” would tell her it does.'],
+    ['Look for her rating before it has been released',
      'It is not there',
-     'An unreleased review is invisible to its subject until sign-off, including to an export.'],
+     'An evaluation stays invisible to the person it is about until it is finalised. That includes any download.'],
   ],
   [3200, 2200, 4680],
 ));
 
 children.push(SPACER());
-children.push(BOX('Presenter trap', [
-  'Do not linger. Eight minutes. The audience is senior and will get restless in the employee view — but skipping it entirely is worse, because every question in Section 5 depends on them having seen what Josefina could not see.',
+children.push(BOX('Keep it short', [
+  'Eight minutes, no more. Senior people get restless in the employee view. But do not skip it — every question in Section 5 depends on the room having seen what Josefina could not see.',
 ]));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 4: supervisor ───────────────────────────────────────── */
-children.push(H1('4. The supervisor — Crisanto Rivera (12 minutes)'));
+/* ── Section 4 ───────────────────────────────────────────────────── */
+children.push(H1('4. A supervisor — Crisanto Rivera (12 minutes)'));
 
 children.push(TBL(
   ['', ''],
   [
     [['Login', { bold: true }], 'crisanto.rivera / test1234'],
-    [['Who he is', { bold: true }], 'Section Head — Employee Relations. Rank 7, with 8 people under him.'],
-    [['Roles held', { bold: true }], 'employee, manager. He is still an employee — he has his own targets and his own review.'],
-    [['The point of this segment', { bold: true }],
-      'A supervisor is an employee with a second job. Both hats are on one login, and the system knows which one applies to which record.'],
+    [['Who he is', { bold: true }], 'Section Head for Employee Relations. Rank 7, with 8 people under him.'],
+    [['What he can do', { bold: true }], 'Everything Josefina can, about himself — plus everything about his 8 people.'],
+    [['Why this matters', { bold: true }],
+      'A supervisor is an employee with a second job. Both roles sit on one login, and the system knows which one applies to which record.'],
   ],
-  [2400, 7680],
+  [2200, 7880],
 ));
 
 children.push(SPACER());
-children.push(H3('Show, in this order'));
+children.push(H3('Show these, in this order'));
 
-children.push(RNUM([['His own goals first.', { bold: true }],
-  [' Five seconds. It makes the point that he did not stop being an employee.', {}]]));
-children.push(RNUM([['Team.', { bold: true }],
-  [' His eight people, each with target coverage and attainment. Find the one with a gap and stop there.', {}]]));
-children.push(RNUM([['Approving a target.', { bold: true }],
-  [' Open something awaiting him. Approve it, or send it back with a reason — sending it back is the better demo, because the reason travels with it and the employee is told.', {}]]));
-children.push(RNUM([['Monitoring.', { bold: true }],
-  [' Who has not checked in, whose goals have gone quiet, who is trending down two check-ins running.', {}]]));
-children.push(RNUM([['My unit.', { bold: true }],
-  [' Coverage and review progress for his section, plus ', {}], ['what is waiting on him', { bold: true }],
-  [' and ', {}], ['who he is blocking', { bold: true }], ['.', {}]]));
-children.push(RNUM([['A review he has to write.', { bold: true }],
-  [' Show the form, and show that his assessment of somebody is not visible to that person while he is drafting it.', {}]]));
+children.push(RNUM([['His own targets first.', { bold: true }],
+  [' Five seconds. It makes the point that he is still an employee too.', {}]]));
+children.push(RNUM([['His team.', { bold: true }],
+  [' His 8 people, with how many have targets set and how they are doing. Find the one with a gap and stop there.', {}]]));
+children.push(RNUM([['Approve a target.', { bold: true }],
+  [' Better still, send one back with a reason. The reason travels with it and the employee is told — which is the part people do not expect.', {}]]));
+children.push(RNUM([['The watch list.', { bold: true }],
+  [' Who has not posted an update, whose targets have gone quiet, who has slipped twice in a row.', {}]]));
+children.push(RNUM([['His section summary.', { bold: true }],
+  [' How his section is doing overall, plus ', {}], ['what is waiting on him', { bold: true }],
+  [' and ', {}], ['who he is holding up', { bold: true }], ['.', {}]]));
+children.push(RNUM([['An evaluation he has to write.', { bold: true }],
+  [' Show that what he writes about someone is not visible to that person while he is still working on it.', {}]]));
 
 children.push(SAY(
-  'Notice that I have not changed screens — this is the same “My unit” page. '
-  + 'It is the same page a Department Head opens, and the same page an Area Head '
-  + 'opens. Nobody built three versions of it. What differs is how far each person '
-  + 'can see, and the database decides that, not the page.',
+  'Notice I have not changed screens. This is the same section summary a '
+  + 'Department Head opens, and the same one an Area Head opens. Nobody built '
+  + 'three versions of it. What changes is how far each person can see, and the '
+  + 'system works that out — the screen does not.',
 ));
 
-children.push(H3('The scoping proof — worth 60 seconds'));
+children.push(H3('The 60 seconds that proves the point'));
 children.push(RP([
-  ['If you have time, sign in as ', {}], ['dalisay.zamora', { bold: true }],
-  [' — Section Head, Compensation & Benefits. ', {}],
-  ['Same rank, same screen, different section.', { bold: true }],
-  [' Her “My unit” shows her people and not Crisanto’s. Two peers at the same level, and neither can see into the other’s section.', {}],
+  ['If you have time, log in as ', {}], ['dalisay.zamora', { bold: true }],
+  [' — also a Section Head, same rank, different section. ', {}],
+  ['Same screen, different people.', { bold: true }],
+  [' She sees her section and not Crisanto’s. Two people at exactly the same level, and neither can see into the other’s area.', {}],
 ]));
 
 children.push(H3('What he cannot do'));
 children.push(TBL(
-  ['Try this', 'What happens', 'Why it matters to them'],
+  ['Try this', 'What happens', 'Why it matters'],
   [
-    ['Approve his own target', 'Refused', 'A constraint in the database, not a rule in the screen. There is no code path that approves your own.'],
-    ['Open somebody in Dalisay’s section', ['404', { bold: true }], 'Same rank does not mean same reach. Scope is by unit, not by seniority.'],
-    ['Open the HR console, Setup, Review cycles', 'Not offered, and refused if forced', 'Running a cycle is an HR act, not a management one.'],
-    ['See a peer review written about his own staff by someone else',
-     'Depends on your answer to Q5', 'Flag it and move on — this is one of the open questions in Section 7.'],
+    ['Approve his own target', 'Refused', 'Built into the system itself, not just the screen. There is no way to approve your own.'],
+    ['Open someone in Dalisay’s section', ['“Not found”', { bold: true }], 'Same rank does not mean same reach. Access follows the section, not the job title.'],
+    ['Open the HR screens or Settings', 'Not offered, and refused if forced', 'Running an evaluation round is an HR job, not a supervisor one.'],
   ],
   [2800, 2000, 5280],
 ));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 5: HR manager ───────────────────────────────────────── */
+/* ── Section 5 ───────────────────────────────────────────────────── */
 children.push(H1('5. The HR Manager — Alonzo Dimalanta (18 minutes)'));
 
 children.push(TBL(
@@ -388,147 +430,140 @@ children.push(TBL(
   [
     [['Login', { bold: true }], 'alonzo.dimalanta / test1234'],
     [['Who he is', { bold: true }], 'Department Manager, Rank 6 — head of Human Capital Management.'],
-    [['Roles held', { bold: true }],
-      [['employee, manager, hr_admin ', {}], ['and', { italics: true }], [' dept_head (scoped to HCM).', {}]]],
-    [['The point of this segment', { bold: true }],
-      'This is the buyer. Everything here is about running the process, not taking part in it.'],
+    [['What he can do', { bold: true }], 'Everything, across the whole department. He also runs the system itself.'],
+    [['Why this matters', { bold: true }],
+      'This is the person deciding whether to buy. Everything here is about running the process, not taking part in it.'],
   ],
-  [2400, 7680],
+  [2200, 7880],
 ));
 
 children.push(SPACER());
 
-children.push(BOX('Say this plainly — do not let anyone notice it instead', [
-  [['Alonzo holds four roles at once, including both ', {}], ['Department Head', { bold: true }],
-   [' and ', {}], ['HR administrator', { bold: true }],
-   ['. That is organisationally correct in your structure — the HCM Department Head ', {}],
-   ['is', { italics: true }], [' the Department Manager — and it is the one place in the demo where two approval steps sit with one person.', {}]],
-  [['In a branch these would be two different people, and the system would not care: the permissions are identical either way. ', {}],
-   ['State it before someone spots it.', { bold: true }],
-   [' Discovered, it looks like a flaw; stated, it is a demonstration that roles are assigned to people rather than baked into job titles.', {}]],
+children.push(BOX('Say this out loud — do not let someone spot it first', [
+  [['Alonzo wears four hats at once, including both ', {}], ['Department Head', { bold: true }],
+   [' and ', {}], ['system administrator', { bold: true }],
+   ['. That is correct for how your company is set up — in HCM, the Department Head ', {}],
+   ['is', { italics: true }], [' the Department Manager. It is the one place in the demo where two approval steps land on the same person.', {}]],
+  [['In a branch these would be two different people, and the system would not care — it works the same either way. ', {}],
+   ['Say it before anyone notices.', { bold: true }],
+   [' If someone spots it themselves it looks like a mistake. If you say it first, it shows that access is given to people, not baked into job titles.', {}]],
 ]));
 
 children.push(SPACER());
-children.push(H3('Show, in this order'));
+children.push(H3('Show these, in this order'));
 
-children.push(RNUM([['HR console.', { bold: true }],
-  [' Coverage across the whole department, and the exceptions: the person whose weights total 80%, the goals nobody has checked in on.', {}]]));
-children.push(RNUM([['Lock the period — and watch it refuse.', { bold: true }],
-  [' The strongest 30 seconds in the segment. It will not lock while somebody’s weights do not total 100%. Do not fix it first.', {}]]));
-children.push(RNUM([['Review cycles.', { bold: true }],
-  [' Open a cycle, generate instances, show the state of the chain. Then attempt sign-off while a review is unsubmitted and let it refuse.', {}]]));
-children.push(RNUM([['Calibration.', { bold: true }],
-  [' Ratings compared across sections, and the record of what calibration actually moved.', {}]]));
-children.push(RNUM([['Analytics.', { bold: true }],
-  [' Rating distribution, nine-box, ', {}], ['rater comparison', { bold: true }],
-  [' — which supervisor rates generously and which strictly, against the group. This is the slide HR people lean forward at.', {}]]));
-children.push(RNUM([['Import staff.', { bold: true }],
-  [' Upload a 201 CSV. ', {}], ['Preview first', { bold: true }],
-  [' — show that it reports exactly what it would do and changes nothing until confirmed.', {}]]));
-children.push(RNUM([['Employment actions.', { bold: true }],
-  [' Record a promotion or a transfer with an effective date, then open that person’s history and show the event sitting in their timeline next to their evaluations.', {}]]));
-children.push(RNUM([['Setup.', { bold: true }],
-  [' Org units, ranks, positions, forms, rating scales, and HR-authored help articles.', {}]]));
+children.push(RNUM([['The HR overview.', { bold: true }],
+  [' How the whole department is doing, and the problems: the person whose target weights do not add up, the targets nobody has updated.', {}]]));
+children.push(RNUM([['Try to close the period — and let it refuse.', { bold: true }],
+  [' The best 30 seconds in the whole meeting. It will not close while someone’s weights do not add to 100%. ', {}],
+  ['Do not fix it first.', { bold: true }], [' Let it fail, then fix it, then close it.', {}]]));
+children.push(RNUM([['Evaluation rounds.', { bold: true }],
+  [' Open one, create the evaluations, show where each one has reached. Then try to finalise while someone has not finished, and let it refuse again.', {}]]));
+children.push(RNUM([['Moderation.', { bold: true }],
+  [' Ratings compared across sections, and a record of what the moderation meeting actually changed.', {}]]));
+children.push(RNUM([['The charts.', { bold: true }],
+  [' Rating spread, the nine-box grid, and ', {}], ['the comparison of raters', { bold: true }],
+  [' — which supervisors mark generously and which mark harshly. HR people lean forward at this one.', {}]]));
+children.push(RNUM([['Loading staff from a spreadsheet.', { bold: true }],
+  [' Upload a file. ', {}], ['Preview first', { bold: true }],
+  [' — it tells you exactly what it would do and changes nothing until you confirm.', {}]]));
+children.push(RNUM([['Recording a promotion or transfer.', { bold: true }],
+  [' Enter it with the date it took effect, then open that person’s history and show it sitting alongside their evaluations.', {}]]));
+children.push(RNUM([['Settings.', { bold: true }],
+  [' Departments, ranks, positions, evaluation forms, rating scales, and help articles HR writes themselves.', {}]]));
 
 children.push(SAY(
-  'Every refusal you just watched is enforced underneath the screen. If somebody '
-  + 'wrote a script against the database directly, it would refuse them too. That '
-  + 'is the difference between a rule and a reminder.',
+  'Every refusal you just watched happens underneath the screen. If somebody '
+  + 'went around the system and tried it another way, it would still refuse '
+  + 'them. That is the difference between a rule and a reminder.',
 ));
-
-children.push(H3('The two refusals to demonstrate deliberately'));
-children.push(RBULLET([['The period will not lock', { bold: true }],
-  [' while a person’s goal weights do not total 100%. Let it fail in front of them, then fix the weights, then lock it. The sequence is the demo.', {}]]));
-children.push(RBULLET([['A cycle will not sign off', { bold: true }],
-  [' while any review is unsubmitted. Show ', {}], ['My unit', { bold: true }],
-  [' naming who it is waiting on — the answer to “why is this stuck” is on screen instead of being a search.', {}]]));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 6: security ─────────────────────────────────────────── */
-children.push(H1('6. The security model (6 minutes)'));
+/* ── Section 6 ───────────────────────────────────────────────────── */
+children.push(H1('6. Proving the privacy rules (6 minutes)'));
 
 children.push(P(
-  'This is the segment that decides the meeting. Run it last, after they have seen '
-  + 'all three roles, so the contrast is against something they remember.',
+  'This is the part that decides the meeting. Do it last, after they have seen '
+  + 'all three logins, so they are comparing against something they remember.',
 ));
 
 children.push(H3('The demonstration'));
-children.push(NUM('Signed in as Alonzo, open a named person’s full record. Copy the URL.'));
-children.push(NUM('Sign out. Sign in as josefina.gonzaga.'));
-children.push(NUM('Paste the same URL.'));
-children.push(RNUM([['404 Not Found.', { bold: true }],
-  [' Not “you are not allowed” — as far as her session is concerned, the record is not there.', {}]]));
+children.push(NUM('Logged in as Alonzo, open somebody’s full record. Copy the address from the browser.'));
+children.push(NUM('Log out. Log in as Josefina.'));
+children.push(NUM('Paste the same address.'));
+children.push(RNUM([['“Not found.”', { bold: true }],
+  [' Not “you are not allowed”. As far as her login is concerned, that record is not there at all.', {}]]));
 
 children.push(SAY(
-  'That is not the page being polite. The row was filtered out by the database '
-  + 'before the page ran. We answer 404 rather than 403 on purpose: telling her '
-  + '“you are not allowed to see this record” would confirm the record exists, '
-  + 'and for a performance record that is itself a leak.',
+  'That is not the screen being polite. The information never reached the '
+  + 'screen. And we say “not found” on purpose — telling her “you are not '
+  + 'allowed to see this record” would confirm the record exists, and for a '
+  + 'performance record that is already a leak.',
 ));
 
-children.push(H3('The three sentences to have ready'));
+children.push(H3('Three answers to have ready'));
 children.push(TBL(
   ['If they ask', 'Answer'],
   [
-    ['Can a developer see everything?',
-     'The application connects as a restricted account that is subject to the same rules. Only a database administrator with server access can bypass them — and that is a person you hire, not a permission the software grants.'],
-    ['What if someone changes the code?',
-     'The rules are not in the code. They are in the database, underneath it. Replacing the application would not remove them.'],
-    ['Is it audited?',
-     'Every change is recorded with who made it and when — including who approved, who calibrated, and what moved a rating. Nothing is deleted; separation closes a record, it does not erase one.'],
+    ['Can your developers see everything?',
+     'The system logs into the database with a limited account that follows the same rules as everyone else. Only someone with full control of the server can go around them — and that is a person you employ, not a permission this software hands out.'],
+    ['What if somebody changes the software?',
+     'The rules are not in the software. They are in the database underneath it. You could replace the software entirely and the rules would still be there.'],
+    ['Is there a record of who did what?',
+     'Yes. Every change is recorded with the person’s name and the time — approvals, moderation changes, rating changes, uploads. Nothing is ever deleted; when someone leaves, their record is closed, not erased.'],
   ],
   [3000, 7080],
 ));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Section 7: gaps ─────────────────────────────────────────────── */
-children.push(H1('7. What we have deliberately not built (6 minutes)'));
+/* ── Section 7 ───────────────────────────────────────────────────── */
+children.push(H1('7. What we have not built yet (6 minutes)'));
 
 children.push(P(
-  'Lead with this rather than waiting to be caught by it. A supplier who names '
-  + 'their own gaps is believed about everything else.',
+  'Say this before they find it. A supplier who points out their own gaps gets '
+  + 'believed about everything else.',
 ));
 
 children.push(TBL(
-  ['Gap', 'Why it is not built', 'What we need'],
+  ['What is missing', 'Why', 'What we need from you'],
   [
-    [['The KPI composite', { bold: true }],
-     'The 30/40/30 split, the task-nature multipliers and the banded conversion. Three details in your workbook read two ways, and a scoring rule we guessed at would be worse than one that is late.',
-     'Answers to six of the twenty-one questions.'],
-    [['Active Directory sign-in', { bold: true }],
-     'Built and working against our own identity server. It has never been pointed at a real directory.',
-     'A test window with your IT team.'],
-    [['Promotion programmes (MDP)', { bold: true }],
-     'The stage machine with dwell times. Specified, not started.',
-     'Confirmation of the stages and durations.'],
+    [['The KPI score calculation', { bold: true }],
+     'The 30/40/30 split and the score bands. Three things in your workbook can be read two different ways — including one where the same performance scores 35, 30 or 10 depending only on how the scorecard was written. A scoring rule we guessed at would be worse than one that arrives late.',
+     'Answers to 6 of the 21 questions.'],
+    [['Office password sign-in', { bold: true }],
+     'Built, and working against our own test setup. It has never been connected to a real office directory.',
+     'Half a day with your IT team.'],
+    [['Promotion tracks (MDP)', { bold: true }],
+     'The stages and waiting times. Written down, not started.',
+     'Confirmation of the stages and how long each lasts.'],
     [['Attendance', { bold: true }],
-     'We take a count per period, not a record. We are not building timekeeping.',
-     'Which payroll system exports it, and at what grain.'],
+     'We take a count for the period, not a daily record. We are not building timekeeping.',
+     'Which payroll system it comes from, and in what form.'],
   ],
   [2200, 5080, 2800],
 ));
 
 children.push(SPACER());
-children.push(BOX('The ask — do not end the meeting without making it', [
-  [['The twenty-one questions have been ready since 28 August and have not been answered.', { bold: true }],
-   [' Six of them block the KPI composite, which is the one part of your specification the demo cannot show.', {}]],
-  [['Put a name and a date against it before everyone leaves the room. That single commitment is worth more to the project than anything else agreed today.', {}]],
+children.push(BOX('Do not end the meeting without asking for this', [
+  [['The 21 questions have been ready since 28 August and are still unanswered.', { bold: true }],
+   [' Six of them are blocking the KPI scoring — the one part of your own specification the demo cannot show.', {}]],
+  [['Get a name and a date against it before people leave the room. That single commitment is worth more to this project than anything else you could agree today.', {}]],
 ], 'F4EFE6', WARN));
 
 children.push(SPACER());
-children.push(H3('Shipping next — built, tested, not yet on the demo host'));
+children.push(H3('Coming next — finished, but not yet installed'));
 children.push(RP([
-  ['Both were completed this week and are waiting on a deployment window. ', {}],
-  ['Do not demonstrate them unless they have been deployed before the meeting', { bold: true }],
-  [' — promise them as dated, not as done.', {}],
+  ['Both were finished this week and are waiting to be installed. ', {}],
+  ['Do not demonstrate them unless that has happened before the meeting', { bold: true }],
+  [' — promise them with a date, do not show them.', {}],
 ]));
 children.push(RBULLET([['Reports.', { bold: true }],
-  [' Filter evaluation history by person, source, evaluation type, period, unit or result — including “everyone whose improvement plan ended successfully”. Exports to CSV, and the filters live in the link, so a report can be sent rather than rebuilt.', {}]]));
+  [' Search the evaluation history by person, type, period, section or result — for example, everyone whose improvement plan ended successfully. Downloads to a spreadsheet, and the search is saved in the link so a report can be sent rather than rebuilt.', {}]]));
 children.push(RBULLET([['Requests.', { bold: true }],
-  [' A Department Head asks for an extra competency, a special evaluation or a scoring adjustment; HCM approves or declines with a reason, and the decision is recorded against the request. ', {}],
-  ['An approval records the decision — it does not silently change the score', { bold: true }],
+  [' A Department Head asks for an extra skill to be assessed, a one-off evaluation, or a score to be adjusted. HR approves or declines with a reason, and the decision is kept with the request. ', {}],
+  ['Approving records the decision — it does not quietly change the score', { bold: true }],
   [', so “who changed this” always has an answer.', {}]]));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -539,186 +574,162 @@ children.push(new Paragraph({
   border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: ACCENT, space: 6 } },
   children: [new TextRun({ text: 'Part Two', size: 32, bold: true, color: ACCENT })],
 }));
-children.push(H1('8. HR Manager — setup questions and FAQs'));
+children.push(H1('8. The HR Manager’s questions'));
 
 children.push(P(
-  'These are the questions an HR Manager asks once they have decided they want it. '
-  + 'Answers are written to be said out loud, not read from a manual. Where an '
-  + 'answer is “not yet”, it says so.',
+  'These are the questions an HR Manager asks once they have decided they want '
+  + 'it. The answers are written to be said out loud. Where the answer is “not '
+  + 'yet”, it says so.',
 ));
 
-/* A. Getting people in */
-children.push(H2('A. Getting our people in'));
+children.push(H2('A. Getting our people into the system'));
 
-const faq = (q, a, extra) => {
-  children.push(new Paragraph({
-    spacing: { before: 200, after: 80 },
-    children: [new TextRun({ text: q, size: 20, bold: true, color: ACCENT })],
-  }));
-  (Array.isArray(a) ? a : [a]).forEach((para) => {
-    children.push(Array.isArray(para) ? RP(para) : P(para));
-  });
-  if (extra) extra.forEach((e) => children.push(e));
-};
+faq('How do we load 2,000 employees without typing them all in?',
+  [[['You upload a spreadsheet of your 201 file. ', {}],
+    ['Download the blank template from inside the system', { bold: true }],
+    [' rather than making your own — the template is produced by the same code that reads it, so the two can never disagree.', {}]],
+   [['It happens in two steps. ', {}], ['Preview', { bold: true }],
+    [' shows exactly what it would add, change and skip, and saves nothing. Only when you confirm does anything happen. You also cannot pick which company to load into — the system takes that from your own record.', {}]]]);
 
-faq('How do we load 2,000 employees without typing them in?',
-  [[['A CSV import of your 201 file. ', {}],
-    ['Download the blank template from inside the app', { bold: true }],
-    [' rather than building your own — the template is generated from the code that reads it, so the two cannot drift apart.', {}]],
-   [['The import runs in two steps: ', {}], ['Preview', { bold: true }],
-    [' tells you exactly what it would create, change and skip, and writes nothing. Only when you confirm does anything land. Both steps run inside your own permissions, and there is no way to say which company to import into — it is read from your own record.', {}]]]);
+faq('What has to be in the spreadsheet?',
+  'Employee number, name, work email, date hired, position and department. Everything else is optional and adds more as you supply it — section, area and branch build your org chart; rank sets the ladder; employment type decides which evaluation form applies.');
 
-faq('What has to be in the file?',
-  'Employee number, name, work email, date hired, position, department. Everything else is optional and adds capability as you supply it — section, area and branch build your org chart; rank sets the ladder; employment type drives which evaluation applies.');
+faq('If we upload the same file twice, do we get duplicates?',
+  'No. It matches on employee number and updates instead of adding. That is deliberate — an upload you are afraid to repeat is one nobody dares correct.');
 
-faq('Will a second import create duplicates?',
-  'No. It matches on employee number and updates rather than inserts, so the same file can be re-run safely. That is deliberate: an import you cannot re-run is one nobody dares correct.');
+faq('What if the spreadsheet contradicts itself?',
+  'It stops and tells you which row. Two examples: a person listed in both a section and an area — those are different kinds of unit, so the person is in one or the other — and the same unit appearing under two different parents. We refuse rather than guess.');
 
-faq('What happens if the file contradicts itself?',
-  'It refuses and tells you which row. Two cases in particular: a row naming both a section and an area — same depth, different kind, so the person is in one or the other — and the same unit appearing under two different parents. We do not guess between them.');
+faq('Can an upload accidentally rearrange our org chart?',
+  [[['No. A department that already exists is never moved or relabelled by an upload. Where the spreadsheet disagrees, it is reported so a person can decide in Settings. An upload that quietly reshapes your org chart is one you could never safely run twice.', {}]]]);
 
-faq('Can the import restructure our org chart?',
-  [[['Only on creation. ', {}],
-    ['A unit that already exists is never re-parented or re-levelled by an import', { bold: true }],
-    [' — where the file disagrees, it is reported for a person to settle in Setup. A re-import that quietly reshapes your org chart is one nobody could safely run twice.', {}]]]);
-
-/* B. Roles and access */
-children.push(H2('B. Roles and access'));
+children.push(H2('B. Who can see and do what'));
 
 faq('How does somebody get access?',
-  [[['Two things, and they are separate. ', {}],
-    ['Being in the HR department grants nothing.', { bold: true }],
-    [' Access comes from a role assignment made deliberately.', {}]],
-   [['Supervisor access is the exception: it is derived from your reporting lines, so moving someone in the org chart moves their access with them. That is the point — access that has to be remembered is access that gets forgotten on the way out.', {}]]]);
+  [[['Two separate things. ', {}], ['Being in the HR department gives you nothing.', { bold: true }],
+    [' Access comes from being given a role on purpose.', {}]],
+   [['Supervisor access is the exception — it comes from your reporting lines, so moving someone in the org chart moves their access with them. That is the point: access you have to remember to remove is access that gets forgotten.', {}]]]);
 
 faq('What roles are there?',
   '', [
-    TBL(['Role', 'What it is for', 'Scope'],
+    TBL(['Role', 'What it is for', 'How far they see'],
       [
-        ['Employee', 'Their own record. Everyone has it.', 'Themselves'],
-        ['Supervisor / Manager', 'Their reports: approving targets, check-ins, writing reviews.', 'Their reporting line'],
-        ['Department Head', 'A section: the approval step above the supervisor.', 'One unit and everything under it'],
-        ['HR Partner', 'HR work without system administration.', 'Company-wide, read and act'],
-        ['HR Administrator', 'Running cycles, setup, forms, imports, the lot.', 'Company-wide'],
+        ['Employee', 'Their own record. Everybody has this.', 'Themselves only'],
+        ['Supervisor', 'Their own people — approving targets, updates, evaluations.', 'The people under them'],
+        ['Department Head', 'A section — the approval step above the supervisor.', 'Their section and everything below it'],
+        ['HR Partner', 'HR work, without running the system.', 'The whole company'],
+        ['HR Administrator', 'Everything — evaluation rounds, settings, forms, uploads.', 'The whole company'],
       ],
       [2200, 5180, 2700]),
     SPACER(),
-    RP([['Area Head, Regional Head, GM and Scoring Administrator also exist and are unassigned — they are defined but held by nobody, because ', {}],
-      ['defining a role must not confer it', { bold: true }],
-      ['. They become meaningful when the pilot widens beyond one department.', {}]]),
+    RP([['Area Head, Regional Head, GM and Scoring Administrator also exist but nobody holds them yet — because ', {}],
+      ['creating a role must not hand it to anyone', { bold: true }],
+      ['. They become useful when the pilot grows beyond one department.', {}]]),
   ]);
 
-faq('Can one person hold several roles?',
-  'Yes, and in your structure one does — the HCM Department Manager is also the Department Head and the system administrator. Permissions add up; they never subtract. In a branch those would be different people and nothing about the configuration would change.');
+faq('Can one person have several roles?',
+  'Yes, and in your company one does — the HCM Department Manager is also the Department Head and runs the system. Roles add together; they never take anything away. In a branch those would be different people and nothing would need changing.');
 
-faq('Can a Department Head be scoped to just their section?',
-  'Yes, and it is required. A department-scoped role assigned without naming a department is refused outright rather than granted as something powerless — a role that looks granted and does nothing is worse than an error.');
+faq('Can a Department Head be limited to just their own section?',
+  'Yes, and they have to be. If someone is given a section-level role without naming the section, the system refuses instead of granting something that quietly does nothing.');
 
 faq('Can HR see everything?',
-  [[['An HR administrator sees the whole company, which is the job. What they cannot do is act ', {}],
+  [[['An HR Administrator sees the whole company — that is the job. What they cannot do is act ', {}],
     ['as', { italics: true }],
-    [' somebody else: they cannot write a supervisor’s review for them, and they cannot approve their own targets. And every one of their actions is recorded against their name.', {}]]]);
+    [' someone else. They cannot write a supervisor’s evaluation for them, and they cannot approve their own targets. Everything they do is recorded under their name.', {}]]]);
 
-faq('Do we have to use your login system?',
-  'No — it is designed to sit behind your Active Directory, so staff use the password they already have and leavers lose access when IT disables the account, not when HR remembers. It is built and works against our own directory. It has not been tested against yours, and that is a scheduled task, not a completed one.');
+faq('Do our staff need another username and password?',
+  'No — the system is designed to sit behind your normal office login, so staff use the password they already have, and when IT disables someone’s account they lose access here automatically. It is built and works against our own test setup. It has not been connected to yours yet.');
 
-/* C. Cycles and forms */
-children.push(H2('C. Periods, cycles and forms'));
+children.push(H2('C. Periods, evaluation rounds and forms'));
 
-faq('What is the difference between a goal period and a review cycle?',
-  'A goal period is when targets are set and measured — usually your financial year. A review cycle is an evaluation event inside it. One period can carry several cycles: probationary at month three and four, midyear, year-end.');
+faq('What is the difference between a target period and an evaluation round?',
+  'A target period is when targets are set and measured — usually your financial year. An evaluation round is an assessment event inside it. One period can hold several rounds: probationary at months three and four, mid-year, year-end.');
 
-faq('Can we design our own forms?',
-  'Yes. Sections, questions, rating scales and weights, built in Setup without a release. Forms are versioned, and a published version is frozen — editing a form never changes a review that has already been written against it.');
+faq('Can we design our own evaluation forms?',
+  'Yes — sections, questions, rating scales and weights, all in Settings, without waiting for us. Forms are kept by version, and once published a version is frozen, so editing a form never changes an evaluation already written on it.');
 
 faq('Can different staff get different forms?',
-  'Yes, by employment type and position. Probationary staff, regular staff and project-based staff can each have their own instrument, and the right one is resolved automatically when the cycle is generated.');
+  'Yes, by employment type and position. Probationary, regular and project-based staff can each have their own form, and the right one is picked automatically when the round is created.');
 
-faq('What stops a cycle closing while people are still writing?',
-  [[['Nothing closes with work outstanding — sign-off is refused while any part of a review is unsubmitted. ', {}],
-    ['My unit', { bold: true }],
-    [' names who it is waiting on, so “why is this stuck” is a screen rather than an investigation.', {}]]]);
+faq('What stops a round from closing while people are still writing?',
+  [[['Nothing closes with work outstanding — it refuses while any part of an evaluation is unfinished, and the section summary names who it is waiting for. “Why is this stuck?” is a screen, not an investigation.', {}]]]);
 
-faq('Can we reopen something after sign-off?',
-  'A signed-off result is final by design, and correcting it is a deliberate, recorded act rather than an edit. That is what makes a rating defensible six months later when somebody disputes it.');
+faq('Can we reopen something after it is finalised?',
+  'A finalised result is final on purpose, and correcting it is a deliberate, recorded step rather than a quiet edit. That is what makes a rating defensible six months later when someone disputes it.');
 
-/* D. Day to day */
-children.push(H2('D. Day-to-day operations'));
+children.push(H2('D. Day-to-day situations'));
 
-faq('Someone was promoted in the middle of the cycle. What do we do?',
-  [[['Record it as a promotion with its effective date. Their history then shows the promotion sitting between their evaluations, which is what lets anyone reading it later see that two strong reviews were followed by a move.', {}]],
-   [['Four separate actions exist rather than one “edit” button — hire, change, correct, separate — because ', {}],
-    ['a correction and a change are not the same event', { bold: true }],
+faq('Somebody was promoted in the middle of the year. What do we do?',
+  [[['Record it as a promotion with the date it took effect. Their history then shows the promotion sitting between their evaluations — so anyone reading it later can see that two strong evaluations were followed by a move.', {}]],
+   [['There are four separate actions rather than one “edit” button — hire, change, correct, and leave — because ', {}],
+    ['fixing a mistake and recording a change are not the same thing', { bold: true }],
     ['. A correction fixes something that was never true. A change records something that became true on a date.', {}]]]);
 
-faq('We only found out about a transfer three weeks late. Can we backdate it?',
-  'Yes, and that is ordinary rather than an exception. You can also record one that takes effect next month. The system keeps dated periods, so recording it late does not falsify the dates.');
+faq('We only heard about a transfer three weeks late. Can we backdate it?',
+  'Yes, and that is normal rather than an exception. You can also enter one that takes effect next month. The system keeps the dates, so entering it late does not make the dates wrong.');
 
 faq('What happens when somebody resigns?',
-  'You separate them with a date. Nothing is deleted: notifications stop, they drop out of eligible populations, and their history stays intact — it has to, because past reviews of other people still reference them as a reviewer.');
+  'You record them as leaving, with the date. Nothing is deleted. Notifications stop and they drop out of future rounds, but their history stays — it has to, because other people’s past evaluations refer to them.');
 
-faq('Someone forgot to check in for two months. Will we find out?',
-  'Yes, in three places: the supervisor’s monitoring list, the automatic reminders as deadlines approach, and the HR console’s exceptions. The design assumption is that nobody logs in to look — so the system goes and tells them.');
+faq('Someone has not posted an update in two months. Will we find out?',
+  'Yes, in three places: the supervisor’s watch list, automatic reminders as deadlines approach, and the HR overview. We assume nobody logs in to check — so the system goes and tells them.');
 
-/* E. Notifications */
-children.push(H2('E. Notifications'));
+children.push(H2('E. Reminders and messages'));
 
 faq('Does it email people, or do they have to log in?',
-  'Both. In-app and email, with per-person preferences — immediate, a daily digest, or off. Twenty-three message types, covering assignment, approval, results, acknowledgement and deadline reminders.');
+  'Both — inside the system and by email, and each person can choose immediate, a once-a-day summary, or off. There are 23 kinds of message, covering assignments, approvals, results and deadline reminders.');
 
 faq('Will it spam our staff?',
-  'A deadline reminder fires once per milestone per person, not once per scan, and anybody who prefers a digest gets one message a day. The reminders run hourly against real deadlines rather than on a fixed schedule.');
+  'A deadline reminder goes out once per deadline per person, not every time the system checks. Anyone who prefers a summary gets one email a day.');
 
-faq('Can we change the wording? Some of it needs to be in Filipino.',
-  'The templates are editable per company, and HR can also publish its own help articles inside the app — which is where your local policy belongs, clearly marked as yours rather than as how the software behaves.');
+faq('Can we change the wording? Some of it should be in Filipino.',
+  'Yes — the message wording is editable for your company, and HR can also publish its own help articles inside the system. That is where your own policy belongs, clearly marked as yours rather than as how the software works.');
 
-/* F. Reporting */
-children.push(H2('F. Reporting and data'));
+children.push(H2('F. Getting information out'));
 
-faq('Can we get the data out?',
-  'Yes — CSV export throughout, and it is your database on your server, so nothing is locked away. Exports carry only what the person running them is allowed to see, which means an export is never a way around the access rules.');
+faq('Can we get our data out?',
+  'Yes — you can download spreadsheets throughout, and it is your database on your server, so nothing is locked away. A download only ever contains what that person is allowed to see, so it is never a way around the access rules.');
 
-faq('Can I report on everyone whose improvement plan ended successfully?',
-  [[['Yes — by person, evaluation type, period, unit, or result. ', {}],
-    ['This shipped this week and is not on the demo host yet', { bold: true, color: WARN }],
-    ['; it is dated, not hypothetical. The filters live in the link, so a report can be sent to somebody rather than described to them — and they run it under their own access, which may return fewer rows than yours did.', {}]]]);
+faq('Can I list everyone whose improvement plan ended successfully?',
+  [[['Yes — by person, type, period, section or result. ', {}],
+    ['This was finished this week and is not on the demo site yet', { bold: true, color: WARN }],
+    ['. The search is saved in the link, so you can send a report to someone instead of describing it — and they see it through their own access, which may show them fewer people than you saw.', {}]]]);
 
 faq('Do you store salaries?',
-  'No. There is no salary field anywhere in the database, and that was a decision rather than an omission — it keeps the most sensitive field in HR out of a system that many managers can reach.');
+  'No. There is no salary field anywhere. That was a decision, not an oversight — it keeps the most sensitive figure in HR out of a system that many managers can open.');
 
-/* G. Hosting */
-children.push(H2('G. Hosting, backup and privacy'));
+children.push(H2('G. Where it lives, and privacy'));
 
-faq('Where does the data live?',
-  'On a server you own, inside your network. It does not go to a cloud provider, it does not leave the building, and it works with the internet down.');
+faq('Where is the data kept?',
+  'On a server you own, inside your network. It does not go to any cloud provider, it does not leave the building, and it keeps working if your internet is down.');
 
-faq('Who backs it up?',
-  'Your IT, on your schedule — it is an ordinary PostgreSQL database. We will provide the procedure and test a restore with them during the pilot. Ask for that restore test explicitly; a backup nobody has restored is a hope.');
+faq('Who takes backups?',
+  'Your IT team, on your schedule — it is an ordinary database. We provide the procedure and we will test a full restore with them during the pilot. Ask for that restore test by name: a backup nobody has ever restored is only a hope.');
 
 faq('What about the Data Privacy Act?',
-  'No statutory identifiers are stored — no SSS, PhilHealth, Pag-IBIG, TIN or birthdate — because the system has no use for them. What it holds is work email, position, reporting line and performance records, all of it audited, and all of it on your own hardware.');
+  'We store no government ID numbers — no SSS, PhilHealth, Pag-IBIG, TIN or birthdate — because the system has no use for them. What it holds is work email, position, reporting line and performance records, all recorded, all on your own hardware.');
 
 faq('Can we try it with one department first?',
-  'That is exactly what you are looking at. A single department, on your real structure, with the rest of the group added when you are satisfied. The system is multi-company from the ground up — separate companies in the group cannot see each other, enforced the same way everything else is.');
+  'That is exactly what you are looking at — one department, on your real structure, with the rest of the group added when you are happy. The system handles several companies from the ground up, and separate companies cannot see each other.');
 
-/* H. Honest answers */
 children.push(H2('H. Questions where the honest answer is “not yet”'));
 
-children.push(P('Say these the same way as the rest. The audience will test at least one of them.'));
+children.push(P('Say these the same way as everything else. Someone will test at least one of them.'));
 
 children.push(TBL(
   ['If they ask', 'Answer'],
   [
-    ['Can it compute our KPI score the way our workbook does?',
-     'Not yet, and deliberately. Three details in your workbook read two ways — including one where identical performance scores 35, 30 or 10 depending only on how the scorecard was written. We would rather be late than encode a guess into everyone’s rating.'],
-    ['Does it work with our Active Directory?',
-     'It is built for it and works against our own directory. It has never been tested against yours. That is a half-day with your IT team, and we would rather schedule it than assert it.'],
+    ['Can it calculate our KPI score the way our workbook does?',
+     'Not yet, and on purpose. Three things in your workbook can be read two ways — including one where identical performance scores 35, 30 or 10 depending only on how the scorecard was written. We would rather be late than build a guess into everyone’s rating.'],
+    ['Does it work with our office logins?',
+     'It is built for it and works against our own test setup. It has never been connected to yours. That is half a day with your IT team, and we would rather book it than claim it.'],
     ['Can it run the MDP promotion track?',
-     'Not yet. The stages and dwell times are specified and not started — it is the next substantial piece after the scoring model.'],
+     'Not yet. The stages and waiting times are written down but not built — it is the next big piece after the scoring.'],
     ['Does it do payroll, leave or timekeeping?',
-     'No, and it will not. It integrates with them; it does not replace them.'],
-    ['Are peer reviews anonymous?',
-     'That is one of the twenty-one questions, and it is one we cannot retrofit quietly — it changes how the data is stored. We need the answer before we build it, not after.'],
+     'No, and it will not. It connects to them; it does not replace them.'],
+    ['Are peer evaluations anonymous?',
+     'That is one of the 21 questions, and it is one we cannot change quietly later — it changes how the information is stored. We need the answer before we build it, not after.'],
   ],
   [3200, 6880],
 ));
@@ -731,306 +742,336 @@ children.push(new Paragraph({
   border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: ACCENT, space: 6 } },
   children: [new TextRun({ text: 'Part Three', size: 32, bold: true, color: ACCENT })],
 }));
-children.push(H1('9. The in-house technical person'));
+children.push(H1('9. The IT person in the room'));
 
 children.push(P(
-  'They are usually the quietest person in the room and the one whose opinion '
-  + 'decides it afterwards. They are not evaluating features — they are working '
-  + 'out whether this becomes their problem at 2am, and whether they can get rid '
-  + 'of you later if they need to.',
+  'They are usually the quietest person there and the one whose opinion decides '
+  + 'it afterwards. They are not judging features. They are working out whether '
+  + 'this becomes their problem at 2am, and whether they could replace you later '
+  + 'if they had to.',
 ));
 
-children.push(BOX('How to handle this person', [
-  [['Answer in specifics or say you do not know. ', { bold: true }],
-   ['They will detect a bluff faster than the HR audience will, and one caught bluff costs you every other answer in the room.', {}]],
-  [['Three things below are genuinely not done: a restore has never been drilled on ', {}],
-   ['their', { italics: true }],
-   [' hardware, Active Directory has never been tested against ', {}],
-   ['their', { italics: true }],
-   [' directory, and there has been no third-party penetration test. Volunteer all three before being asked. It buys more credibility than any feature in the demo.', {}]],
+children.push(BOX('How to use this section', [
+  [['Each question below has a ', {}], ['plain answer you can say word for word', { bold: true }],
+   ['. Underneath it, in smaller grey text, is the exact technical wording. ', {}],
+   ['You do not need to understand the grey line to use it', { bold: true }],
+   [' — read it out if they push for detail, and if they go further than that, write the question down and tell them we will come back with a precise answer. Nobody is offended by that. Everybody notices a bluff.', {}]],
+  [['Three things below are genuinely not done. Volunteer all three before being asked — it buys more trust than any feature in the demo.', {}]],
 ], 'EAF0F6', ACCENT));
 
-/* A. Stack */
-children.push(H2('A. What actually runs on the box'));
+children.push(H2('A. What actually runs on the server'));
 
-faq('What is the stack?',
-  '', [
-    TBL(['Layer', 'What it is', 'Notes'],
-      [
-        ['Database', 'PostgreSQL 16', 'Not interchangeable — the authorisation model is built on PostgreSQL row-level security.'],
-        ['API', 'Node 22, NestJS 11, TypeScript', 'Talks to Postgres through the standard pg driver and hand-written SQL. No ORM.'],
-        ['Web', 'React 19 + Vite, static build', 'A plain single-page app. No server-side rendering, nothing to execute at request time.'],
-        ['Identity', 'Keycloak (self-hosted OIDC)', 'Federates to Active Directory. We did not hand-roll passwords, reset, lockout or MFA.'],
-        ['Proxy / TLS', 'Caddy 2', 'TLS termination. Works with your internal CA.'],
-        ['Packaging', 'Docker Compose, five containers', 'One host. Kubernetes for this workload would be self-harm.'],
-      ],
-      [1700, 3100, 5280]),
-  ]);
+TQ('What is it built with?',
+  [['Five standard, well-known pieces of software, all free and open, running on one Linux server. A database to hold the information, the application itself, the screens, a sign-in service, and something to handle the secure connection. Nothing unusual and nothing invented by us.', {}]],
+  'PostgreSQL 16, Node 22 with NestJS, a React single-page front end, Keycloak for identity, and Caddy for TLS — five containers under Docker Compose on Ubuntu.');
 
-faq('Why no ORM? That is unusual.',
-  [[['Because the security rules live in the database and we have to be able to read the query that is actually sent. An ORM that hides the SQL makes a row-level security policy very hard to reason about — and this system has ', {}],
-    ['146 of them across 57 tables', { bold: true }],
-    ['. Hand-written SQL is more typing and far less mystery.', {}]]]);
+TQ('Why did you not use one of the big frameworks that writes the database code for you?',
+  [['Because the privacy rules live inside the database, and we need to be able to read exactly what is being asked of it. Tools that write that code for you hide it — convenient most of the time, and the wrong trade when the thing being hidden is the security.', {}]],
+  'No ORM. Hand-written parameterised SQL against the pg driver, because there are 146 row-level security policies across 57 tables and they have to be reasoned about directly.');
 
-faq('What is NOT on the box, that you might expect?',
-  [[['No message broker, no Redis, no Elasticsearch, no object storage. Background work — email, reminders, digests — runs from a durable queue table ', {}],
-    ['inside Postgres', { bold: true }],
-    [', so there is exactly one thing to back up and exactly one thing that can be down.', {}]],
-   [['There is also ', {}], ['no file upload anywhere in the product', { bold: true }],
-    ['. Evidence on a goal is a link to wherever your documents already live. That is a deliberate reduction of scope: no binary storage to size, back up or virus-scan, and no upload endpoint to harden.', {}]]]);
+TQ('What is NOT on the server, that I might expect?',
+  [['No extra moving parts. No separate queue system, no caching server, no search engine, no file storage. Background work like emails and reminders is handled inside the database itself, so there is ', {}],
+   ['one thing to back up and one thing that can break', { bold: true }],
+   ['. There is also no file upload anywhere in the product — attaching evidence to a target means linking to wherever your documents already live.', {}]],
+  'No broker, no Redis, no Elasticsearch, no object storage. A durable outbox table in Postgres drives notifications. No upload endpoint and no binary storage to size, back up or scan.');
 
-/* B. Install and update */
-children.push(H2('B. Installation, updates and rollback'));
+children.push(H2('B. Installing, updating, and going back'));
 
-faq('How is it installed?',
-  'Docker Compose on one Ubuntu server. Five containers, one command. There is no installer to babysit and no agent to deploy to workstations — staff use a browser.');
+TQ('How is it installed?',
+  [['One command on one Linux server. There is nothing to install on anyone’s computer — staff just use a web browser.', {}]],
+  'Docker Compose, five containers, single host.');
 
-faq('How do updates work, and how much downtime?',
-  [[['Images are built elsewhere and loaded onto the box, so the server never compiles anything and never needs a toolchain or internet access. An update is: load the images, run the migrations, restart. ', {}],
-    ['Roughly a minute of downtime', { bold: true }],
-    [', and it is deliberately scheduled rather than rolling — for a system this size, a predictable one-minute outage at 7pm is better engineering than a zero-downtime dance nobody can debug.', {}]]]);
+TQ('How do updates work, and how long are we down?',
+  [['We build the new version on our machines and hand the server finished, sealed packages — it never has to build anything itself and never needs internet access. An update takes ', {}],
+   ['about a minute of downtime', { bold: true }],
+   [', scheduled for the evening. We prefer a predictable one-minute outage to a clever no-downtime trick that nobody can troubleshoot at 9pm.', {}]],
+  'Images are built off-host and loaded, migrations run, containers restart. Roughly 60 seconds, deliberately scheduled rather than rolling.');
 
-faq('How do you roll back a bad release?',
-  [[['The previous image is still on the box, so the application rolls back in seconds. ', {}],
-    ['Database migrations are forward-only', { bold: true }],
-    [' and do not roll back — which is why the backup immediately before a migration matters, and why the update procedure takes one.', {}]],
-   [['Be straight about this if they push: forward-only is a trade. It removes a whole class of "the down-migration was wrong" disasters and it means a bad schema change is restored from backup, not undone. Most teams that ship down-migrations have never successfully run one.', {}]]]);
+TQ('What if an update goes wrong?',
+  [['The previous version is still on the server, so the software itself goes back in seconds. Changes to the ', {}],
+   ['structure', { italics: true }],
+   [' of the database only go forwards — you cannot un-bake a cake — so if one of those goes wrong we restore from the backup taken just before. That is why the update procedure takes a backup first, every time.', {}]],
+  'Application rollback is instant. Migrations are forward-only by design, which removes a whole class of bad down-migration failures; recovery is restore-from-backup.');
 
-faq('How do you stop somebody editing a migration that already ran?',
-  'Every applied migration is checksummed. If a file that has already run is edited, the next deployment refuses to start and names the file. Schema drift between your server and ours is not something we want to detect by noticing odd behaviour.');
+TQ('How do you stop someone editing an old change and causing drift?',
+  [['Every change to the database structure gets a fingerprint when it runs. If anyone edits one afterwards, the next update refuses to start and names the file. We would rather it stop loudly than run and behave oddly.', {}]],
+  'Applied migrations are checksummed; a mismatch aborts the deployment.');
 
-/* C. Data */
-children.push(H2('C. Backup, restore and data'));
+children.push(H2('C. Backups and losing data'));
 
-faq('What is the backup story?',
-  [[['A nightly ', {}], ['pg_dump', { bold: true }],
-    [' in custom format, checksummed, encrypted with GPG, retained 30 days, written off the machine. The script verifies the dump is readable by pg_restore before it counts it as a success — a truncated dump exits cleanly and is worthless.', {}]],
-   [['There is also a ', {}], ['restore drill script', { bold: true }],
-    [' that restores the latest dump into a throwaway container, checks the data actually arrived, and prints how long it took. ', {}],
-    ['That number is your real recovery time', { italics: true }],
-    ['. Run it monthly and after every Postgres upgrade.', {}]]]);
+TQ('What is the backup arrangement?',
+  [['A full copy every night, compressed, encrypted, kept for 30 days, and written somewhere other than the server itself. The script ', {}],
+   ['opens the copy afterwards to check it is actually readable', { bold: true }],
+   [' — a half-written backup looks successful and is worthless.', {}],
+   [' There is also a drill script that restores last night’s copy into a scratch space, checks the information arrived, and tells you how long it took. ', {}],
+   ['That number is your real recovery time.', { italics: true }]],
+  'Nightly pg_dump in custom format, GPG-encrypted, checksummed, 30-day retention, verified with pg_restore --list. Monthly restore drill script included.');
 
-faq('What is the RPO?',
-  [[['With nightly dumps alone: ', {}], ['up to 24 hours', { bold: true }],
-    ['. Be blunt about that. If that is unacceptable — and for some HR data it is — the answer is continuous WAL archiving on top, which reduces it to minutes. It is a configuration decision and a disk-space decision, and it is theirs to make. Do not promise minutes and deliver a nightly dump.', {}]]]);
+TQ('If the server died right now, how much would we lose?',
+  [['With nightly backups alone, ', {}], ['up to a day’s work', { bold: true }],
+   ['. Be straight about that. If losing a day is unacceptable — and for some HR information it is — the fix is continuous copying, which brings it down to minutes. It costs some disk space and it is your call. ', {}],
+   ['Do not promise minutes and deliver a nightly backup.', { bold: true }]],
+  'RPO is up to 24 hours on logical dumps alone. Continuous WAL archiving reduces it to minutes and is a configuration and storage decision.');
 
-faq('Has a restore ever been tested?',
-  [[['On our infrastructure, yes. ', {}],
-    ['On yours, no — because yours does not exist yet.', { bold: true }],
-    [' A tested restore on your own hardware is a go-live gate we would want written into the plan, not an optional step. A backup that has never been restored is a hypothesis.', {}]]]);
+TQ('Have you ever actually restored one?',
+  [['On our own systems, yes. ', {}], ['On yours, no — because yours does not exist yet.', { bold: true }],
+   [' We would want a tested restore on your hardware written into the plan as a condition of going live, not left as an optional step. A backup nobody has restored is a guess.', {}]],
+  null);
 
-faq('How big does the database get?',
-  'Small. This is text and numbers — no documents, no images, no binaries. A thousand employees with several years of history is comfortably inside a few gigabytes. Disk sizing is driven by backups and WAL, not by the data.');
+TQ('How big does this get?',
+  [['Small. It is words and numbers — no documents, no photos, no files. A thousand staff with several years of history fits comfortably in a few gigabytes. Your disk sizing will be driven by the backups, not the data.', {}]],
+  null);
 
-faq('Can we query the database directly for our own reporting?',
-  [[['Yes — it is your PostgreSQL server. Point Power BI, Metabase or anything else at it. ', {}],
-    ['One warning worth giving them unprompted:', { bold: true }],
-    [' a tool connecting as a superuser bypasses row-level security entirely. If they want a read-only reporting connection, ask us for one that is subject to the same rules, rather than handing out the postgres account.', {}]]]);
+TQ('Can we query it ourselves for our own reporting?',
+  [['Yes — it is your database. You can point your own reporting tools at it. ', {}],
+   ['One warning worth giving them before they ask:', { bold: true }],
+   [' a tool that connects with full administrator access bypasses all the privacy rules. If they want a reporting connection, ask us for one that still follows the rules rather than handing out the master account.', {}]],
+  'A superuser connection bypasses RLS entirely. We can supply a read-only role that remains subject to policy.');
 
-/* D. Identity */
-children.push(H2('D. Identity and Active Directory'));
+children.push(H2('D. Sign-in and office accounts'));
 
-faq('How does Active Directory integration actually work?',
-  [[['Keycloak sits between the application and your directory and does LDAP/AD user federation. Staff authenticate against AD with their existing credentials; the application never sees a password and stores none. Disable somebody in AD and they lose access here without HR doing anything.', {}]],
-   [['Be precise about the state: ', {}],
-    ['it is built and works against our own directory, and it has never been pointed at a production AD.', { bold: true, color: WARN }],
-    [' Expect group-to-role mapping and an attribute or two to need tuning. Budget a half-day with them; do not budget zero.', {}]]]);
+TQ('How does sign-in with our office accounts work?',
+  [['A standard sign-in service sits between the system and your existing office directory. Staff use the username and password they already have. ', {}],
+   ['Our system never sees their password and never stores one.', { bold: true }],
+   [' Disable someone in your directory and they lose access here, with HR doing nothing.', {}],
+   [' Be precise about the state: it is built and works against our own test directory, and it has never been connected to a real one. Expect a bit of tuning. Budget half a day — do not budget zero.', {}]],
+  'Keycloak with LDAP/Active Directory user federation, OIDC to the application. Group-to-role mapping and one or two attributes will need tuning.');
 
-faq('How are users matched to employee records?',
-  'On first sign-in, the account is bound to the employee whose work email matches — and from then on the binding is what identifies them, never the email claim again. If AD and the 201 file disagree on somebody’s email, that person cannot sign in and the message says so. That is a real migration task worth planning for, not an edge case.');
+TQ('How do you know which login belongs to which employee?',
+  [['The first time somebody signs in, their account is matched to the employee record with the same work email — and from then on it stays matched, regardless of what the email says later. If your directory and your 201 file disagree about someone’s email, that person cannot sign in and the message says exactly that. Worth planning for; it is a real task, not a rare edge case.', {}]],
+  null);
 
-faq('Do you support MFA / SSO / conditional access?',
-  'Whatever Keycloak supports and whatever your AD policy already enforces — that is the reason we put Keycloak in front rather than building authentication ourselves. We inherit your policy instead of competing with it.');
+TQ('Do you support two-factor authentication?',
+  [['Whatever your office directory already enforces — which is exactly why we put a standard sign-in service in front rather than building our own. We inherit your security policy instead of competing with it.', {}]],
+  null);
 
-faq('What happens to sessions when somebody is terminated?',
-  'Disable the AD account and they cannot obtain a new token. An already-issued token remains valid until it expires, which is short by design — for an immediate cut, revoke the session in Keycloak. Separately, separating them in the HR system stops notifications and removes them from populations while keeping their history.');
+TQ('What happens when we terminate somebody?',
+  [['Disable their office account and they cannot get back in. A session already open stays valid for a short time and then expires; if you need them out immediately, that can be forced. Separately, recording them as having left stops all notifications while keeping their history.', {}]],
+  'Access tokens are short-lived; immediate cut-off is a session revocation in Keycloak.');
 
-/* E. Security */
-children.push(H2('E. Security posture'));
+children.push(H2('E. Security'));
 
-faq('How is access actually enforced?',
-  [[['In the database, by PostgreSQL row-level security — ', {}],
-    ['146 policies across 57 tables', { bold: true }],
-    ['. The application connects as a restricted role that is subject to them, and it is forced even for the table owner, so the migration account cannot read around them either.', {}]],
-   [['The practical consequence is the one to lead with: ', {}],
-    ['a bug in the application cannot leak another department’s records', { bold: true }],
-    [', because the rows never reach the application. That is not true of a system that filters in code.', {}]]]);
+TQ('How is access actually enforced?',
+  [['Most systems put a guard at the door and trust everyone inside the room. This one ', {}],
+   ['puts a lock on every individual folder', { bold: true }],
+   ['. Even if something went wrong with the software, another department’s records would not come out, because they never leave the filing cabinet in the first place. That is not true of a system that decides what to show you after it has already fetched everything.', {}]],
+  '146 row-level security policies across 57 tables, FORCEd so even the table owner is subject to them. The application connects as a restricted role.');
 
-faq('SQL injection?',
-  'Every query is parameterised — and even a successful injection would run as the restricted role, still subject to row-level security. Two independent layers, which is the point of putting the boundary underneath the application rather than inside it.');
+TQ('What about someone typing a command into a form to attack the database?',
+  [['We hand the database the question and the user’s text separately, so anything typed into a box can only ever be treated as text, never as an instruction. And even if that somehow failed, it would still be running under the limited account that is subject to every folder-level lock. Two independent layers.', {}]],
+  'All queries parameterised; injection would still execute as the restricted role under RLS.');
 
-faq('How do you know the policies are correct? Policies are easy to get wrong.',
-  [[['They are tested against a real PostgreSQL in a container — not mocked, because a mock cannot verify a security policy. ', {}],
-    ['742 API tests and 138 front-end tests', { bold: true }],
-    [', and every security suite asserts it is not connected as a superuser before it trusts a single result. We have had tests pass for the wrong reason before; that assertion exists because of it.', {}]]]);
+TQ('How do you know those rules are right? They are easy to get wrong.',
+  [['They are tested against a real database every time we change anything — not a simulated one, because a simulation cannot prove a security rule. ', {}],
+   ['742 tests on the back end and 138 on the screens.', { bold: true }],
+   [' Each security test also checks that it is not accidentally running with administrator powers before it believes its own result — that check exists because we once had tests pass for the wrong reason.', {}]],
+  'Vitest with Testcontainers against real PostgreSQL. Every security suite asserts it is not connected as a superuser.');
 
-faq('Has it had a penetration test?',
-  [[['No.', { bold: true, color: WARN }],
-    [' Internal review and automated testing only. If they want one before go-live that is entirely reasonable, and we would rather they commissioned it than that we claimed a clean bill of health we have not earned. Offer to support the test and fix what it finds.', {}]]]);
+TQ('Has it had a proper security test by an outside firm?',
+  [['No.', { bold: true, color: WARN }],
+   [' Our own review and automated testing only. If you want an outside test before going live, that is entirely reasonable and we would support it. We would rather you commissioned one than have us claim a clean bill of health we have not earned.', {}]],
+  null);
 
-faq('What about dependency vulnerabilities and patching?',
-  'Standard headers are applied at the API, the images are Alpine-based and rebuilt on each release, and dependency audits run in development. Patching the OS, Docker, Postgres and Keycloak on the box is an owner-and-cadence question for your side — name the person during the pilot, because an unpatched on-prem box is the most common way these systems get into trouble.');
+TQ('Who patches it?',
+  [['We keep the application current. Patching the server operating system and the supporting software is your side, and it needs a named owner and a schedule — agree that during the pilot. ', {}],
+   ['An unpatched server in a back office is the most common way systems like this get into trouble.', { bold: true }]],
+  'OS, Docker, PostgreSQL and Keycloak patching is customer-owned. Standard security headers are applied at the API; images are rebuilt each release.');
 
-faq('Is anything exposed to the internet?',
-  [[['Not in the intended deployment. It listens on your LAN, and remote access is via your VPN. ', {}],
-    ['The demo you are looking at today is internet-facing because it has to be for this meeting', { bold: true }],
-    [' — that is a demo decision, not the architecture. Publishing it properly would mean a DMZ, a hardened proxy and a patching commitment, and that is a conversation to have deliberately rather than by accident.', {}]]]);
+TQ('Is any of it exposed to the internet?',
+  [['Not in the real setup. It sits on your internal network, and people working from home reach it through your VPN. ', {}],
+   ['The demo you are looking at today is on the internet because it had to be for this meeting', { bold: true }],
+   [' — that is a demo decision, not how it would be installed. Putting it online properly is a separate conversation with real requirements attached, and one to have deliberately rather than by accident.', {}]],
+  null);
 
-faq('What is logged, and can we see who did what?',
-  'Every change is written to an audit trail with the actor and timestamp — approvals, calibration moves, rating changes, imports, role grants. Application logs are structured JSON to standard output, so they go wherever your Docker logging already goes. There is no metrics stack shipped; if they want Prometheus and Grafana, it is an addition and we should scope it rather than pretend it is there.');
+TQ('Can we see who did what?',
+  [['Yes — there is a logbook that only ever gets added to. Every approval, every moderation change, every rating change, every upload, with the person’s name and the time. The system’s own activity logs come out in a standard format that goes wherever your existing log collection goes.', {}],
+   [' Be honest about one thing: there is no monitoring dashboard included. If they want graphs and alerting, that is an addition to scope rather than something already there.', {}]],
+  'Append-only audit table with actor and timestamp. Structured JSON logs to stdout. No Prometheus/Grafana shipped.');
 
-/* F. Ops */
 children.push(H2('F. Running it day to day'));
 
-faq('How do we know it is healthy?',
-  'Two unauthenticated endpoints: a liveness check that does not touch the database, and a readiness check that does and reports degraded if the database is unreachable. Docker uses them for container health; point your monitoring at the same two.');
+TQ('How do we know it is healthy?',
+  [['There are two addresses your monitoring can check automatically: one that answers “yes, it is running” and one that answers “yes, and it can actually reach its information”. The second is the useful one.', {}]],
+  'Unauthenticated liveness and readiness endpoints; readiness reports degraded when the database is unreachable.');
 
-faq('What should we actually alert on?',
+faq('What should we set alerts on?',
   '', [
-    RBULLET([['Disk full on the database volume', { bold: true }], [' — the classic on-premise outage, and it is always this one.', {}]]),
-    RBULLET([['Backup failed', { bold: true }], [' — a silent backup failure is discovered at the worst possible moment.', {}]]),
-    RBULLET([['Readiness failing', { bold: true }], [' — the application is up but cannot reach the database.', {}]]),
-    RBULLET([['Certificate expiry', { bold: true }], [' — an expired internal certificate takes the whole system down, and always on a Sunday.', {}]]),
+    RBULLET([['The disk filling up', { bold: true }], [' — the most common cause of failure for a system in an office, every time.', {}]]),
+    RBULLET([['A backup failing', { bold: true }], [' — a backup that quietly stops working is discovered at the worst possible moment.', {}]]),
+    RBULLET([['The system running but unable to reach its information', { bold: true }], ['.', {}]]),
+    RBULLET([['The security certificate expiring', { bold: true }], [' — this takes everything down, and always on a weekend.', {}]]),
   ]);
 
-faq('Is there a pre-flight check, or do we find out the hard way?',
-  [[['There is a command that answers “if a department logged in tomorrow, what would break?” It reads the live database and the live identity realm and reports PASS, WARN, FAIL or SKIP with a concrete remedy for each. It verifies that row-level security is enabled ', {}],
-    ['and forced', { italics: true }],
-    [' on every table — because a deployment where RLS was never switched on passes every unit test and leaks everything — and it fails if any demo account still exists in the realm.', {}]],
-   [['“SKIP” is reported as its own severity rather than being counted as a pass, which is a small thing that matters: a check that could not run is not a check that succeeded.', {}]]]);
+TQ('Is there a way to check it is set up correctly, or do we find out the hard way?',
+  [['There is a single command that answers “if a department started using this tomorrow, what would break?” It checks the live system and reports pass, warning, or fail, with a specific fix for each one. It confirms the folder-level locks are switched on for every table — because a system where they were never switched on would pass every other test and leak everything — and it fails if any demo account still exists.', {}],
+   [' One detail worth mentioning to them: if a check ', {}], ['could not run', { italics: true }],
+   [', it is reported as its own result rather than counted as a pass. A check that did not happen is not a check that succeeded.', {}]],
+  'hr preflight: verifies RLS is enabled and FORCEd per table, reads the Keycloak realm for leftover local accounts, and reports PASS / WARN / FAIL / SKIP with remedies.');
 
-faq('What does a UPS have to do with it?',
-  'A hard power cut mid-write on an unprotected box is the single most likely cause of data loss in an office server room — more likely than any failure in the software. UPS with automated graceful shutdown, and RAID-1 at minimum. Say this even though it is their domain; it signals that you have run something on-premise before.');
+TQ('Why do you keep mentioning power supplies?',
+  [['Because a sudden power cut while the system is writing is the single most likely way to lose information in an office server room — more likely than any software fault. A battery backup that shuts the server down cleanly, and two mirrored disks rather than one. Say it even though it is their department; it shows you have run something in an office before.', {}]],
+  null);
 
-/* G. Performance */
-children.push(H2('G. Sizing and performance'));
+children.push(H2('G. Size and speed'));
 
-faq('What hardware do we need?',
-  [[['For up to about a thousand employees: ', {}],
-    ['8 vCPU, 32 GB RAM, 500 GB mirrored SSD, Ubuntu 24.04 LTS', { bold: true }],
-    ['. That is generous on purpose — it is sized for the spike at cycle close, not for the average Tuesday.', {}]],
-   [['A useful and slightly disarming data point: ', {}],
-    ['the demo you are using right now runs on a 1 GB cloud instance', { bold: true }],
-    [', with the whole stack — database, identity server, API, web, proxy — inside that. The specification above is headroom, not a minimum.', {}]]]);
+TQ('What hardware do we need?',
+  [['For up to about a thousand staff: ', {}],
+   ['8 processor cores, 32 GB of memory, 500 GB of mirrored disk, on Ubuntu Linux', { bold: true }],
+   ['. That is generous on purpose — it is sized for the busiest week of the year, not an average Tuesday.', {}],
+   [' A useful thing to mention: ', {}],
+   ['the demo you are using right now runs on a server with 1 GB of memory', { bold: true }],
+   [', with everything on it. The specification above is comfort, not a minimum.', {}]],
+  null);
 
-faq('What happens at cycle close when everyone logs in at once?',
-  'That is the load case the sizing targets. The heavy screens are read-only aggregates over a few tens of thousands of rows, which is small for PostgreSQL. If it ever does become slow, the fix is ordinary database work — indexes and query plans — rather than re-architecture, because the reporting is plain SQL you can read and EXPLAIN.');
+TQ('What happens when everyone logs in at once at year-end?',
+  [['That is exactly what the sizing is for. The heavy screens are summaries over tens of thousands of rows, which is small for a database of this kind. If it ever did get slow, the fix would be ordinary database tuning rather than a rebuild — because the reporting is plain, readable queries.', {}]],
+  null);
 
-faq('How many companies can it hold?',
-  'It is multi-company from the ground up — the group structure is supported and separate companies cannot see each other, enforced by the same mechanism as everything else. On-premise, a single company per installation is what we would expect, and the pre-flight check warns if it finds more than one, so an accidental second tenant is visible rather than quiet.');
+TQ('Can it hold all the companies in the group?',
+  [['Yes — it handles multiple companies from the ground up, and separate companies cannot see each other. For an in-office installation we would expect one company per installation, and the setup check warns you if it ever finds more than one, so an accidental second company is visible rather than silent.', {}]],
+  null);
 
-/* H. Lock-in */
-children.push(H2('H. Lock-in, ownership and exit'));
+children.push(H2('H. Being tied to one supplier'));
 
 children.push(P(
-  'This is the question they most want to ask and are most reluctant to ask in '
-  + 'front of the vendor. Answer it before they have to.',
+  'This is the question they most want to ask and are least comfortable asking '
+  + 'in front of you. Answer it before they have to.'
 ));
 
-faq('What happens to us if Summit Logic disappears?',
-  [[['The data is in a standard PostgreSQL database on your hardware, in a schema that is plain readable SQL with comments explaining why each rule exists. There is no proprietary format and no phone-home. Another competent team could pick it up.', {}]],
-   [['The commercial half of that answer — source code ownership, escrow, handover — belongs in the contract rather than in the demo. ', {}],
-    ['Do not invent terms in the room.', { bold: true }],
-    [' Say it is a fair question, that the technical answer is “your data is yours and it is in an open format”, and that the commercial answer goes in the agreement.', {}]]]);
+TQ('What happens to us if Summit Logic disappears?',
+  [['Your information sits in a standard, widely-used database on your own hardware, in a structure that is plain readable text with comments explaining why each rule is there. There is no secret format and nothing phoning home. Another competent team could pick it up.', {}],
+   [' The commercial half of that — who owns the source code, escrow, handover — belongs in the contract, not in a demo. ', {}],
+   ['Do not invent terms in the room.', { bold: true }],
+   [' Say it is a fair question, that your information is yours and it is in an open format, and that the commercial side goes in the agreement.', {}]],
+  null);
 
-faq('Can we get all our data out?',
-  'CSV export throughout the application, and direct database access underneath it. Exports through the app carry only what the person running them may see; direct database access is yours to control.');
+TQ('Can we get everything out?',
+  [['Spreadsheet downloads throughout the system, and direct access to the database underneath. Downloads through the system only include what that person is allowed to see; direct access is yours to control.', {}]],
+  null);
 
-faq('Is there an API we can integrate with?',
-  [[['The application is a browser client talking to a REST API, so the API exists and is the same one the product uses. What does not exist yet is ', {}],
-    ['a documented, versioned public API with service credentials', { bold: true }],
-    [' — integrations today would be database-level or CSV. If they have a specific integration in mind, capture it as a requirement now rather than describing it as available.', {}]]]);
+TQ('Is there a way to connect other systems to it?',
+  [['The screens talk to the system over a standard web interface, so the connection points exist. What does not exist yet is a ', {}],
+   ['documented, supported interface with its own credentials', { bold: true }],
+   [' for other systems to use. Today a connection would go through the database or through spreadsheets. If they have something specific in mind, write it down as a requirement rather than saying it is available.', {}]],
+  'A REST API exists and is what the SPA consumes. There is no versioned, documented public API with service credentials yet.');
 
-/* I. Traps */
 children.push(H2('I. Do not say these'));
 
 children.push(TBL(
   ['Do not say', 'Say instead'],
   [
-    ['“It is fully secure.”',
-     '“Access is enforced in the database, it is tested against a real database, and it has not had a third-party penetration test. We would support one.”'],
-    ['“AD integration is done.”',
-     '“It is built and works against our directory. It has never been pointed at yours. Budget half a day with your team.”'],
-    ['“Backups are handled.”',
-     '“Nightly encrypted dumps with a verified-readable check, and a restore drill script. The restore has never been run on your hardware — that should be a go-live gate.”'],
-    ['“Zero downtime updates.”',
-     '“About a minute, scheduled. Rollback of the application is seconds; the schema rolls forward, which is why an update takes a backup first.”'],
+    ['“It is completely secure.”',
+     '“Access is enforced inside the database and tested against a real one. It has not had an outside security test. We would support one.”'],
+    ['“Office sign-in is done.”',
+     '“It is built and works against our test setup. It has never been connected to yours. Budget half a day with your IT team.”'],
+    ['“Backups are taken care of.”',
+     '“Nightly encrypted copies that are checked for readability, and a restore drill script. Nobody has restored one on your hardware — that should be a condition of going live.”'],
+    ['“No downtime for updates.”',
+     '“About a minute, in the evening. The software goes back in seconds if needed; database structure changes only go forward, which is why we back up first.”'],
     ['“It scales to any size.”',
-     '“It is sized for a thousand employees on one box. Beyond that we would want to measure rather than guess.”'],
+     '“It is sized for a thousand staff on one server. Beyond that we would measure rather than guess.”'],
     ['“We can build that quickly.”',
-     'Nothing. Write it down and cost it afterwards. A technical evaluator remembers a casual estimate as a commitment.'],
+     'Say nothing. Write it down and price it afterwards. A technical person remembers a casual estimate as a promise.'],
   ],
   [3400, 6680],
 ));
 
 children.push(SPACER());
-children.push(BOX('What to ask them, before they finish asking you', [
-  'Turning it around at the end changes the register of the conversation, and their answers are things you need anyway.',
-  '•  Who owns patching of the OS, Docker, Postgres and Keycloak once this is live?',
-  '•  Where does the off-machine backup land, and who checks that it landed?',
-  '•  Is there a UPS on that server, and has the graceful shutdown ever been tested?',
-  '•  Who administers Active Directory, and can we get a half-day with them during the pilot?',
-  '•  Do staff outside the office need access — and if so, is there already a VPN?',
-  '•  Is there an internal CA, or do we need a certificate strategy for the LAN name?',
+children.push(BOX('Ask them these, before they run out of questions', [
+  'Turning it around at the end changes the tone of the conversation — and you need the answers anyway.',
+  '•  Who will patch the server once this is live?',
+  '•  Where do the backups get copied to, and who checks they arrived?',
+  '•  Is there a battery backup on that server, and has the shutdown ever been tested?',
+  '•  Who looks after your office directory, and can we book half a day with them?',
+  '•  Do staff need access from outside the office — and is there already a VPN?',
+  '•  Do you issue your own security certificates internally, or do we need to sort that out?',
 ], 'EAF0F6', ACCENT));
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
-/* ── Appendix ────────────────────────────────────────────────────── */
-children.push(H1('Appendix — logins, and the state of the host'));
+/* ── Glossary ────────────────────────────────────────────────────── */
+children.push(H1('10. If someone uses one of these words'));
 
-children.push(H3('The three logins, in demo order'));
+children.push(P(
+  'The terms most likely to come up, and what each one means in one sentence. '
+  + 'You are allowed to use the plain version; the room will follow you either way.',
+));
+
 children.push(TBL(
-  ['Login', 'Person', 'Rank', 'Roles'],
+  ['Word they use', 'What it means'],
   [
-    [['josefina.gonzaga', { bold: true }], 'Associate — Screening', 'R11', 'employee'],
-    [['crisanto.rivera', { bold: true }], 'Section Head — Employee Relations (8 reports)', 'R7', 'employee, manager'],
-    [['alonzo.dimalanta', { bold: true }], 'Department Manager — HCM', 'R6', 'employee, manager, dept_head, hr_admin'],
+    ['Row-level security / RLS', 'The lock is on each individual record rather than on the door. It is the reason one department cannot see another.'],
+    ['Database', 'Where all the information is kept. One program, on your server.'],
+    ['Migration', 'A change to the structure of the database — a new field, a new rule. They are numbered and only ever go forwards.'],
+    ['Container / Docker', 'A sealed box holding a piece of software and everything it needs. The server just runs the boxes.'],
+    ['RPO', '“How much work would we lose?” With nightly backups, up to a day.'],
+    ['RTO', '“How long until we are back?” The restore drill measures it instead of guessing.'],
+    ['Token', 'A short-lived day pass issued at sign-in. When it expires you need a new one, and a disabled account cannot get one.'],
+    ['OIDC / SSO / federation', 'Staff sign in with their existing office account instead of a new password here.'],
+    ['Active Directory / LDAP', 'The Microsoft system most offices already use to hold staff accounts and passwords.'],
+    ['SQL injection', 'An old attack where someone types a command into a form hoping the database runs it. Prevented here in two independent ways.'],
+    ['Audit log / audit trail', 'A logbook that can only be added to, never edited, recording who changed what and when.'],
+    ['TLS / SSL / certificate', 'What makes the padlock appear in the browser. If it expires, everything stops — so it needs a calendar reminder.'],
+    ['VPN', 'A secure tunnel into the office network, for people working from home.'],
+    ['On-premise', 'On your own server in your own building, rather than on the internet.'],
+  ],
+  [2800, 7280],
+));
+
+children.push(new Paragraph({ children: [new PageBreak()] }));
+
+/* ── Appendix ────────────────────────────────────────────────────── */
+children.push(H1('Appendix — logins, and what is on the demo site'));
+
+children.push(H3('The three logins, in the order you will use them'));
+children.push(TBL(
+  ['Login', 'Person', 'Rank', 'What they can reach'],
+  [
+    [['josefina.gonzaga', { bold: true }], 'Associate — Screening', 'R11', 'Herself only'],
+    [['crisanto.rivera', { bold: true }], 'Section Head — Employee Relations (8 people)', 'R7', 'Himself and his section'],
+    [['alonzo.dimalanta', { bold: true }], 'Department Manager — HCM', 'R6', 'The whole department, plus settings'],
   ],
   [2600, 4380, 900, 2200],
 ));
 children.push(SPACER());
-children.push(RP([['Optional fourth, for the scoping contrast in Section 4: ', {}],
+children.push(RP([['Optional fourth login, for the 60-second proof in Section 4: ', {}],
   ['dalisay.zamora', { bold: true }],
   [' — Section Head, Compensation & Benefits, R7. Same rank as Crisanto, different section.', {}]]));
-children.push(RP([['Password for all accounts: ', {}], ['test1234', { bold: true }],
-  ['. Host: ', {}], ['https://hr.summitlogicsolutions.com', { bold: true }], ['.', {}]]));
+children.push(RP([['Password for all of them: ', {}], ['test1234', { bold: true }],
+  ['. Site: ', {}], ['https://hr.summitlogicsolutions.com', { bold: true }], ['.', {}]]));
 
 children.push(SPACER());
-children.push(H3('What is live on the demo host as of this morning'));
+children.push(H3('What is working on the demo site right now'));
 children.push(TBL(
   ['Area', 'State'],
   [
-    ['Goals, check-ins, approvals, HCM target gate', 'Live'],
-    ['Reviews, forms, calibration, sign-off, Department Head step', 'Live'],
-    ['Competencies, development plans, feedback, PIPs', 'Live'],
-    ['Analytics, nine-box, rater comparison, CSV export', 'Live'],
-    ['My unit (Department Head / Area Head dashboard)', 'Live'],
-    ['Staff importer, employment actions, Setup, in-app help', 'Live'],
-    ['Notifications, digests, deadline reminders', 'Live'],
-    [['Reports (filtered evaluation history)', { bold: true }],
-     [['Built and tested — ', {}], ['not deployed', { bold: true, color: WARN }]]],
-    [['Requests (extra competency / special eval / scoring adjustment)', { bold: true }],
-     [['Built and tested — ', {}], ['not deployed', { bold: true, color: WARN }]]],
-    ['KPI composite, MDP programmes, AD federation', 'Not built / not tested'],
+    ['Targets, monthly updates, approvals', 'Working'],
+    ['Evaluations, forms, moderation, finalising, Department Head approval', 'Working'],
+    ['Skills, development plans, feedback, improvement plans', 'Working'],
+    ['Charts, nine-box grid, rater comparison, spreadsheet download', 'Working'],
+    ['Section summary for Department Heads and Area Heads', 'Working'],
+    ['Loading staff from a spreadsheet, promotions and transfers, settings, in-system help', 'Working'],
+    ['Reminders, daily summaries, deadline alerts', 'Working'],
+    [['Reports', { bold: true }], [['Finished — ', {}], ['not installed yet', { bold: true, color: WARN }]]],
+    [['Requests', { bold: true }], [['Finished — ', {}], ['not installed yet', { bold: true, color: WARN }]]],
+    ['KPI score calculation, promotion tracks, office sign-in', 'Not built / not tested'],
   ],
   [6280, 3800],
 ));
 
 children.push(SPACER());
-children.push(BOX('Five-minute pre-flight, before anyone joins', [
-  'Sign in as each of the three accounts once. First sign-in binds the account to the employee record, and you do not want to discover a mismatch live.',
-  'Confirm the certificate is valid and the page loads over HTTPS without a warning.',
-  'Open the one goal period and confirm it is unlocked — the lock refusal in Section 5 needs it open.',
-  'Have the twenty-one questions document open in another tab, ready to send before the meeting ends.',
-  'Decide in advance whether Reports and Requests will be deployed. If not, they stay in Section 7 as dated commitments and are not opened.',
+children.push(BOX('Five minutes before anyone joins', [
+  'Log in as each of the three accounts once. The first sign-in links the account to the employee record, and you do not want to find a problem live.',
+  'Check the site loads with the padlock and no warning.',
+  'Check the target period is still open — the refusal in Section 5 needs it open.',
+  'Have the 21 questions open in another tab, ready to send before the meeting ends.',
+  'Decide in advance whether Reports and Requests will be installed. If not, they stay in Section 7 and you do not open them.',
 ], 'EAF0F6', ACCENT));
-
 /* ── document ────────────────────────────────────────────────────── */
 
 const doc = new Document({
   creator: 'Summit Logic Solutions',
-  title: 'Guanzon HCM — Client Demo Meeting Flow, HR Setup FAQ and Technical Q&A',
+  title: 'Guanzon HCM — Client Demo: Meeting Flow, HR Questions and IT Questions',
   description: 'Role-by-role demo flow and HR Manager setup Q&A',
   styles: {
     default: {
