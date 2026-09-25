@@ -156,7 +156,7 @@ children.push(new Paragraph({
   spacing: { after: 240 },
   border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: ACCENT, space: 6 } },
   children: [new TextRun({
-    text: 'Meeting flow by access role, and an HR Manager setup Q&A',
+    text: 'Meeting flow by access role, an HR Manager setup Q&A, and the technical evaluation',
     size: 22, color: MUTED,
   })],
 }));
@@ -181,6 +181,15 @@ children.push(BOX('Before you present — read this first', [
 ]));
 
 children.push(SPACER());
+
+children.push(RP([
+  ['This document is in three parts. ', {}],
+  ['Part One', { bold: true }], [' is the meeting itself, minute by minute. ', {}],
+  ['Part Two', { bold: true }], [' is the HR Manager’s questions about setting it up and running it. ', {}],
+  ['Part Three', { bold: true }],
+  [' is for the technical person in the room — read it even if you are not technical, because the three things it tells you ', {}],
+  ['not', { italics: true }], [' to claim are the ones that cost the most when claimed.', {}],
+], { after: 200 }));
 
 /* ── Section 0 ───────────────────────────────────────────────────── */
 children.push(H1('1. The shape of the meeting'));
@@ -716,6 +725,257 @@ children.push(TBL(
 
 children.push(new Paragraph({ children: [new PageBreak()] }));
 
+/* ══ PART THREE ══════════════════════════════════════════════════ */
+children.push(new Paragraph({
+  spacing: { after: 160 },
+  border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: ACCENT, space: 6 } },
+  children: [new TextRun({ text: 'Part Three', size: 32, bold: true, color: ACCENT })],
+}));
+children.push(H1('9. The in-house technical person'));
+
+children.push(P(
+  'They are usually the quietest person in the room and the one whose opinion '
+  + 'decides it afterwards. They are not evaluating features — they are working '
+  + 'out whether this becomes their problem at 2am, and whether they can get rid '
+  + 'of you later if they need to.',
+));
+
+children.push(BOX('How to handle this person', [
+  [['Answer in specifics or say you do not know. ', { bold: true }],
+   ['They will detect a bluff faster than the HR audience will, and one caught bluff costs you every other answer in the room.', {}]],
+  [['Three things below are genuinely not done: a restore has never been drilled on ', {}],
+   ['their', { italics: true }],
+   [' hardware, Active Directory has never been tested against ', {}],
+   ['their', { italics: true }],
+   [' directory, and there has been no third-party penetration test. Volunteer all three before being asked. It buys more credibility than any feature in the demo.', {}]],
+], 'EAF0F6', ACCENT));
+
+/* A. Stack */
+children.push(H2('A. What actually runs on the box'));
+
+faq('What is the stack?',
+  '', [
+    TBL(['Layer', 'What it is', 'Notes'],
+      [
+        ['Database', 'PostgreSQL 16', 'Not interchangeable — the authorisation model is built on PostgreSQL row-level security.'],
+        ['API', 'Node 22, NestJS 11, TypeScript', 'Talks to Postgres through the standard pg driver and hand-written SQL. No ORM.'],
+        ['Web', 'React 19 + Vite, static build', 'A plain single-page app. No server-side rendering, nothing to execute at request time.'],
+        ['Identity', 'Keycloak (self-hosted OIDC)', 'Federates to Active Directory. We did not hand-roll passwords, reset, lockout or MFA.'],
+        ['Proxy / TLS', 'Caddy 2', 'TLS termination. Works with your internal CA.'],
+        ['Packaging', 'Docker Compose, five containers', 'One host. Kubernetes for this workload would be self-harm.'],
+      ],
+      [1700, 3100, 5280]),
+  ]);
+
+faq('Why no ORM? That is unusual.',
+  [[['Because the security rules live in the database and we have to be able to read the query that is actually sent. An ORM that hides the SQL makes a row-level security policy very hard to reason about — and this system has ', {}],
+    ['146 of them across 57 tables', { bold: true }],
+    ['. Hand-written SQL is more typing and far less mystery.', {}]]]);
+
+faq('What is NOT on the box, that you might expect?',
+  [[['No message broker, no Redis, no Elasticsearch, no object storage. Background work — email, reminders, digests — runs from a durable queue table ', {}],
+    ['inside Postgres', { bold: true }],
+    [', so there is exactly one thing to back up and exactly one thing that can be down.', {}]],
+   [['There is also ', {}], ['no file upload anywhere in the product', { bold: true }],
+    ['. Evidence on a goal is a link to wherever your documents already live. That is a deliberate reduction of scope: no binary storage to size, back up or virus-scan, and no upload endpoint to harden.', {}]]]);
+
+/* B. Install and update */
+children.push(H2('B. Installation, updates and rollback'));
+
+faq('How is it installed?',
+  'Docker Compose on one Ubuntu server. Five containers, one command. There is no installer to babysit and no agent to deploy to workstations — staff use a browser.');
+
+faq('How do updates work, and how much downtime?',
+  [[['Images are built elsewhere and loaded onto the box, so the server never compiles anything and never needs a toolchain or internet access. An update is: load the images, run the migrations, restart. ', {}],
+    ['Roughly a minute of downtime', { bold: true }],
+    [', and it is deliberately scheduled rather than rolling — for a system this size, a predictable one-minute outage at 7pm is better engineering than a zero-downtime dance nobody can debug.', {}]]]);
+
+faq('How do you roll back a bad release?',
+  [[['The previous image is still on the box, so the application rolls back in seconds. ', {}],
+    ['Database migrations are forward-only', { bold: true }],
+    [' and do not roll back — which is why the backup immediately before a migration matters, and why the update procedure takes one.', {}]],
+   [['Be straight about this if they push: forward-only is a trade. It removes a whole class of "the down-migration was wrong" disasters and it means a bad schema change is restored from backup, not undone. Most teams that ship down-migrations have never successfully run one.', {}]]]);
+
+faq('How do you stop somebody editing a migration that already ran?',
+  'Every applied migration is checksummed. If a file that has already run is edited, the next deployment refuses to start and names the file. Schema drift between your server and ours is not something we want to detect by noticing odd behaviour.');
+
+/* C. Data */
+children.push(H2('C. Backup, restore and data'));
+
+faq('What is the backup story?',
+  [[['A nightly ', {}], ['pg_dump', { bold: true }],
+    [' in custom format, checksummed, encrypted with GPG, retained 30 days, written off the machine. The script verifies the dump is readable by pg_restore before it counts it as a success — a truncated dump exits cleanly and is worthless.', {}]],
+   [['There is also a ', {}], ['restore drill script', { bold: true }],
+    [' that restores the latest dump into a throwaway container, checks the data actually arrived, and prints how long it took. ', {}],
+    ['That number is your real recovery time', { italics: true }],
+    ['. Run it monthly and after every Postgres upgrade.', {}]]]);
+
+faq('What is the RPO?',
+  [[['With nightly dumps alone: ', {}], ['up to 24 hours', { bold: true }],
+    ['. Be blunt about that. If that is unacceptable — and for some HR data it is — the answer is continuous WAL archiving on top, which reduces it to minutes. It is a configuration decision and a disk-space decision, and it is theirs to make. Do not promise minutes and deliver a nightly dump.', {}]]]);
+
+faq('Has a restore ever been tested?',
+  [[['On our infrastructure, yes. ', {}],
+    ['On yours, no — because yours does not exist yet.', { bold: true }],
+    [' A tested restore on your own hardware is a go-live gate we would want written into the plan, not an optional step. A backup that has never been restored is a hypothesis.', {}]]]);
+
+faq('How big does the database get?',
+  'Small. This is text and numbers — no documents, no images, no binaries. A thousand employees with several years of history is comfortably inside a few gigabytes. Disk sizing is driven by backups and WAL, not by the data.');
+
+faq('Can we query the database directly for our own reporting?',
+  [[['Yes — it is your PostgreSQL server. Point Power BI, Metabase or anything else at it. ', {}],
+    ['One warning worth giving them unprompted:', { bold: true }],
+    [' a tool connecting as a superuser bypasses row-level security entirely. If they want a read-only reporting connection, ask us for one that is subject to the same rules, rather than handing out the postgres account.', {}]]]);
+
+/* D. Identity */
+children.push(H2('D. Identity and Active Directory'));
+
+faq('How does Active Directory integration actually work?',
+  [[['Keycloak sits between the application and your directory and does LDAP/AD user federation. Staff authenticate against AD with their existing credentials; the application never sees a password and stores none. Disable somebody in AD and they lose access here without HR doing anything.', {}]],
+   [['Be precise about the state: ', {}],
+    ['it is built and works against our own directory, and it has never been pointed at a production AD.', { bold: true, color: WARN }],
+    [' Expect group-to-role mapping and an attribute or two to need tuning. Budget a half-day with them; do not budget zero.', {}]]]);
+
+faq('How are users matched to employee records?',
+  'On first sign-in, the account is bound to the employee whose work email matches — and from then on the binding is what identifies them, never the email claim again. If AD and the 201 file disagree on somebody’s email, that person cannot sign in and the message says so. That is a real migration task worth planning for, not an edge case.');
+
+faq('Do you support MFA / SSO / conditional access?',
+  'Whatever Keycloak supports and whatever your AD policy already enforces — that is the reason we put Keycloak in front rather than building authentication ourselves. We inherit your policy instead of competing with it.');
+
+faq('What happens to sessions when somebody is terminated?',
+  'Disable the AD account and they cannot obtain a new token. An already-issued token remains valid until it expires, which is short by design — for an immediate cut, revoke the session in Keycloak. Separately, separating them in the HR system stops notifications and removes them from populations while keeping their history.');
+
+/* E. Security */
+children.push(H2('E. Security posture'));
+
+faq('How is access actually enforced?',
+  [[['In the database, by PostgreSQL row-level security — ', {}],
+    ['146 policies across 57 tables', { bold: true }],
+    ['. The application connects as a restricted role that is subject to them, and it is forced even for the table owner, so the migration account cannot read around them either.', {}]],
+   [['The practical consequence is the one to lead with: ', {}],
+    ['a bug in the application cannot leak another department’s records', { bold: true }],
+    [', because the rows never reach the application. That is not true of a system that filters in code.', {}]]]);
+
+faq('SQL injection?',
+  'Every query is parameterised — and even a successful injection would run as the restricted role, still subject to row-level security. Two independent layers, which is the point of putting the boundary underneath the application rather than inside it.');
+
+faq('How do you know the policies are correct? Policies are easy to get wrong.',
+  [[['They are tested against a real PostgreSQL in a container — not mocked, because a mock cannot verify a security policy. ', {}],
+    ['742 API tests and 138 front-end tests', { bold: true }],
+    [', and every security suite asserts it is not connected as a superuser before it trusts a single result. We have had tests pass for the wrong reason before; that assertion exists because of it.', {}]]]);
+
+faq('Has it had a penetration test?',
+  [[['No.', { bold: true, color: WARN }],
+    [' Internal review and automated testing only. If they want one before go-live that is entirely reasonable, and we would rather they commissioned it than that we claimed a clean bill of health we have not earned. Offer to support the test and fix what it finds.', {}]]]);
+
+faq('What about dependency vulnerabilities and patching?',
+  'Standard headers are applied at the API, the images are Alpine-based and rebuilt on each release, and dependency audits run in development. Patching the OS, Docker, Postgres and Keycloak on the box is an owner-and-cadence question for your side — name the person during the pilot, because an unpatched on-prem box is the most common way these systems get into trouble.');
+
+faq('Is anything exposed to the internet?',
+  [[['Not in the intended deployment. It listens on your LAN, and remote access is via your VPN. ', {}],
+    ['The demo you are looking at today is internet-facing because it has to be for this meeting', { bold: true }],
+    [' — that is a demo decision, not the architecture. Publishing it properly would mean a DMZ, a hardened proxy and a patching commitment, and that is a conversation to have deliberately rather than by accident.', {}]]]);
+
+faq('What is logged, and can we see who did what?',
+  'Every change is written to an audit trail with the actor and timestamp — approvals, calibration moves, rating changes, imports, role grants. Application logs are structured JSON to standard output, so they go wherever your Docker logging already goes. There is no metrics stack shipped; if they want Prometheus and Grafana, it is an addition and we should scope it rather than pretend it is there.');
+
+/* F. Ops */
+children.push(H2('F. Running it day to day'));
+
+faq('How do we know it is healthy?',
+  'Two unauthenticated endpoints: a liveness check that does not touch the database, and a readiness check that does and reports degraded if the database is unreachable. Docker uses them for container health; point your monitoring at the same two.');
+
+faq('What should we actually alert on?',
+  '', [
+    RBULLET([['Disk full on the database volume', { bold: true }], [' — the classic on-premise outage, and it is always this one.', {}]]),
+    RBULLET([['Backup failed', { bold: true }], [' — a silent backup failure is discovered at the worst possible moment.', {}]]),
+    RBULLET([['Readiness failing', { bold: true }], [' — the application is up but cannot reach the database.', {}]]),
+    RBULLET([['Certificate expiry', { bold: true }], [' — an expired internal certificate takes the whole system down, and always on a Sunday.', {}]]),
+  ]);
+
+faq('Is there a pre-flight check, or do we find out the hard way?',
+  [[['There is a command that answers “if a department logged in tomorrow, what would break?” It reads the live database and the live identity realm and reports PASS, WARN, FAIL or SKIP with a concrete remedy for each. It verifies that row-level security is enabled ', {}],
+    ['and forced', { italics: true }],
+    [' on every table — because a deployment where RLS was never switched on passes every unit test and leaks everything — and it fails if any demo account still exists in the realm.', {}]],
+   [['“SKIP” is reported as its own severity rather than being counted as a pass, which is a small thing that matters: a check that could not run is not a check that succeeded.', {}]]]);
+
+faq('What does a UPS have to do with it?',
+  'A hard power cut mid-write on an unprotected box is the single most likely cause of data loss in an office server room — more likely than any failure in the software. UPS with automated graceful shutdown, and RAID-1 at minimum. Say this even though it is their domain; it signals that you have run something on-premise before.');
+
+/* G. Performance */
+children.push(H2('G. Sizing and performance'));
+
+faq('What hardware do we need?',
+  [[['For up to about a thousand employees: ', {}],
+    ['8 vCPU, 32 GB RAM, 500 GB mirrored SSD, Ubuntu 24.04 LTS', { bold: true }],
+    ['. That is generous on purpose — it is sized for the spike at cycle close, not for the average Tuesday.', {}]],
+   [['A useful and slightly disarming data point: ', {}],
+    ['the demo you are using right now runs on a 1 GB cloud instance', { bold: true }],
+    [', with the whole stack — database, identity server, API, web, proxy — inside that. The specification above is headroom, not a minimum.', {}]]]);
+
+faq('What happens at cycle close when everyone logs in at once?',
+  'That is the load case the sizing targets. The heavy screens are read-only aggregates over a few tens of thousands of rows, which is small for PostgreSQL. If it ever does become slow, the fix is ordinary database work — indexes and query plans — rather than re-architecture, because the reporting is plain SQL you can read and EXPLAIN.');
+
+faq('How many companies can it hold?',
+  'It is multi-company from the ground up — the group structure is supported and separate companies cannot see each other, enforced by the same mechanism as everything else. On-premise, a single company per installation is what we would expect, and the pre-flight check warns if it finds more than one, so an accidental second tenant is visible rather than quiet.');
+
+/* H. Lock-in */
+children.push(H2('H. Lock-in, ownership and exit'));
+
+children.push(P(
+  'This is the question they most want to ask and are most reluctant to ask in '
+  + 'front of the vendor. Answer it before they have to.',
+));
+
+faq('What happens to us if Summit Logic disappears?',
+  [[['The data is in a standard PostgreSQL database on your hardware, in a schema that is plain readable SQL with comments explaining why each rule exists. There is no proprietary format and no phone-home. Another competent team could pick it up.', {}]],
+   [['The commercial half of that answer — source code ownership, escrow, handover — belongs in the contract rather than in the demo. ', {}],
+    ['Do not invent terms in the room.', { bold: true }],
+    [' Say it is a fair question, that the technical answer is “your data is yours and it is in an open format”, and that the commercial answer goes in the agreement.', {}]]]);
+
+faq('Can we get all our data out?',
+  'CSV export throughout the application, and direct database access underneath it. Exports through the app carry only what the person running them may see; direct database access is yours to control.');
+
+faq('Is there an API we can integrate with?',
+  [[['The application is a browser client talking to a REST API, so the API exists and is the same one the product uses. What does not exist yet is ', {}],
+    ['a documented, versioned public API with service credentials', { bold: true }],
+    [' — integrations today would be database-level or CSV. If they have a specific integration in mind, capture it as a requirement now rather than describing it as available.', {}]]]);
+
+/* I. Traps */
+children.push(H2('I. Do not say these'));
+
+children.push(TBL(
+  ['Do not say', 'Say instead'],
+  [
+    ['“It is fully secure.”',
+     '“Access is enforced in the database, it is tested against a real database, and it has not had a third-party penetration test. We would support one.”'],
+    ['“AD integration is done.”',
+     '“It is built and works against our directory. It has never been pointed at yours. Budget half a day with your team.”'],
+    ['“Backups are handled.”',
+     '“Nightly encrypted dumps with a verified-readable check, and a restore drill script. The restore has never been run on your hardware — that should be a go-live gate.”'],
+    ['“Zero downtime updates.”',
+     '“About a minute, scheduled. Rollback of the application is seconds; the schema rolls forward, which is why an update takes a backup first.”'],
+    ['“It scales to any size.”',
+     '“It is sized for a thousand employees on one box. Beyond that we would want to measure rather than guess.”'],
+    ['“We can build that quickly.”',
+     'Nothing. Write it down and cost it afterwards. A technical evaluator remembers a casual estimate as a commitment.'],
+  ],
+  [3400, 6680],
+));
+
+children.push(SPACER());
+children.push(BOX('What to ask them, before they finish asking you', [
+  'Turning it around at the end changes the register of the conversation, and their answers are things you need anyway.',
+  '•  Who owns patching of the OS, Docker, Postgres and Keycloak once this is live?',
+  '•  Where does the off-machine backup land, and who checks that it landed?',
+  '•  Is there a UPS on that server, and has the graceful shutdown ever been tested?',
+  '•  Who administers Active Directory, and can we get a half-day with them during the pilot?',
+  '•  Do staff outside the office need access — and if so, is there already a VPN?',
+  '•  Is there an internal CA, or do we need a certificate strategy for the LAN name?',
+], 'EAF0F6', ACCENT));
+
+children.push(new Paragraph({ children: [new PageBreak()] }));
+
 /* ── Appendix ────────────────────────────────────────────────────── */
 children.push(H1('Appendix — logins, and the state of the host'));
 
@@ -770,7 +1030,7 @@ children.push(BOX('Five-minute pre-flight, before anyone joins', [
 
 const doc = new Document({
   creator: 'Summit Logic Solutions',
-  title: 'Guanzon HCM — Client Demo Meeting Flow and HR Setup FAQ',
+  title: 'Guanzon HCM — Client Demo Meeting Flow, HR Setup FAQ and Technical Q&A',
   description: 'Role-by-role demo flow and HR Manager setup Q&A',
   styles: {
     default: {
