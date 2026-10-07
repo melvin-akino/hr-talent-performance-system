@@ -42,6 +42,48 @@ never realistic does not have a performance problem.
 Record progress against it as you go. A PIP with no entries between opening and
 closing is not evidence of anything except that a form was filled in.
 
+## The form, and who signs it
+
+The plan in this system follows HCM's Performance Improvement Plan form
+(revised December 2025), section for section:
+
+| On the form | Here |
+|---|---|
+| Personal evaluation results, record of infractions | Evaluation results — typed in from the evaluation that led to the plan |
+| Area of concern | The reason for the plan |
+| Improvement goals: target score, review schedule | Target score, and the dates of the initial and final review |
+| Action plan: actions to be taken, and the timeline | Actions to be taken, and by when — each step with its date |
+| Skills to improve, officer's responsibility, expected outcome, remarks | The same boxes |
+
+Every box beyond the reason and one action is optional, as on the paper form. The
+score at the **initial** and **final** review is recorded when you record that
+review, and each is recorded once: reviews cannot be edited afterwards.
+
+### The four signatures
+
+The form is signed by the employee, the reporting officer, the department manager
+or area head, and an HCM representative.
+
+:::steps
+- Draft it — nobody can sign yet, because a draft can still change.
+- Activate it — the employee is told, and the four signature lines open.
+- Each party signs their own line — you can only sign as the part you hold.
+- The plan shows who signed, and when, against each line.
+:::
+
+:::note
+**You cannot sign someone else's line, and you cannot sign the department or HCM
+line on your own plan.** The system offers each person only the lines they hold.
+Where one person holds two — in HCM the department head and the HCM
+representative are the same person — they sign each line separately, and the
+record shows both.
+:::
+
+The form says that once acknowledged the plan may be used as a measure in the next
+evaluation period, so every clarification should be answered *before* anyone signs.
+The system records the signatures; it does not yet stop a plan being used while
+some are missing.
+
 ## Philippine context — read this part
 
 This system records a performance plan. **It is not a disciplinary process and

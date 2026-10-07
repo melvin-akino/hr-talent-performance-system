@@ -1,4 +1,4 @@
-# Where we are — 2026-09-11
+# Where we are — 2026-10-07
 
 A resume point, written so that a **person or an agent arriving cold** can carry
 on without this session's context. The plan lives in
@@ -18,14 +18,23 @@ Read in this order:
 
 ## Build status
 
-**Phases 0–7 complete.** 838 automated tests: 708 API against a real PostgreSQL
-via Testcontainers, 129 web, plus 14 Playwright journeys. Every screen listed in
-the README is built.
+**Phases 0–7 complete.** 998 automated tests: 818 API against a real PostgreSQL
+via Testcontainers, 180 web, plus 14 Playwright journeys (not run this session).
+Every screen listed in the README is built.
+
+**Deployed vs built are different, and today they differ:** the live demo host
+is at F3 (migration 0046). **F2, F4, B3b and F6 — migrations 0047, 0048, 0049 —
+are built, tested and committed, and NOT deployed.** See "The live demo" below
+for what a deploy needs.
 
 Delivered beyond the original phases, most recent first:
 
 | | |
 |---|---|
+| **F6** | December 2025 **PIP form**: four signatures, the form's sections, scored initial/final reviews (0049, D-019). Also fixes two bugs that predate it |
+| **B3b** | December 2025 **Performance Evaluation Form** is the standard — three classifications, per-rating descriptors, per-part results. **Weights are provisional** (D-018) |
+| **F4** | Request-and-approval flow; approving records a decision, never the change (0048, D-017) |
+| **F2** | Report builder over one shared evaluation-event union with the history screen (0047) |
 | **F3** | Unit dashboard for Department/Area/Regional Heads, and `hr grant-role` (0046) |
 | **A5** | ADR D-015: attendance crosses as a count, never a record |
 | **F0c** | Employee lifecycle: add, correct, record a change, end employment (0045) |
@@ -43,16 +52,18 @@ Delivered beyond the original phases, most recent first:
 
 | | | Blocked on |
 |---|---|---|
-| **F2** | Report builder: by name, type, period, PIP results (§7.2) | nothing — the eval types it needed arrived with C1 |
-| **F3** | Department Head and Area/Regional Head dashboards (§7.3) | nothing |
-| **F4** | Request-and-approval flow: extra competency, special eval, scoring adjustment (§7.9) | nothing |
+| **B3b follow-up** | Real per-indicator weights replace the provisional equal ones: flip `WEIGHTS_ARE_PROVISIONAL`, issue **v2** of the three templates (versions are immutable) | **R12** |
+| **B3c** | Whether the new forms replace the 40/30/30 composite or sit beside it; what to do with the peer engine | **R13** |
+| **F6 follow-up** | Whether all four signatures are required before a PIP counts, and where that gate lives | **R23** |
 | **C2** | Employee-relative scheduling + averaging execution | **Q7** |
 | **D4 / D5** | Peer averaging, min/max; anonymity model | **Q4 / Q5** |
 | **B4–B6** | The KPI composite, incentive bands, competency scoring | **R1, Q1, Q2, Q3** |
 | **E1–E2** | Attendance aggregates | **Q8** — the boundary itself is decided (D-015) |
 
-**F2** and **F4** are the remaining unblocked items. Everything else waits on
-the 21 questions.
+**There are no unblocked items left in the tracker.** Everything open waits on
+HCM, and the question count has grown, not shrunk: 21 sent in August, plus **13
+raised by the December 2025 forms (R12–R24)** that are in the tracker's §9 but
+not yet in any document sent to them.
 
 **Do not trust a stale "next" in this file.** B3 was listed here as the next
 item for weeks after it had shipped; the tracker had it as `[x]` and this file
@@ -97,6 +108,32 @@ Breaking any of these produces a system that still passes a casual demo.
   always wrong; a change closes the current period and opens a new one. Collapse
   them and a transfer silently re-parents every past review.
   `app.record_employment_event` refuses `event_type = 'correction'` outright.
+- **Every `withContext` is its own connection and its own transaction.** A read
+  from inside another `withContext` is a second connection and cannot see the
+  first one's uncommitted writes. `POST /pips` and `withdraw()` both created a row
+  and then answered 404 for it, because they read it back from inside the
+  transaction. Read back **after** the transaction commits.
+- **A route with no HTTP test has not been shown to work.** An employee could
+  never acknowledge their own PIP, and `POST /pips` always answered 404 — both
+  shipped, both live, both found only by writing the first test over HTTP of a path
+  nothing had called. Unit tests of the arithmetic do not exercise the wiring.
+- **A published form version is immutable, so a new standard arrives as new
+  templates, never an edit.** The December 2025 evaluation form is
+  `GGC-PEF-SALES / -SERVICE / -ADMIN`; `GGC-TOF` / `GGC-ADMIN` are retired by
+  `provision-org` only where nothing uses them. Re-provisioning must never issue a v2.
+- **Where a form prints a number, use it exactly; where it does not, make the
+  smallest assumption, isolate it, and label everything it touches.** The evaluation
+  form never says what each indicator is worth, so indicators are weighted equally
+  and every template says PROVISIONAL. Scores from it are estimates. The passing
+  floors are not affected: each is exactly 60% of its part, so rating every
+  indicator 3 lands on it under any weighting (asserted by test).
+- **A form's wording is transcribed verbatim, defects included.** The form has gaps
+  (three scales with no worst-case band, an indicator whose header contradicts its
+  layout). They are raised with HCM — R16, R17, R20 — not patched, because an
+  invented band is a scoring rule nobody agreed.
+- **Who may sign a PIP as whom lives in one SQL function**
+  (`app.pip_signable_parties`), read by the INSERT policy and by the screen. The
+  screen renders what the server says it may offer and never works it out.
 
 ---
 
@@ -128,6 +165,22 @@ than assumed: `/api/import/template` and `/api/import/columns` answer 401 while
 a bogus route answers 404, so the routes exist and are guarded; `app.has_org_grant`
 is present; the web bundle contains the Import staff tab; 622 MB of 909 in use
 with 538 MB of swap, unchanged by the new code.
+
+**NOT on the host as of 2026-10-07: F2 (0047), F4 (0048), B3b and F6 (0049).**
+Probed, not assumed: `/api/reports/evaluations` and `/api/requests` answer 404.
+A deploy needs, in this order:
+
+1. the normal redeploy, which applies 0047–0049. 0049 seeds the signature grants
+   for existing organisations itself;
+2. **`hr provision-org --org GGCHCM …` re-run.** The new evaluation formats are
+   published by provisioning, not by a migration, so without this the host has
+   migrations 0047–0049 and none of the new templates. Re-running also retires
+   `GGC-TOF` / `GGC-ADMIN` where nothing uses them, and says so where it declines;
+3. verify the two routes now answer 401 rather than 404, and that an employee can
+   acknowledge a PIP — which they could not before.
+
+**The employee-acknowledge and `POST /pips` bugs are live on the host until then.**
+The demo's PIP screen cannot create a plan without showing an error for it.
 
 A redeploy is ~8 minutes of build plus a 307 MB upload. It reuses the security
 group, key pair, instance and address, and leaves `.env` alone, so secrets and
@@ -202,6 +255,14 @@ sequentially (`fileParallelism: false`), and no containers leak — it looks lik
 memory pressure from the Testcontainers count. Left alone deliberately rather
 than papered over, but it will read as a flaky build if it reaches CI.
 
+It is worse when the machine is running other Docker stacks (this one is): in the
+last session **every** full run lost exactly one spec file to it, a different one
+each time, and each passed when run alone with
+`--pool=forks --poolOptions.forks.singleFork=true`. Run the full suite with
+`--poolOptions.forks.maxForks=2`, and treat "N−1 files passed plus one worker
+crash" as "re-run that file", not as a failure. Do not treat it as a pass until the
+missing file has actually been run.
+
 ---
 
 ## Waiting on the client
@@ -212,6 +273,19 @@ written up and ready to send:
 
 **Sending that document is the highest-value action available and it is not
 code.** Most of the remaining build is blocked behind it.
+
+**13 more questions (R12–R24) have not been written up for them.** They came from
+the December 2025 evaluation and PIP forms and are in the tracker's §9. The
+blocking ones: **R12** (what each indicator is worth — nothing on the evaluation
+form can be scored for real until this is answered), **R13** (do these forms
+replace the 40/30/30 composite, which decides whether the peer engine has a home)
+and **R14** (Admin is 70/30 here and was 60/40 in the 5-pager). The rest are the
+form's own defects and small confirmations. They should be added to the document
+rather than sent separately: one list, one reply.
+
+Numbering trap, already hit once: **R10 and R11 already exist** (round-2: a formula
+in `hcm kpi` missing two lines; six tasks spelled two ways), and "R10"/"R11" also
+appear everywhere as **rank labels**. New questions start at R12.
 
 **R1 blocks the most**: whether the quarterly task tally is normalised against
 each role's own target. As their scorecards are drawn, identical performance
@@ -230,6 +304,11 @@ governs how a tally converts to a score, not how metrics are stored.
 - **The KPI composite is not built** — the 30/40/30 split, the task nature
   multipliers, the banded conversion. Deliberate: three details in their
   workbook read two ways, and guessing would be worse than asking.
+- **Scores from the December 2025 evaluation form are estimates.** The form
+  prints what each part is worth but not what each indicator is, so indicators are
+  weighted equally until R12 is answered. Do not present a score from it as a
+  figure to act on. (The pass/fail line for an evaluation rated all "meets" is
+  unaffected — see the invariants.)
 - **Active Directory federation has never been tested against a real
   directory.** Keycloak OIDC works with its own realm; pointing it at their AD
   is untested. A successful demo proves nothing about it.

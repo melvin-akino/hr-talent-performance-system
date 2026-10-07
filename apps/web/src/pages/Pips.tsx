@@ -4,6 +4,9 @@ import { api } from '../auth';
 import type { Employee } from '../types';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
 import { Btn, Card, CheckinStatus, PageHead, Tag } from '../components/ds';
+import {
+  PipSignatures, type PipParty, type PipSignature,
+} from '../components/PipSignatures';
 
 interface Pip {
   id: string;
@@ -19,6 +22,25 @@ interface Pip {
   outcome: string | null;
   outcomeNotes: string | null;
   acknowledgedAt: string | null;
+  // The December 2025 form's sections.
+  seriesNo: string | null;
+  evaluatedOn: string | null;
+  latestEvaluationOn: string | null;
+  evaluationPart1Score: number | null;
+  evaluationPart2Score: number | null;
+  evaluationOverallScore: number | null;
+  pefReference: string | null;
+  pipReference: string | null;
+  recordOfInfractions: string | null;
+  targetScore: number | null;
+  initialReviewOn: string | null;
+  finalReviewOn: string | null;
+  skillsToImprove: string | null;
+  officerResponsibility: string | null;
+  additionalRemarks: string | null;
+  acknowledgements: PipSignature[];
+  /** What THIS viewer may sign right now — decided by the database. */
+  signableParties: PipParty[];
   milestoneCount: number;
   milestonesMet: number;
   milestonesPending: number;
@@ -42,15 +64,22 @@ interface PipReview {
   statusFlag: 'on_track' | 'at_risk' | 'off_track';
   employeeComment: string | null;
   reviewedBy: string;
+  kind: 'interim' | 'initial' | 'final';
+  score: number | null;
 }
 
 /**
  * Performance Improvement Plans.
  *
- * This screen shows only what the viewer is permitted to see -- a PIP is
- * visible to its subject, their direct supervisor, and HR, and the database
- * enforces that. An employee reaching this page sees their own plan and
- * nothing else, which is deliberate: someone on a PIP must be able to read it.
+ * This screen shows only what the viewer is permitted to see, and the database
+ * enforces it: a PIP is visible to its subject, their direct supervisor, HR, and
+ * the department or area head over their unit (who must read it to sign it). A
+ * skip-level manager is deliberately not on that list. An employee reaching this
+ * page sees their own plan and nothing else, which is deliberate: someone on a
+ * PIP must be able to read it.
+ *
+ * Laid out as the December 2025 form is: evaluation results, improvement goals,
+ * action plan, then the four signatures.
  */
 export default function Pips() {
   const [creating, setCreating] = useState(false);
@@ -73,7 +102,8 @@ export default function Pips() {
 
       <Card kicker={`Plans (${pips.data?.length ?? 0})`}>
         <p className="mb-3 text-xs t-muted">
-          Visible to the employee, their direct supervisor, and HR only.
+          Visible to the employee, their direct supervisor, HR, and the department
+          or area head over their unit.
         </p>
         {pips.data?.length === 0 ? (
           <p className="card-body" style={{ margin: 0 }}>No plans on record.</p>
@@ -90,13 +120,16 @@ export default function Pips() {
                       {p.employeeName}
                     </button>
                     <p className="text-xs t-muted">
+                      {p.seriesNo && <>{p.seriesNo} · </>}
                       {p.startsOn} → {p.endsOn} · supervisor {p.supervisorName} ·{' '}
                       {p.milestonesMet}/{p.milestoneCount} milestones met
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {!p.acknowledgedAt && p.state === 'active' && (
-                      <span className="text-xs text-muted">not acknowledged</span>
+                    {p.state === 'active' && p.acknowledgements.length < 4 && (
+                      <span className="text-xs text-muted">
+                        {p.acknowledgements.length} of 4 signed
+                      </span>
                     )}
                     <span className="tag">
                       {p.state}{p.outcome ? ` · ${p.outcome}` : ''}
@@ -148,21 +181,70 @@ function PipDetail({ pip }: { pip: Pip }) {
 
   const isSubject = me.data?.id === pip.employeeId;
 
+  const sign = useMutation({
+    mutationFn: (party: PipParty) =>
+      api(`/pips/${pip.id}/acknowledge`, { method: 'POST', body: { party } }),
+    onSuccess: invalidate,
+  });
+
+  // The scores recorded at the two reviews the schedule names. A scheduled date
+  // with no score yet is shown as scheduled, not as missing.
+  const recorded = (kind: 'initial' | 'final') =>
+    reviews.data?.find((r) => r.kind === kind);
+  const initial = recorded('initial');
+  const final = recorded('final');
+
+  const hasResults = [
+    pip.seriesNo, pip.evaluatedOn, pip.latestEvaluationOn, pip.evaluationPart1Score,
+    pip.evaluationPart2Score, pip.evaluationOverallScore, pip.pefReference,
+    pip.pipReference, pip.recordOfInfractions,
+  ].some((v) => v !== null && v !== '');
+
   return (
     <div className="mt-3 space-y-4 panel-tint p-4">
-      <div>
-        <h3 className="text-xs font-semibold tracking-wide t-muted uppercase">Reason</h3>
-        <p className="mt-1 text-sm">{pip.reason}</p>
-        {pip.expectedOutcome && (
-          <p className="mt-2 text-sm">
-            <span className="font-medium">Expected outcome: </span>{pip.expectedOutcome}
-          </p>
-        )}
-      </div>
+      {hasResults && (
+        <FormSection title="Evaluation results">
+          <FormRow label="Series no." value={pip.seriesNo} />
+          <FormRow label="Date of evaluation" value={pip.evaluatedOn} />
+          <FormRow label="Date of latest evaluation" value={pip.latestEvaluationOn} />
+          <FormRow label="Score — part 1" value={pip.evaluationPart1Score} />
+          <FormRow label="Score — part 2" value={pip.evaluationPart2Score} />
+          <FormRow label="Overall score" value={pip.evaluationOverallScore} />
+          <FormRow label="PEF reference" value={pip.pefReference} />
+          <FormRow label="PIP reference" value={pip.pipReference} />
+          <FormRow label="Record of infractions" value={pip.recordOfInfractions} />
+        </FormSection>
+      )}
+
+      <FormSection title="Area of concern">
+        <p className="text-sm">{pip.reason}</p>
+      </FormSection>
+
+      {(pip.targetScore !== null || pip.initialReviewOn || pip.finalReviewOn) && (
+        <FormSection title="Improvement goals">
+          <FormRow label="Target score" value={pip.targetScore} />
+          <FormRow
+            label="Initial review"
+            value={reviewLine(pip.initialReviewOn, initial)} />
+          <FormRow
+            label="Final review"
+            value={reviewLine(pip.finalReviewOn, final)} />
+        </FormSection>
+      )}
+
+      {(pip.skillsToImprove || pip.officerResponsibility || pip.expectedOutcome
+        || pip.additionalRemarks) && (
+        <FormSection title="Action plan">
+          <FormRow label="Skills / behaviour to improve" value={pip.skillsToImprove} />
+          <FormRow label="Officer's responsibility" value={pip.officerResponsibility} />
+          <FormRow label="Expected outcome" value={pip.expectedOutcome} />
+          <FormRow label="Additional remarks" value={pip.additionalRemarks} />
+        </FormSection>
+      )}
 
       <div>
         <h3 className="mb-2 text-xs font-semibold tracking-wide t-muted uppercase">
-          Milestones
+          Actions to be taken, and when
         </h3>
         <ul className="space-y-2">
           {milestones.data?.map((m) => (
@@ -217,6 +299,11 @@ function PipDetail({ pip }: { pip: Pip }) {
               <li key={r.id} className="border-l-2 border-divider pl-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <CheckinStatus status={r.statusFlag} />
+                  {r.kind !== 'interim' && (
+                    <Tag tone="solid">
+                      {r.kind} review{r.score !== null ? ` · ${r.score}` : ''}
+                    </Tag>
+                  )}
                   <span className="text-xs t-muted">{r.reviewDate} · {r.reviewedBy}</span>
                 </div>
                 <p className="mt-1 text-sm">{r.progressSummary}</p>
@@ -235,15 +322,19 @@ function PipDetail({ pip }: { pip: Pip }) {
         <PipReviewForm pipId={pip.id} onDone={invalidate} />
       )}
 
+      <PipSignatures
+        state={pip.state}
+        signatures={pip.acknowledgements}
+        signable={pip.signableParties}
+        pending={sign.isPending}
+        onSign={(party) => sign.mutate(party)}
+      />
+      <ErrorNote error={sign.error} />
+
       <div className="flex flex-wrap gap-2 no-print">
         {pip.state === 'draft' && !isSubject && (
           <Btn variant="primary" onClick={() => act.mutate({ path: 'activate' })}>
             Activate plan
-          </Btn>
-        )}
-        {pip.state === 'active' && isSubject && !pip.acknowledgedAt && (
-          <Btn variant="primary" onClick={() => act.mutate({ path: 'acknowledge' })}>
-            Acknowledge receipt
           </Btn>
         )}
         {pip.state === 'active' && !isSubject && (
@@ -268,11 +359,44 @@ function PipDetail({ pip }: { pip: Pip }) {
   );
 }
 
+/** A titled block of the printed form. */
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="mb-1 text-xs font-semibold tracking-wide t-muted uppercase">{title}</h3>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+/** One labelled line of the form. Absent when the box was left blank. */
+function FormRow({ label, value }: { label: string; value: string | number | null }) {
+  if (value === null || value === '') return null;
+  return (
+    <p className="text-sm">
+      <span className="font-medium">{label}: </span>{value}
+    </p>
+  );
+}
+
+/** "scheduled 2026-04-01 · scored 62.5", or just the schedule while it is ahead. */
+function reviewLine(
+  scheduled: string | null, recorded: PipReview | undefined,
+): string | null {
+  if (!scheduled && !recorded) return null;
+  const parts: string[] = [];
+  if (scheduled) parts.push(`scheduled ${scheduled}`);
+  if (recorded && recorded.score !== null) parts.push(`scored ${recorded.score}`);
+  return parts.join(' · ');
+}
+
 function PipReviewForm({ pipId, onDone }: { pipId: string; onDone: () => void }) {
   const [reviewDate, setReviewDate] = useState(new Date().toISOString().slice(0, 10));
   const [statusFlag, setStatusFlag] = useState('on_track');
   const [progressSummary, setProgressSummary] = useState('');
   const [employeeComment, setEmployeeComment] = useState('');
+  const [kind, setKind] = useState<'interim' | 'initial' | 'final'>('interim');
+  const [score, setScore] = useState('');
 
   const save = useMutation({
     mutationFn: () =>
@@ -281,9 +405,14 @@ function PipReviewForm({ pipId, onDone }: { pipId: string; onDone: () => void })
         body: {
           reviewDate, statusFlag, progressSummary: progressSummary.trim(),
           employeeComment: employeeComment.trim() || undefined,
+          kind,
+          score: kind !== 'interim' && score !== '' ? Number(score) : undefined,
         },
       }),
-    onSuccess: () => { setProgressSummary(''); setEmployeeComment(''); onDone(); },
+    onSuccess: () => {
+      setProgressSummary(''); setEmployeeComment(''); setKind('interim'); setScore('');
+      onDone();
+    },
   });
 
   return (
@@ -301,6 +430,21 @@ function PipReviewForm({ pipId, onDone }: { pipId: string; onDone: () => void })
           <option value="off_track">Off track</option>
         </select>
       </Field>
+      <Field label="Review" hint="The form's schedule names an initial and a final review.">
+        <select className={inputClass} value={kind}
+                onChange={(e) => setKind(e.target.value as typeof kind)}>
+          <option value="interim">Ordinary review</option>
+          <option value="initial">Initial review</option>
+          <option value="final">Final review</option>
+        </select>
+      </Field>
+      {kind !== 'interim' && (
+        <Field label="Score" hint="Out of 100. An initial or final review records one.">
+          <input type="number" min={0} max={100} step="0.01" required
+                 className={inputClass} value={score}
+                 onChange={(e) => setScore(e.target.value)} />
+        </Field>
+      )}
       <div className="sm:col-span-2">
         <Field label="Progress summary">
           <textarea rows={2} required className={inputClass} value={progressSummary}
@@ -340,6 +484,40 @@ function NewPipForm({ onDone }: { onDone: () => void }) {
     { description: '', successCriteria: '', dueOn: '' },
   ]);
 
+  // The December 2025 form's sections. All optional, as on the paper form.
+  const [extra, setExtra] = useState({
+    seriesNo: '', evaluatedOn: '', latestEvaluationOn: '',
+    evaluationPart1Score: '', evaluationPart2Score: '', evaluationOverallScore: '',
+    pefReference: '', pipReference: '', recordOfInfractions: '',
+    targetScore: '', initialReviewOn: '', finalReviewOn: '',
+    skillsToImprove: '', officerResponsibility: '', additionalRemarks: '',
+  });
+  const setX = (k: keyof typeof extra, v: string) =>
+    setExtra((prev) => ({ ...prev, [k]: v }));
+
+  /** Blank boxes are not sent: absent on the form is absent in the record. */
+  const optionalBody = () => {
+    const text = (v: string) => (v.trim() === '' ? undefined : v.trim());
+    const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
+    return {
+      seriesNo: text(extra.seriesNo),
+      evaluatedOn: text(extra.evaluatedOn),
+      latestEvaluationOn: text(extra.latestEvaluationOn),
+      evaluationPart1Score: num(extra.evaluationPart1Score),
+      evaluationPart2Score: num(extra.evaluationPart2Score),
+      evaluationOverallScore: num(extra.evaluationOverallScore),
+      pefReference: text(extra.pefReference),
+      pipReference: text(extra.pipReference),
+      recordOfInfractions: text(extra.recordOfInfractions),
+      targetScore: num(extra.targetScore),
+      initialReviewOn: text(extra.initialReviewOn),
+      finalReviewOn: text(extra.finalReviewOn),
+      skillsToImprove: text(extra.skillsToImprove),
+      officerResponsibility: text(extra.officerResponsibility),
+      additionalRemarks: text(extra.additionalRemarks),
+    };
+  };
+
   const create = useMutation({
     mutationFn: () =>
       api('/pips', {
@@ -348,6 +526,7 @@ function NewPipForm({ onDone }: { onDone: () => void }) {
           employeeId, reason: reason.trim(),
           expectedOutcome: expectedOutcome.trim() || undefined,
           startsOn, endsOn, reviewCadence,
+          ...optionalBody(),
           milestones: milestones.map((m) => ({
             description: m.description.trim(),
             successCriteria: m.successCriteria.trim() || undefined,
@@ -389,8 +568,8 @@ function NewPipForm({ onDone }: { onDone: () => void }) {
 
         <div className="sm:col-span-2">
           <Field
-            label="Reason"
-            hint="Be specific and factual. This is an employment record and may be read back later."
+            label="Area of concern"
+            hint="The areas where expectations have not been met. Be specific and factual — this is an employment record and may be read back later."
           >
             <textarea rows={3} required minLength={10} className={inputClass} value={reason}
                       onChange={(e) => setReason(e.target.value)} />
@@ -398,9 +577,102 @@ function NewPipForm({ onDone }: { onDone: () => void }) {
         </div>
 
         <div className="sm:col-span-2">
-          <Field label="Expected outcome">
+          <Field label="Record of infraction/s"
+                 hint="You may ask HCM for assistance with the record.">
+            <textarea rows={2} className={inputClass} value={extra.recordOfInfractions}
+                      onChange={(e) => setX('recordOfInfractions', e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="sm:col-span-2">
+          <h3 className="text-sm font-medium">Personal evaluation results</h3>
+          <p className="text-xs t-muted">
+            From the evaluation that led to this plan. Typed in, as on the paper form.
+          </p>
+        </div>
+        <Field label="Series no.">
+          <input className={inputClass} value={extra.seriesNo}
+                 onChange={(e) => setX('seriesNo', e.target.value)} />
+        </Field>
+        <Field label="Date of evaluation">
+          <input type="date" className={inputClass} value={extra.evaluatedOn}
+                 onChange={(e) => setX('evaluatedOn', e.target.value)} />
+        </Field>
+        <Field label="Date of latest evaluation">
+          <input type="date" className={inputClass} value={extra.latestEvaluationOn}
+                 onChange={(e) => setX('latestEvaluationOn', e.target.value)} />
+        </Field>
+        <Field label="PEF reference">
+          <input className={inputClass} value={extra.pefReference}
+                 onChange={(e) => setX('pefReference', e.target.value)} />
+        </Field>
+        <Field label="Score — part 1">
+          <input type="number" min={0} max={100} step="0.01" className={inputClass}
+                 value={extra.evaluationPart1Score}
+                 onChange={(e) => setX('evaluationPart1Score', e.target.value)} />
+        </Field>
+        <Field label="Score — part 2">
+          <input type="number" min={0} max={100} step="0.01" className={inputClass}
+                 value={extra.evaluationPart2Score}
+                 onChange={(e) => setX('evaluationPart2Score', e.target.value)} />
+        </Field>
+        <Field label="Overall score">
+          <input type="number" min={0} max={100} step="0.01" className={inputClass}
+                 value={extra.evaluationOverallScore}
+                 onChange={(e) => setX('evaluationOverallScore', e.target.value)} />
+        </Field>
+        <Field label="PIP reference" hint="A previous plan, if any.">
+          <input className={inputClass} value={extra.pipReference}
+                 onChange={(e) => setX('pipReference', e.target.value)} />
+        </Field>
+
+        <div className="sm:col-span-2">
+          <h3 className="text-sm font-medium">Improvement goals</h3>
+        </div>
+        <Field label="Target score" hint="Out of 100.">
+          <input type="number" min={0} max={100} step="0.01" className={inputClass}
+                 value={extra.targetScore}
+                 onChange={(e) => setX('targetScore', e.target.value)} />
+        </Field>
+        <div />
+        <Field label="Initial review date">
+          <input type="date" className={inputClass} value={extra.initialReviewOn}
+                 onChange={(e) => setX('initialReviewOn', e.target.value)} />
+        </Field>
+        <Field label="Final review date">
+          <input type="date" className={inputClass} value={extra.finalReviewOn}
+                 onChange={(e) => setX('finalReviewOn', e.target.value)} />
+        </Field>
+
+        <div className="sm:col-span-2">
+          <h3 className="text-sm font-medium">Action plan</h3>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Skills / behaviour to improve"
+                 hint="The skills, behaviour, duties or actions that need to improve. Be specific.">
+            <textarea rows={2} className={inputClass} value={extra.skillsToImprove}
+                      onChange={(e) => setX('skillsToImprove', e.target.value)} />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Officer's responsibility"
+                 hint="Support, training or resources needed to improve the employee's performance.">
+            <textarea rows={2} className={inputClass} value={extra.officerResponsibility}
+                      onChange={(e) => setX('officerResponsibility', e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="sm:col-span-2">
+          <Field label="Expected outcome"
+                 hint="The overall outcome if the plan is achieved, or not achieved, by the plan end date.">
             <textarea rows={2} className={inputClass} value={expectedOutcome}
                       onChange={(e) => setExpectedOutcome(e.target.value)} />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Additional remarks">
+            <textarea rows={2} className={inputClass} value={extra.additionalRemarks}
+                      onChange={(e) => setX('additionalRemarks', e.target.value)} />
           </Field>
         </div>
 
@@ -416,7 +688,8 @@ function NewPipForm({ onDone }: { onDone: () => void }) {
         <div className="sm:col-span-2">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-medium">
-              Milestones <span className="text-xs font-normal t-muted">(at least one required)</span>
+              Actions to be taken, and by when{' '}
+              <span className="text-xs font-normal t-muted">(at least one required)</span>
             </h3>
             <Btn type="button"
                     onClick={() => setMilestones((p) => [...p, { description: '', successCriteria: '', dueOn: '' }])}>

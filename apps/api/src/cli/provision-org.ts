@@ -65,6 +65,9 @@ const SEEDERS = [
   // F4: the request-and-approval flow (§7.9).
   'app.seed_change_request_grants',
   'app.seed_change_request_templates',
+  // F6: who may sign the PIP as department head and as HCM representative. After
+  // seed_line_role_grants, which defines the roles it grants to.
+  'app.seed_pip_signature_grants',
 ] as const;
 
 const EMPLOYMENT_TYPES: [string, string, boolean][] = [

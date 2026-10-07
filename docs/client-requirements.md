@@ -363,15 +363,19 @@ evaluation results.
 | **R7** | "Selection of Subject … by **salary level**" — a pay grade, or an amount? We store no salary (D-009). | 5.4, D-009 |
 | **R8** | The band table starts at 71 and stops at "100 up". What happens at **70 and below**, and does "100 up → 35" push a total past 100? | 3.6, 3.7 |
 | **R9** | Timeline: which **year**, and what are the dates for Testing & Devt, Initial Run and Program Prep 2 (no bars drawn)? | planning |
-| **R10** | **The December 2025 evaluation form prints no point value per indicator** — only what each part adds up to. What is each indicator worth, for Sales, Service and Admin? Until answered, indicators are weighted equally and scores are estimates. | 3.2, B3b |
-| **R11** | Do the December 2025 forms **replace** the 40 / 30 / 30 KPI composite, or sit alongside it? They carry no peer-review component at all, and we have built the peer engine. | 3.4, 6 |
-| **R12** | **Admin** is 70/30 on the new form and 60/40 in the 5-pager. We have used the new form. Please confirm. | 3.3, B3b |
-| **R13** | **Where is an employee's classification (Sales / Service / Admin) recorded**, and who sets it? The forms use it and nothing in our data holds it. | 3.3, R6 |
-| **R14** | **Office Reporting** says "1 point for each of the following" but is laid out as a 5-4-3-2-1 grid like every other indicator. Tick-count, or pick one tier? We have used the grid. | B3b |
-| **R15** | Three scales have no band for the worst case — **Attitude and Decorum** (nothing for someone *with* a disciplinary action this quarter), **Training** (none for no training at all) and **Tenure** (stops at 5–6 years). What score do those people get? | B3b |
-| **R16** | **Attendance** is in minutes — per day, month, quarter, cumulative? And how do **Q1–Q4** become the overall score: average, sum, or latest? | 5.4, B3b |
-| **R17** | Is **passing** judged per part, or only on the total? Does failing one part fail the evaluation? | B3b |
-| **R18** | The nested bands (Attitude, Training, Tenure) are cumulative — anyone who qualifies for 5 also qualifies for 4. Confirm the rule is **highest band satisfied**. | B3b |
+| **R12** | **The December 2025 evaluation form prints no point value per indicator** — only what each part adds up to. What is each indicator worth, for Sales, Service and Admin? Until answered, indicators are weighted equally and scores are estimates. | 3.2, B3b |
+| **R13** | Do the December 2025 forms **replace** the 40 / 30 / 30 KPI composite, or sit alongside it? They carry no peer-review component at all, and we have built the peer engine. | 3.4, 6 |
+| **R14** | **Admin** is 70/30 on the new form and 60/40 in the 5-pager. We have used the new form. Please confirm. | 3.3, B3b |
+| **R15** | **Where is an employee's classification (Sales / Service / Admin) recorded**, and who sets it? The forms use it and nothing in our data holds it. | 3.3, R6 |
+| **R16** | **Office Reporting** says "1 point for each of the following" but is laid out as a 5-4-3-2-1 grid like every other indicator. Tick-count, or pick one tier? We have used the grid. | B3b |
+| **R17** | Three scales have no band for the worst case — **Attitude and Decorum** (nothing for someone *with* a disciplinary action this quarter), **Training** (none for no training at all) and **Tenure** (stops at 5–6 years). What score do those people get? | B3b |
+| **R18** | **Attendance** is in minutes — per day, month, quarter, cumulative? And how do **Q1–Q4** become the overall score: average, sum, or latest? | 5.4, B3b |
+| **R19** | Is **passing** judged per part, or only on the total? Does failing one part fail the evaluation? | B3b |
+| **R20** | The nested bands (Attitude, Training, Tenure) are cumulative — anyone who qualifies for 5 also qualifies for 4. Confirm the rule is **highest band satisfied**. | B3b |
+| **R21** | The PIP names a **Session Coach Officer** at the top and a **Reporting Officer** at the bottom. One person, or two (an HCM coach alongside the supervisor)? We have used the supervisor for both. | F6 |
+| **R22** | **Series No.** — what format, who assigns it, and is the evaluation form's number the same sequence as the PIP's? Until it is settled "PEF reference" stays text and cannot become a real link. | F6, B3b |
+| **R23** | The form says that once acknowledged a PIP "may be used as a metric in succeeding performance evaluation period". Must **all four** signatures be present before it counts? We record who signed and gate nothing. | F6 |
+| **R24** | Department managers and area heads can now read **and sign** PIPs in their unit (they already could read them, 0030). PIP visibility was deliberately kept to employee / supervisor / HR; the form makes them a party. Please confirm that is intended. | F6 |
 
 ---
 
@@ -563,14 +567,14 @@ calendar commitments.
       **Per-part results.** `scoreResponses` and `POST /reviews/:id/submit` now
       return each part's total and whether it met its floor. A total of 58 says
       nothing about *which* part failed. Whether failing one part fails the whole
-      evaluation is not printed on the form, so nothing decides it (R17).
+      evaluation is not printed on the form, so nothing decides it (R19).
 
       **Old formats are retired, not deleted**, and only where nothing uses them:
       a published version is immutable, and deactivating a template that is
       still assigned would make the cycle generator stop finding a form.
 
       Not modelled, and listed so it is not mistaken for done: Series No.,
-      Quarterly points Q1–Q4 and their aggregation (R16), the HCM header block,
+      Quarterly points Q1–Q4 and their aggregation (R18), the HCM header block,
       and the **Wage Committee** stage (deliberation, approved rank, HCM / GM /
       EVP signatures) — a workflow stage with its own membership, not a field.
 
@@ -1095,6 +1099,49 @@ because dropping two real tasks to match a formula would be the wrong way round.
       and `seed_reminder_templates` were never on the provisioning list, so
       every org created after 0042 and 0043 had the F5/F5b emitters and none of
       their templates.
+- [x] **F6** The December 2025 PIP form is the standard — DONE (migration
+      `0049_pip_standard_form.sql`, D-019). The plan now carries every section
+      of HCM's revised form, and is signed by the **four** parties it names.
+
+      **What mapped where.** "Area of concern" is `reason`; "action/s to be taken"
+      with its "timeline" is the milestone list — a step and the date it is due,
+      which is that pair of boxes in structured form. Everything else on the form
+      is new: series no., the evaluation results that triggered the plan, a
+      target score, an initial and a final review *with scores*, and three
+      free-text sections. All optional, because the form marks none required and
+      making them mandatory would change what raising a plan takes for every
+      organisation at once.
+
+      **Four signatures, not one.** `pip_acknowledgement`: employee, reporting
+      officer, department manager / area head, HCM representative. Who may sign as
+      whom is one SQL function (`app.pip_signable_parties`), used by the INSERT
+      policy *and* by the screen to decide which buttons to offer, so the two
+      cannot disagree. Two distinct resources (`pip_dh_ack`, `pip_hcm_ack`) rather
+      than one `approve`, or HR could sign as the department head. Never as
+      someone else's role on your **own** plan. One person *may* hold two lines on
+      someone else's plan — in HCM the department head and the HCM representative
+      are the same person, and forbidding it would make the form unsignable for
+      the unit that wrote it. Active plans only; append-only; audited.
+
+      **Two bugs that predate this work, found by writing the first HTTP test of
+      each path:**
+      - **An employee could never acknowledge their own PIP.** The old path
+        updated `pip_plan`, which the update policy hid from them (they hold only
+        `pip:read` on themselves), so the service told the one person entitled to
+        acknowledge it that they were not. Live on the demo host.
+      - **`POST /pips` created the plan and answered 404.** It read the plan back
+        on a second connection, which cannot see its own transaction's insert. The
+        screen reported failure for a plan that existed, and a second click made a
+        duplicate. Same pattern as the `withdraw()` bug in F4.
+
+      Existing employee acknowledgements are carried into the new table by the
+      migration, with their original timestamps (tested on a database built in two
+      stages). `pip_plan.acknowledged_at` is superseded and nothing writes it.
+
+      Not modelled: the "Parameter Guide" table (a legend printed on the form), and
+      a structured link from the PIP to the evaluation that triggered it — the form's
+      "PEF reference" is text, because our evaluations carry no series number (R22).
+
 - [x] **F5** Workflow notification events — DONE (migration
       `0042_notification_events.sql`). Six new templates, and emitters wired
       into the paths that were silent: `evaluation.assigned`,

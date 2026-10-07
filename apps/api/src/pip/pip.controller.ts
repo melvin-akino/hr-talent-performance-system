@@ -4,7 +4,7 @@ import {
 import { z } from 'zod';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
 import {
-  PipService, assessMilestone, closePip, createPip, createPipReview,
+  PipService, acknowledgePip, assessMilestone, closePip, createPip, createPipReview,
 } from './pip.service';
 import { MonitoringService } from './monitoring.service';
 
@@ -52,10 +52,21 @@ export class PipController {
     return this.pip.activate(req.auth, id);
   }
 
-  /** Only the subject employee may acknowledge. */
+  /**
+   * Sign the plan, as one of the four parties the form is signed by.
+   *
+   * With no body this is the employee's acknowledgement, exactly as before, so
+   * the original call and the screen that makes it keep working. Who may sign as
+   * which party is decided by the database, not here — see PipService.acknowledge.
+   */
   @Post('pips/:id/acknowledge')
-  acknowledge(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.pip.acknowledge(req.auth, id);
+  acknowledge(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    const { party } = acknowledgePip.parse(body ?? {});
+    return this.pip.acknowledge(req.auth, id, party);
   }
 
   @Post('pips/:id/reviews')

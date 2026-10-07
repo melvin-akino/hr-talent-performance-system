@@ -613,9 +613,9 @@ all-"meets" evaluation is not.
 **Consequences:**
 - Three single-column templates (`GGC-PEF-SALES`, `-SERVICE`, `-ADMIN`), not one
   three-column form. Which classification applies to a person is recorded nowhere
-  (R13), and a three-column form cannot score until somebody says. Three
+  (R15), and a three-column form cannot score until somebody says. Three
   templates are assigned through the existing assignment table and score alone.
-  `combinedTemplate()` builds the single form for the day R13 is answered.
+  `combinedTemplate()` builds the single form for the day R15 is answered.
 - **Forms are versioned and immutable, so the old instrument is retired, not
   edited**, and re-provisioning must never issue a v2. `provision-org` retires
   `GGC-TOF` / `GGC-ADMIN` only where nothing is assigned to them or issued from
@@ -624,14 +624,74 @@ all-"meets" evaluation is not.
   rubric. A bare 1–5 would let two supervisors rate the same person differently
   while both following the form.
 - Passing floors are per **part**, because that is what the form prints. Whether
-  failing one part fails the evaluation is not printed (R17), so nothing decides it.
+  failing one part fails the evaluation is not printed (R19), so nothing decides it.
 - Wording is transcribed verbatim, grammar slips included ("Sometimes exhibit
   exceptional efficiency"). An official template should read as the form HCM
-  signed off. The form's defects are raised with HCM (R14, R15, R18), not
+  signed off. The form's defects are raised with HCM (R16, R17, R20), not
   patched by us: inventing a band that the form does not have would be a scoring
   rule nobody agreed.
 
-**Revisit this decision when** HCM answers R10. The weights become data, the
+**Revisit this decision when** HCM answers R12. The weights become data, the
 switch flips, the descriptions stop saying PROVISIONAL, and — because published
 versions are immutable — a v2 of each template is issued and assigned. That is
 the intended path, not a failure of this one.
+
+---
+
+## D-019 — The PIP form: four signatures, and what the plan already held
+
+**Status:** accepted (F6)
+
+HCM's revised Performance Improvement Plan (December 2025) is the standard. It
+adds a document control number, the evaluation result that triggered the plan, a
+target score, a review schedule with scores, three free-text sections, and four
+signatories where there had been one.
+
+**Decision.** Add what the form carries; remove nothing; change no existing plan's
+meaning. Reuse what already did the job: "area of concern" is `reason`, and
+"action/s to be taken" with its "timeline" is the milestone list — a step and the
+date it is due is those two boxes, structured.
+
+**Signatures are a table, not four columns,** because each is a fact about a person
+and a moment, and "who signed as what" is the point of having four. The table is
+append-only and audited: a signature that can be edited is not evidence.
+
+**Who may sign as whom is defined once,** in `app.pip_signable_parties()`, and read
+by both the INSERT policy and the screen. The alternative — the policy in SQL and
+a second copy of the rule in the browser deciding which buttons to show — is the
+authorization boundary re-implemented where anyone can read it and nobody enforces
+it. The screen renders what the server says it may offer and never works it out.
+
+- **Two resources, not one action.** `pip_dh_ack` and `pip_hcm_ack` (the precedent
+  is `goal_target` in 0037). Riding one `approve` would let HR sign as the
+  department head.
+- **Never as someone else's role on your own plan.** The employee line is the only
+  one a person may hold about themselves.
+- **One person may hold two lines on someone else's plan.** In HCM the department
+  head and the HCM representative are the same person (see the role overlap decision
+  in the handoff). Forbidding it would make the form unsignable for the unit that
+  wrote it; recording who signed as what is the control.
+- **Only while active.** A draft can still change and a signature on terms that may
+  yet change attests to nothing; a closed plan cannot be signed into retroactively.
+- **Nothing is gated on signatures** (R23) and **none of the new sections is
+  mandatory.** The form marks none required, and inventing a rule would change what
+  raising a plan takes for every organisation at once.
+
+**Two things were deliberately NOT enforced:** that overall = part 1 + part 2 (the
+evaluation form shows an overall beside quarterly points, and if it is an average
+across quarters it need not equal the latest quarter's parts — R18), and that the
+typed scores match any evaluation on record (the form's "PEF reference" is text
+because our evaluations have no series number — R22). A constraint on either would
+reject real data on a guess.
+
+**Why two existing bugs surfaced here, and what that says.** Employees could never
+acknowledge their own plan (the update policy filtered their row out), and
+`POST /pips` answered 404 after creating the plan (it read back on a second
+connection that could not see the uncommitted insert). Both shipped and were live.
+Both were found only by writing the first HTTP test of a path nothing had called.
+**A route with no test over HTTP has not been shown to work**, whatever its unit
+tests say; the PIP screen was the second route in a week with this failure.
+
+**Revisit this decision when** R21–R24 are answered. In particular R23: if all four
+signatures are required before a plan counts, that becomes a gate on activation or
+on use, and it should be a database rule rather than a screen convention.
