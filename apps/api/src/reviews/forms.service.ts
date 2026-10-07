@@ -22,8 +22,26 @@ export const formField = z.object({
   // Technical/Ops/Field) on one instrument. See scoring.ts.
   points: fieldPoints.optional(),
   helpText: z.string().trim().optional(),
+  /**
+   * What each rating MEANS for this indicator, keyed by the rating's value.
+   *
+   * The client's evaluation form is a rubric: "Output / Performance" is not
+   * rated 1-5 in the abstract, it is rated by choosing which of five sentences
+   * describes the person ("Always exceeds target" ... "Does not meet target").
+   * Without those sentences two supervisors rate the same person differently
+   * and both are following the form. The org-wide rating scale cannot carry
+   * them — it labels 4 once, for every indicator — so they live on the field.
+   *
+   * Rating fields only, and a value with no anchor simply falls back to the
+   * scale's own label, so a form may anchor some indicators and not others.
+   */
+  anchors: z.record(z.string().regex(/^\d+$/, 'keyed by the rating value, e.g. "5"'),
+                    z.string().trim().min(1)).optional(),
   options: z.array(z.string()).optional(),
   maxLength: z.number().int().positive().optional(),
+}).refine((f) => f.anchors === undefined || f.type === 'rating', {
+  message: 'Anchors describe rating values, so only a rating field may carry them.',
+  path: ['anchors'],
 });
 
 export const formSchema = z.object({

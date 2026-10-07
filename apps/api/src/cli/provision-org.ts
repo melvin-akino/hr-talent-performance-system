@@ -18,7 +18,7 @@
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import {
-  CLIENT_FORMATS, CLIENT_TEMPLATE_TOTAL, formatTemplate,
+  CLIENT_FORMATS, CLIENT_TEMPLATE_TOTAL, SUPERSEDED_FORMAT_CODES, formatTemplate,
 } from '../reviews/client-templates';
 import {
   PEER_TEMPLATE_CODE, PEER_TEMPLATE_TOTAL, peerTemplate,
@@ -183,14 +183,15 @@ export async function provisionOrg(
         [template, JSON.stringify(STARTER_FORM), scale]);
     }
 
-    // The client's two 100-point formats (requirements section 3.3), published
+    // The client's Performance Evaluation Form (revised December 2025), one
+    // 100-point format per classification: Sales, Service and Admin. Published
     // and ready to assign.
     //
     // Deliberately NOT assigned to anything. Assignment decides who is measured
     // on which instrument, and getting that wrong is worse than leaving it
-    // undone -- an admin scored on the technical split loses ten points of
-    // attendance weighting without anyone seeing why. HR picks these up in
-    // Setup; the generic STD form below stays the default until they do.
+    // undone -- an Admin scored on the Service split loses ten points of Part 1
+    // weighting without anyone seeing why. HR picks these up in Setup; the
+    // generic STD form below stays the default until they do.
     for (const format of CLIENT_FORMATS) {
       const schema = formatTemplate(format.classification);
 
@@ -223,6 +224,45 @@ export async function provisionOrg(
     console.log(`  prepared formats: `
       + `${CLIENT_FORMATS.map((f) => f.code).join(', ')} `
       + `(${CLIENT_TEMPLATE_TOTAL} points each, unassigned)`);
+
+    // The two formats the December 2025 form replaced. An organisation
+    // provisioned before it arrived still has them published.
+    //
+    // Retired only when NOTHING uses them. A form version is immutable once
+    // published and instances snapshot it, so deleting is not an option; and a
+    // template that is deactivated while still assigned makes the cycle
+    // generator stop finding a form for the people it was assigned to. Where
+    // one is in use it is left alone and said so, because silently leaving the
+    // wrong instrument active is exactly what this step exists to prevent.
+    for (const code of SUPERSEDED_FORMAT_CODES) {
+      const inUse = await c.query(
+        `SELECT
+           EXISTS (SELECT 1 FROM form_template_assignment a
+                     JOIN form_template t ON t.id = a.form_template_id
+                    WHERE t.org_id = $1 AND t.code = $2) AS assigned,
+           EXISTS (SELECT 1 FROM review_instance ri
+                     JOIN form_version v ON v.id = ri.form_version_id
+                     JOIN form_template t ON t.id = v.form_template_id
+                    WHERE t.org_id = $1 AND t.code = $2) AS issued`,
+        [org, code]);
+      const { assigned, issued } = inUse.rows[0] as { assigned: boolean; issued: boolean };
+
+      if (assigned || issued) {
+        console.log(`  ! ${code} is superseded but still ${assigned ? 'assigned' : 'in use'} `
+          + `-- left active. Reassign it in Setup, then re-run to retire it.`);
+        continue;
+      }
+      await c.query(
+        `UPDATE form_version SET is_active = FALSE
+          WHERE is_active AND form_template_id IN
+                (SELECT id FROM form_template WHERE org_id = $1 AND code = $2)`,
+        [org, code]);
+      const retired = await c.query(
+        `UPDATE form_template SET is_active = FALSE
+          WHERE org_id = $1 AND code = $2 AND is_active`,
+        [org, code]);
+      if (retired.rowCount) console.log(`  retired superseded format ${code}`);
+    }
 
     // The 30-point peer instrument (§6.1). Published and unassigned, like the
     // two 100-point formats: it is reached by accepting a peer invitation

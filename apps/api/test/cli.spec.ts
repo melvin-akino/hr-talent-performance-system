@@ -224,7 +224,7 @@ describe('provision-org', () => {
     expect(assignment.rows[0].n).toBe(1);
   });
 
-  it('publishes the two 100-point formats, unassigned (B3)', async () => {
+  it('publishes the three 100-point formats, unassigned (B3)', async () => {
     const orgId = (await admin.query<{ id: string }>(
       `SELECT id FROM organization WHERE code='ACME'`)).rows[0].id;
 
@@ -236,14 +236,18 @@ describe('provision-org', () => {
         WHERE t.org_id = $1 AND t.code LIKE 'GGC-%'
         ORDER BY t.code`, [orgId]);
 
+    // The December 2025 Performance Evaluation Form: one format per
+    // classification. The 5-pager's GGC-TOF and GGC-ADMIN are not here — a
+    // freshly provisioned organisation never receives the superseded pair.
     expect(formats.rows).toEqual([
-      { code: 'GGC-ADMIN', version: 1, is_active: true, published: true },
-      { code: 'GGC-TOF', version: 1, is_active: true, published: true },
+      { code: 'GGC-PEF-ADMIN', version: 1, is_active: true, published: true },
+      { code: 'GGC-PEF-SALES', version: 1, is_active: true, published: true },
+      { code: 'GGC-PEF-SERVICE', version: 1, is_active: true, published: true },
     ]);
 
     // Deliberately not assigned to anyone. Assignment decides who is measured
-    // on which instrument, and an admin scored on the technical split loses ten
-    // points of attendance weighting with nothing on screen to say why.
+    // on which instrument, and an Admin scored on the Service split loses ten
+    // points of Part 1 weighting with nothing on screen to say why.
     const assigned = await admin.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM form_template_assignment a
          JOIN form_template t ON t.id = a.form_template_id
@@ -266,19 +270,28 @@ describe('provision-org', () => {
     const row = await admin.query<{ schema_json: unknown }>(
       `SELECT v.schema_json FROM form_template t
          JOIN form_version v ON v.form_template_id = t.id
-        WHERE t.code = 'GGC-TOF'`);
+        WHERE t.code = 'GGC-PEF-SERVICE'`);
     const schema = row.rows[0].schema_json as {
-      scoring: { maxPoints: number };
-      sections: { key: string; fields: { points: number }[] }[];
+      scoring: { maxPoints: number; passing: Record<string, number> };
+      sections: { key: string; fields: { points?: number; anchors?: Record<string, string> }[] }[];
     };
 
     expect(schema.scoring.maxPoints).toBe(100);
     const total = (key: string) => schema.sections
       .filter((sec) => sec.key === key)
       .flatMap((sec) => sec.fields)
-      .reduce((sum, f) => sum + f.points, 0);
-    expect(total('performance')).toBe(70);
-    expect(total('attendance_demeanor')).toBe(30);
+      .reduce((sum, f) => sum + (f.points ?? 0), 0);
+    // Service is the 60/40 split on this form (Sales and Admin are 70/30).
+    expect(total('part_1')).toBe(60);
+    expect(total('part_2')).toBe(40);
+
+    // The printed passing floors and the per-rating descriptors travel with the
+    // published version, not only with the code that wrote it: this is what the
+    // evaluator's screen and the scorer actually read.
+    expect(schema.scoring.passing).toEqual({ part_1: 36, part_2: 24 });
+    const rated = schema.sections.flatMap((sec) => sec.fields).filter((f) => f.points);
+    expect(rated).toHaveLength(10);
+    for (const f of rated) expect(Object.keys(f.anchors ?? {}).sort()).toEqual(['1', '2', '3', '4', '5']);
   });
 
   it('does not issue a second version when re-provisioned', async () => {
@@ -292,8 +305,75 @@ describe('provision-org', () => {
     const versions = await admin.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM form_version v
          JOIN form_template t ON t.id = v.form_template_id
-        WHERE t.code LIKE 'GGC-%'`);
-    expect(versions.rows[0].n).toBe(2);
+        WHERE t.code LIKE 'GGC-PEF-%'`);
+    expect(versions.rows[0].n).toBe(3);
+  });
+
+  describe('retiring the formats the December 2025 form replaced', () => {
+    // An organisation provisioned BEFORE the form arrived has the 5-pager's two
+    // formats published. They cannot be deleted — a published version is
+    // immutable and instances snapshot it — so provisioning retires them, but
+    // only where nothing uses them.
+    const orgIdOf = async () => (await admin.query<{ id: string }>(
+      `SELECT id FROM organization WHERE code='ACME'`)).rows[0].id;
+
+    const seedOld = async (orgId: string, code: string) => {
+      const t = (await admin.query<{ id: string }>(
+        `INSERT INTO form_template (org_id, code, name)
+              VALUES ($1,$2,'Superseded') RETURNING id`, [orgId, code])).rows[0].id;
+      await admin.query(
+        `INSERT INTO form_version (form_template_id, version, schema_json, published_at, is_active)
+              VALUES ($1,1,'{"sections":[{"key":"s","title":"S","fields":[{"key":"q","label":"Q","type":"text"}]}]}'::jsonb,
+                      now(), TRUE)`, [t]);
+      return t;
+    };
+    const activeOf = async (orgId: string, code: string) => (await admin.query<{
+      template: boolean; version: boolean;
+    }>(
+      `SELECT t.is_active AS template, v.is_active AS version
+         FROM form_template t JOIN form_version v ON v.form_template_id = t.id
+        WHERE t.org_id = $1 AND t.code = $2`, [orgId, code])).rows[0];
+
+    it('retires an unused one, and leaves an assigned one active', async () => {
+      const orgId = await orgIdOf();
+      await seedOld(orgId, 'GGC-TOF');
+      const assignedTemplate = await seedOld(orgId, 'GGC-ADMIN');
+
+      // GGC-ADMIN is in use: somebody assigned it to Regular staff.
+      const regular = (await admin.query<{ id: string }>(
+        `SELECT id FROM employment_type WHERE org_id = $1 AND code = 'REG'`, [orgId])).rows[0].id;
+      await admin.query(
+        `INSERT INTO form_template_assignment (org_id, form_template_id, employment_type_id)
+              VALUES ($1,$2,$3)`, [orgId, assignedTemplate, regular]);
+
+      const c = captureOutput();
+      await provisionOrg('ACME', 'Acme Corporation', 'Asia/Manila');
+      c.restore();
+      const out = c.lines.join('\n');
+
+      // Unused: retired, version and template both, so nothing can resolve to it.
+      expect(await activeOf(orgId, 'GGC-TOF')).toEqual({ template: false, version: false });
+
+      // Assigned: untouched. Deactivating it would make the cycle generator stop
+      // finding a form for everybody it was assigned to.
+      expect(await activeOf(orgId, 'GGC-ADMIN')).toEqual({ template: true, version: true });
+
+      // And it says so, rather than leaving the wrong instrument active in silence.
+      expect(out).toMatch(/GGC-ADMIN is superseded but still assigned/);
+      expect(out).toMatch(/retired superseded format GGC-TOF/);
+    });
+
+    it('is idempotent, and the new formats are never touched', async () => {
+      const orgId = await orgIdOf();
+      const c = captureOutput();
+      await provisionOrg('ACME', 'Acme Corporation', 'Asia/Manila');
+      c.restore();
+
+      expect(await activeOf(orgId, 'GGC-TOF')).toEqual({ template: false, version: false });
+      for (const code of ['GGC-PEF-SALES', 'GGC-PEF-SERVICE', 'GGC-PEF-ADMIN']) {
+        expect(await activeOf(orgId, code), code).toEqual({ template: true, version: true });
+      }
+    });
   });
 
   it('is idempotent — re-running changes nothing', async () => {

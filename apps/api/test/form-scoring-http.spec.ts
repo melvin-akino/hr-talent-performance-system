@@ -12,6 +12,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { seedOrg, startHarness, type Harness, type SeededOrg } from './support/http-harness';
+import { PEF_PARTS, formatTemplate } from '../src/reviews/client-templates';
 
 let h: Harness;
 let org: SeededOrg;
@@ -226,5 +227,101 @@ describe('a submitted review keeps the score it was given', () => {
                 scored_scale_max = NULL, scored_at = NULL
           WHERE id = $1`, [instance]),
     ).rejects.toThrow(/review_instance_score_complete/);
+  });
+});
+
+/**
+ * The client's Performance Evaluation Form (Dec 2025), through the real path.
+ *
+ * Provisioning writes the form straight into the database, which bypasses the
+ * validation every HR-authored form goes through. These publish it the way HR
+ * would — over HTTP — so a template that provisioning would happily seed but the
+ * API would refuse cannot go unnoticed. Then a real submission, to prove the
+ * per-part results and the descriptors actually reach the people using them.
+ */
+describe('the Performance Evaluation Form, end to end', () => {
+  let versionId: string;
+  let instance: string;
+  let asReport: Record<string, string>;
+
+  const answerAll = (rating: number) => Object.fromEntries(
+    PEF_PARTS.flatMap((p) => p.indicators).map((i) => [i.key, rating]));
+
+  beforeAll(async () => {
+    asReport = { Authorization: `Bearer ${await h.token(org.report.subject)}` };
+
+    const scale = await h.admin.query<{ id: string }>(
+      `INSERT INTO rating_scale (org_id, code, version, name, published_at, is_active)
+       VALUES ($1,'PEFSCALE',1,'Five point',now(),TRUE) RETURNING id`, [org.orgId]);
+    for (const v of [1, 2, 3, 4, 5]) {
+      await h.admin.query(
+        `INSERT INTO rating_scale_point (rating_scale_id, sequence, value, label)
+         VALUES ($1,$2,$3,$4)`, [scale.rows[0]!.id, v, v, `Level ${v}`]);
+    }
+
+    const published = await request(h.url).post('/form-templates').set(asHrAdmin).send({
+      code: 'PEF-SALES-E2E',
+      name: 'Performance Evaluation — Sales',
+      schema: formatTemplate('sales'),
+      ratingScaleId: scale.rows[0]!.id,
+    });
+    expect(published.status, JSON.stringify(published.body)).toBe(201);
+    versionId = published.body.versionId;
+
+    const cycle = await h.admin.query<{ id: string }>(
+      `INSERT INTO review_cycle (org_id, name, opens_on, closes_on, state)
+       VALUES ($1,'PEF cycle',CURRENT_DATE,CURRENT_DATE + 30,'open') RETURNING id`, [org.orgId]);
+    const ri = await h.admin.query<{ id: string }>(
+      `INSERT INTO review_instance (review_cycle_id, subject_employee_id,
+                                    reviewer_employee_id, reviewer_role, form_version_id)
+       VALUES ($1,$2,$2,'self',$3) RETURNING id`,
+      [cycle.rows[0]!.id, org.report.id, versionId]);
+    instance = ri.rows[0]!.id;
+  }, 120_000);
+
+  it('is accepted by the API as published, unmodified', () => {
+    // Asserted in beforeAll; named here so a failure reads as what it is.
+    expect(versionId).toBeTruthy();
+  });
+
+  it('reaches the evaluator with every rating’s descriptor intact', async () => {
+    const res = await request(h.url).get(`/reviews/${instance}`).set(asReport);
+    expect(res.status).toBe(200);
+
+    const fields = res.body.schema.sections.flatMap(
+      (s: { fields: { key: string; anchors?: Record<string, string> }[] }) => s.fields);
+    const output = fields.find((f: { key: string }) => f.key === 'output_performance');
+    expect(output.anchors['5']).toBe('Always exceeds target');
+    expect(output.anchors['1']).toBe('Does not meet target');
+    expect(Object.keys(output.anchors)).toHaveLength(5);
+  });
+
+  it('refuses to submit with an indicator unrated', async () => {
+    const res = await request(h.url).post(`/reviews/${instance}/submit`).set(asReport);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/Output \/ Performance/);
+  });
+
+  it('scores each part and judges it against its own floor', async () => {
+    // Part 1 rated all 2s (weak), Part 2 rated all 5s (perfect). The TOTAL is
+    // 58 out of 100, which on its own says nothing about which part failed.
+    const answers = answerAll(5);
+    for (const i of PEF_PARTS[0]!.indicators) answers[i.key] = 2;
+
+    await request(h.url).patch(`/reviews/${instance}`).set(asReport)
+      .send({ responses: answers });
+    const res = await request(h.url).post(`/reviews/${instance}/submit`).set(asReport);
+    expect(res.status).toBeLessThan(300);
+
+    expect(res.body.score).toBe(58);
+    expect(res.body.available).toBe(100);
+    expect(res.body.sections).toEqual([
+      { key: 'part_1', earned: 28, available: 70, floor: 42, meetsFloor: false },
+      { key: 'part_2', earned: 30, available: 30, floor: 18, meetsFloor: true },
+    ]);
+
+    const stored = await h.admin.query<{ computed_score: string }>(
+      `SELECT computed_score FROM review_instance WHERE id = $1`, [instance]);
+    expect(Number(stored.rows[0]!.computed_score)).toBe(58);
   });
 });

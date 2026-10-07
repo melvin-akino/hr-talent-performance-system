@@ -5,24 +5,22 @@ import { z } from 'zod';
  * Point-weighted scoring for review forms.
  *
  * The client's evaluation is not a set of opinions — it is arithmetic. Their
- * default template (5-pager, page 3) allocates a fixed number of points to each
- * line, and the same instrument carries DIFFERENT allocations depending on the
- * employee's classification:
+ * Performance Evaluation Form (revised December 2025) allocates a fixed number
+ * of points to each indicator, and the same instrument carries DIFFERENT
+ * allocations depending on the employee's classification:
  *
- *                       Technical / Ops / Field      Admin
- *   Mastery                        10                  10
- *   Efficiency                     15                  10
- *   Productivity                   15                  10
- *   Team Cooperation               10                  10
- *   Supervisor's Assessment        20                  20
- *   Attendance                     10                  10
- *   Related seminars / training     5                  10
- *   Tenure                          5                  10
- *   Policy Compliance              10                  10
- *                                 ---                 ---
- *                                 100                 100
+ *                 Sales      Service     Admin
+ *   Part 1         70          60          70
+ *   Part 2         30          40          30
+ *                 ---         ---         ---
+ *                 100         100         100
  *
- * Two point columns, one list of metrics. That shape is why points may be a map
+ * (That table supersedes the 5-pager's two-column Technical/Admin split, which
+ * put Admin at 60/40. The newer form puts 60/40 on Service and Admin on 70/30.
+ * See client-templates.ts for the instrument and for which numbers are printed
+ * on the form and which are provisional.)
+ *
+ * Several columns, one list of indicators. That shape is why points may be a map
  * keyed by classification rather than a single number, and why a template
  * declares the total it must add up to: a mistyped 15 that should have been 10
  * is invisible by inspection and produces a quietly wrong score for everyone
@@ -74,6 +72,20 @@ export const scoringConfig = z.object({
    * with a single point column.
    */
   classifications: z.array(z.string().trim().min(1)).min(1).optional(),
+  /**
+   * The lowest score that counts as passing, per SECTION (the form's "parts").
+   *
+   * Shaped like `fieldPoints` — a single number, or one per classification —
+   * for the same reason: the client's form prints a different floor for each
+   * kind of role (42 / 36 / 42 for Part 1) and a form scored for one
+   * classification should not have to wrap its only number in a map.
+   *
+   * Per part, because that is what the form prints. Whether failing ONE part
+   * fails the evaluation as a whole is not stated anywhere on it, so nothing
+   * here decides that; consumers read each part's result and apply whatever
+   * rule HCM confirms.
+   */
+  passing: z.record(z.string().trim().min(1), fieldPoints).optional(),
 });
 
 export type FieldPoints = z.infer<typeof fieldPoints>;
@@ -86,7 +98,7 @@ interface ScoredField {
 }
 
 interface ScoredSchema {
-  sections: { fields: ScoredField[] }[];
+  sections: { key?: string; fields: ScoredField[] }[];
   scoring?: ScoringConfig | undefined;
 }
 
@@ -203,6 +215,47 @@ export function assertScoringValid(schema: ScoredSchema): void {
       + 'A form that does not add up produces a wrong score for everyone evaluated '
       + 'on it, so it cannot be published.');
   }
+
+  assertPassingValid(schema, classifications);
+}
+
+/**
+ * A passing floor must name a real section and be reachable.
+ *
+ * A floor above what the part can earn is a part nobody can pass, and it would
+ * look exactly like a very strict evaluator until someone noticed that nobody
+ * ever had. A floor naming a section that does not exist is silently never
+ * applied — the check passes because there is nothing to check.
+ */
+function assertPassingValid(schema: ScoredSchema, classifications: string[]): void {
+  const passing = schema.scoring?.passing;
+  if (!passing) return;
+
+  const keys = schema.sections.map((s, i) => s.key ?? `section_${i}`);
+  for (const [section, floor] of Object.entries(passing)) {
+    const at = keys.indexOf(section);
+    if (at === -1) {
+      throw new BadRequestException(
+        `A passing score is set for '${section}', but the form has no such section. `
+        + `Sections are: ${keys.join(', ')}.`);
+    }
+
+    for (const c of classifications) {
+      if (typeof floor === 'object' && !(c in floor)) {
+        throw new BadRequestException(
+          `The passing score for '${section}' gives no value for ${c}. Write 0 if `
+          + 'that is deliberate.');
+      }
+      const available = schema.sections[at]!.fields
+        .reduce((sum, f) => sum + pointsFor(f.points, c), 0);
+      const needed = pointsFor(floor, c);
+      if (needed > available) {
+        throw new BadRequestException(
+          `The passing score for '${section}' is ${needed}, but ${c} can earn only `
+          + `${available} there. Nobody could pass it.`);
+      }
+    }
+  }
 }
 
 
@@ -219,11 +272,27 @@ export interface ScoreLine {
   available: number;
 }
 
+/**
+ * One section's result — a "part" on the client's form.
+ *
+ * `floor` and `meetsFloor` are present only when the form declares a passing
+ * score for the section. A section with no floor has no pass/fail, which is
+ * different from passing it, and the absence of the field says so.
+ */
+export interface SectionScore {
+  key: string;
+  earned: number;
+  available: number;
+  floor?: number;
+  meetsFloor?: boolean;
+}
+
 export interface ScoreResult {
   earned: number;
   available: number;
   classification: string;
   lines: ScoreLine[];
+  sections: SectionScore[];
 }
 
 /**
@@ -255,15 +324,21 @@ export function scoreResponses(
   scaleMax: number,
 ): ScoreResult {
   const lines: ScoreLine[] = [];
+  const sections: SectionScore[] = [];
   let earned = 0;
   let available = 0;
 
-  for (const section of schema.sections) {
+  for (const [index, section] of schema.sections.entries()) {
+    const key = section.key ?? `section_${index}`;
+    let sectionEarned = 0;
+    let sectionAvailable = 0;
+
     for (const field of section.fields) {
       const points = pointsFor(field.points, classification);
       if (points === 0) continue;
 
       available += points;
+      sectionAvailable += points;
       const answer = responses.get(field.key);
       let got = 0;
 
@@ -278,8 +353,21 @@ export function scoreResponses(
       // differ in the sixteenth decimal place.
       got = Math.round(got * 100) / 100;
       earned += got;
+      sectionEarned += got;
       lines.push({ key: field.key, earned: got, available: points });
     }
+
+    const sectionResult: SectionScore = {
+      key,
+      earned: Math.round(sectionEarned * 100) / 100,
+      available: sectionAvailable,
+    };
+    const declared = schema.scoring?.passing?.[key];
+    if (declared !== undefined) {
+      sectionResult.floor = pointsFor(declared, classification);
+      sectionResult.meetsFloor = sectionResult.earned >= sectionResult.floor;
+    }
+    sections.push(sectionResult);
   }
 
   return {
@@ -287,5 +375,6 @@ export function scoreResponses(
     available,
     classification,
     lines,
+    sections,
   };
 }

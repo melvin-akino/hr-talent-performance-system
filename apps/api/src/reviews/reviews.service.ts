@@ -3,7 +3,9 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { DbService, RequestContext } from '../db/db.service';
-import { DEFAULT_CLASSIFICATION, classificationsOf, scoreResponses } from './scoring';
+import {
+  DEFAULT_CLASSIFICATION, classificationsOf, scoreResponses, type SectionScore,
+} from './scoring';
 import { NotificationsService } from '../notifications/notifications.service';
 
 export const createCycle = z.object({
@@ -368,16 +370,21 @@ export class ReviewsService {
   private scoreOf(
     row: {
       schema: {
-        scoring?: { maxPoints: number; classifications?: string[] };
-        sections: { fields: { key: string; type: string;
+        scoring?: {
+          maxPoints: number; classifications?: string[];
+          passing?: Record<string, number | Record<string, number>>;
+        };
+        sections: { key?: string; fields: { key: string; type: string;
                               points?: number | Record<string, number> }[] }[];
       };
       classification: string | null;
       scaleMax: string | null;
     },
     values: Map<string, unknown>,
-  ): { earned: number; available: number; classification: string | null; scaleMax: number }
-    | null {
+  ): {
+    earned: number; available: number; classification: string | null;
+    scaleMax: number; sections: SectionScore[];
+  } | null {
     if (!row.schema.scoring) return null;
     if (row.scaleMax === null) return null;
 
@@ -395,6 +402,10 @@ export class ReviewsService {
       available: result.available,
       classification: single ? null : classification,
       scaleMax,
+      // Each part's own total, and whether it reached its passing floor. The
+      // form prints both a total and a floor per part; an evaluator told only
+      // "74 out of 100" cannot tell a strong Part 1 carrying a failing Part 2.
+      sections: result.sections,
     };
   }
 
@@ -402,8 +413,12 @@ export class ReviewsService {
     return this.db.withContext(ctx, async (client) => {
       const inst = await client.query<{
         schema: {
-          scoring?: { maxPoints: number; classifications?: string[] };
+          scoring?: {
+            maxPoints: number; classifications?: string[];
+            passing?: Record<string, number | Record<string, number>>;
+          };
           sections: {
+            key?: string;
             fields: {
               key: string; label: string; required: boolean;
               type: string; points?: number | Record<string, number>;
@@ -465,7 +480,9 @@ export class ReviewsService {
 
       return {
         state: 'submitted',
-        ...(score ? { score: score.earned, available: score.available } : {}),
+        ...(score
+          ? { score: score.earned, available: score.available, sections: score.sections }
+          : {}),
       };
     });
   }

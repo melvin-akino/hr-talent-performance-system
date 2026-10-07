@@ -363,6 +363,15 @@ evaluation results.
 | **R7** | "Selection of Subject … by **salary level**" — a pay grade, or an amount? We store no salary (D-009). | 5.4, D-009 |
 | **R8** | The band table starts at 71 and stops at "100 up". What happens at **70 and below**, and does "100 up → 35" push a total past 100? | 3.6, 3.7 |
 | **R9** | Timeline: which **year**, and what are the dates for Testing & Devt, Initial Run and Program Prep 2 (no bars drawn)? | planning |
+| **R10** | **The December 2025 evaluation form prints no point value per indicator** — only what each part adds up to. What is each indicator worth, for Sales, Service and Admin? Until answered, indicators are weighted equally and scores are estimates. | 3.2, B3b |
+| **R11** | Do the December 2025 forms **replace** the 40 / 30 / 30 KPI composite, or sit alongside it? They carry no peer-review component at all, and we have built the peer engine. | 3.4, 6 |
+| **R12** | **Admin** is 70/30 on the new form and 60/40 in the 5-pager. We have used the new form. Please confirm. | 3.3, B3b |
+| **R13** | **Where is an employee's classification (Sales / Service / Admin) recorded**, and who sets it? The forms use it and nothing in our data holds it. | 3.3, R6 |
+| **R14** | **Office Reporting** says "1 point for each of the following" but is laid out as a 5-4-3-2-1 grid like every other indicator. Tick-count, or pick one tier? We have used the grid. | B3b |
+| **R15** | Three scales have no band for the worst case — **Attitude and Decorum** (nothing for someone *with* a disciplinary action this quarter), **Training** (none for no training at all) and **Tenure** (stops at 5–6 years). What score do those people get? | B3b |
+| **R16** | **Attendance** is in minutes — per day, month, quarter, cumulative? And how do **Q1–Q4** become the overall score: average, sum, or latest? | 5.4, B3b |
+| **R17** | Is **passing** judged per part, or only on the total? Does failing one part fail the evaluation? | B3b |
+| **R18** | The nested bands (Attitude, Training, Tenure) are cumulative — anyone who qualifies for 5 also qualifies for 4. Confirm the rule is **highest band satisfied**. | B3b |
 
 ---
 
@@ -483,7 +492,9 @@ calendar commitments.
       A multi-column form does **not** guess a classification (R6): it
       scores only when told which column, because a plausible number from
       the wrong allocation is worse than none.
-- [x] **B3** The two 100-point formats — DONE. `provision-org` publishes
+- [x] **B3** The two 100-point formats — DONE, then **SUPERSEDED by B3b** (the
+      December 2025 forms replaced the instrument this describes; the entry below
+      is kept as the record of what was built and why). `provision-org` published
       `GGC-TOF` (Technical/Ops/Field, 70 + 30) and `GGC-ADMIN`
       (Administrative, 60 + 40) as prepared formats in every tenant.
 
@@ -517,6 +528,52 @@ calendar commitments.
       The scoring suite now imports the instrument from the module that seeds it
       rather than keeping its own copy, so the form their page-3 assertions
       verify is the form a tenant actually gets.
+- [x] **B3b** The December 2025 Performance Evaluation Form is the standard —
+      DONE, **with provisional weights** (D-018). `GGC-PEF-SALES`,
+      `GGC-PEF-SERVICE` and `GGC-PEF-ADMIN` replace `GGC-TOF` / `GGC-ADMIN`.
+
+      **The 5-pager's page 3 is superseded, not extended.** Different indicators
+      (Efficiency and Productivity merged; Output / Performance added; Part 2
+      grew from four lines to five), **three** classifications rather than two,
+      and the splits moved: Admin is now **70/30** and the **60/40** is Service.
+      Shipping the old numbers would have scored every administrative employee
+      on the wrong allocation — a plausible figure, silently wrong.
+
+      **What is printed and what is ours.** The form prints each part's maximum
+      and its passing floor (the PIP's Parameter Guide: 42/36/42 and 18/24/18).
+      It does **not** print what each *indicator* is worth. Indicators are
+      therefore weighted equally within their part — the assumption that
+      invents the least — and every published template says **PROVISIONAL** in
+      its description until HCM confirms. `WEIGHTS_ARE_PROVISIONAL` in
+      `client-templates.ts` is the single switch.
+
+      **The floors can be trusted although the weights cannot.** Every floor is
+      exactly 60% of its part, and a rating scores as value ÷ scale maximum, so
+      rating every indicator 3 ("Meets") lands on the floor *whatever* the
+      weights are. A test asserts it, for all three classifications. Four numbers
+      read off a photograph all landing on one proportion is very unlikely to be
+      four misreadings.
+
+      **Descriptors are the instrument.** Each rating has its own sentence per
+      indicator ("Always exceeds target" … "Does not meet target"). They are
+      carried as `anchors` on the field and rendered as a rubric, not a bare
+      1–5. English only: the Filipino subtitles are small italic text on a
+      photograph and need HCM's own file rather than our reading of one.
+
+      **Per-part results.** `scoreResponses` and `POST /reviews/:id/submit` now
+      return each part's total and whether it met its floor. A total of 58 says
+      nothing about *which* part failed. Whether failing one part fails the whole
+      evaluation is not printed on the form, so nothing decides it (R17).
+
+      **Old formats are retired, not deleted**, and only where nothing uses them:
+      a published version is immutable, and deactivating a template that is
+      still assigned would make the cycle generator stop finding a form.
+
+      Not modelled, and listed so it is not mistaken for done: Series No.,
+      Quarterly points Q1–Q4 and their aggregation (R16), the HCM header block,
+      and the **Wage Committee** stage (deliberation, approved rank, HCM / GM /
+      EVP signatures) — a workflow stage with its own membership, not a field.
+
 - [ ] **B4** Composite KPI score: 40 + 30 + 30, with the component breakdown
       visible. **M** — §3.4 *(depends on Phases D and E)*
 - [ ] **B5** Incentive bands and qualification output. **S** — *blocked on Q1, Q2*

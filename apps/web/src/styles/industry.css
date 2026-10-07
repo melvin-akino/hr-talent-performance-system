@@ -714,6 +714,57 @@ textarea.input { min-height: 90px; resize: vertical; }
   padding: var(--space-2);
 }
 
+/* ── an evaluation rubric: every rating carries its own sentence ──────────
+   Used by AnchoredRating for the client's Performance Evaluation Form. Tokens
+   only, so it holds in both themes. */
+
+.hr-anchors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hr-anchor {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--color-divider);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.hr-anchor:hover:not(:disabled) { background: var(--color-accent-100); }
+.hr-anchor:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.hr-anchor.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-accent-100);
+}
+/* A locked rating keeps its chosen row legible and quiets the rest, so a
+   submitted review still reads as the answer that was given. */
+.hr-anchor:disabled { cursor: not-allowed; }
+.hr-anchor:disabled:not(.is-on) { opacity: 0.55; }
+.hr-anchor-value {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-divider);
+}
+.hr-anchor.is-on .hr-anchor-value {
+  background: var(--color-accent-800);
+  border-color: var(--color-accent-800);
+  color: var(--color-bg);
+}
+
 /* Section headings on the drawer's landing view. */
 .hr-help-sectionhead {
   display: flex;

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../auth';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
+import { AnchoredRating } from '../components/AnchoredRating';
 import {
   Attainment, Bar, Btn, Card, Icon, PageHead, ReviewStateTag, Section, paths,
 } from '../components/ds';
@@ -14,6 +15,8 @@ interface FormField {
       | 'number' | 'boolean' | 'goal_review';
   required: boolean;
   helpText?: string;
+  /** What each rating means for this indicator, keyed by the rating's value. */
+  anchors?: Record<string, string>;
   options?: string[];
   maxLength?: number;
 }
@@ -278,6 +281,23 @@ function FieldInput({ field, value, ratingPoints, readOnly, onChange }: {
     // Renders whatever scale the cycle defines. Hardcoding 1–5 would break any
     // organisation using a different one, and would make a historical cycle
     // render against the wrong scale — see the API appendix.
+    // An indicator that brings its own sentence for each rating is a rubric, and
+    // is laid out as one: see AnchoredRating.
+    if (field.anchors && Object.keys(field.anchors).length > 0) {
+      return (
+        <Field label={label} hint={field.helpText}>
+          <AnchoredRating
+            name={field.label}
+            points={ratingPoints}
+            anchors={field.anchors}
+            value={value}
+            readOnly={readOnly}
+            onChange={onChange}
+          />
+        </Field>
+      );
+    }
+
     const selected = ratingPoints.find((p) => p.value === value);
     return (
       <Field label={label} hint={field.helpText}>

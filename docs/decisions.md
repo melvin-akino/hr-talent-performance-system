@@ -578,3 +578,60 @@ quite mean.
 question answered. A "create the assessment from the approval" button that
 lands on the competency screen with the fields filled in would honour both
 halves; an approval that writes the row would not.
+
+---
+
+## D-018 — The December 2025 forms are the standard; per-indicator weights are provisional
+
+**Status:** accepted (B3b)
+
+HCM supplied their revised Performance Evaluation Form and Performance
+Improvement Plan (both "Revised December 2025") and asked that they be the
+official templates. They supersede the instrument built from page 3 of the
+5-pager, and they are not an edit of it: different indicators, three
+classifications instead of two, and the 60/40 split moved from Admin to Service.
+
+**Decision.** Build to the forms. Where the form prints a number, use it exactly
+and say where it came from. Where it does not, make the smallest assumption,
+isolate it in one place, and mark everything it touches as provisional.
+
+The one thing the form does not print is what each *indicator* is worth. It gives
+each part's total (70/30, 60/40, 70/30) and a passing floor, and shows five
+indicators and a 1–5 grid. We weight indicators equally within their part: 14 each
+in Part 1 and 6 in Part 2 for Sales and Admin, 12 and 8 for Service. That is the
+assumption that invents the least emphasis. It is very probably wrong in detail —
+the old instrument gave the supervisor's assessment 20 of 70 — which is why every
+published template is labelled **PROVISIONAL** and a test fails if the label and
+the `WEIGHTS_ARE_PROVISIONAL` switch ever disagree.
+
+**Why the assumption is tolerable.** It does not touch the passing floors. Each
+printed floor is exactly 60% of its part, and a rating scores as value ÷ scale
+maximum, so an evaluator who rates every indicator 3 lands on the floor under
+*any* weighting. Scores are estimates; the pass/fail line for an
+all-"meets" evaluation is not.
+
+**Consequences:**
+- Three single-column templates (`GGC-PEF-SALES`, `-SERVICE`, `-ADMIN`), not one
+  three-column form. Which classification applies to a person is recorded nowhere
+  (R13), and a three-column form cannot score until somebody says. Three
+  templates are assigned through the existing assignment table and score alone.
+  `combinedTemplate()` builds the single form for the day R13 is answered.
+- **Forms are versioned and immutable, so the old instrument is retired, not
+  edited**, and re-provisioning must never issue a v2. `provision-org` retires
+  `GGC-TOF` / `GGC-ADMIN` only where nothing is assigned to them or issued from
+  them, and says so where it declines.
+- Each rating's descriptor is carried on the field (`anchors`) and rendered as a
+  rubric. A bare 1–5 would let two supervisors rate the same person differently
+  while both following the form.
+- Passing floors are per **part**, because that is what the form prints. Whether
+  failing one part fails the evaluation is not printed (R17), so nothing decides it.
+- Wording is transcribed verbatim, grammar slips included ("Sometimes exhibit
+  exceptional efficiency"). An official template should read as the form HCM
+  signed off. The form's defects are raised with HCM (R14, R15, R18), not
+  patched by us: inventing a band that the form does not have would be a scoring
+  rule nobody agreed.
+
+**Revisit this decision when** HCM answers R10. The weights become data, the
+switch flips, the descriptions stop saying PROVISIONAL, and — because published
+versions are immutable — a v2 of each template is issued and assigned. That is
+the intended path, not a failure of this one.
