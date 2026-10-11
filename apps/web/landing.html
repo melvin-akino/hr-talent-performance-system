@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance and Talent Management System | Summit Logic Solutions</title>
+  <meta name="description" content="An on-premise performance management system for mid-sized and large organisations: targets, KPIs, evaluations, 360 peer input, competencies, and talent calibration.">
+  <meta name="theme-color" content="#2c455d">
+  <link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32.png">
+  <link rel="apple-touch-icon" href="/landing/apple-touch-icon.png">
+  <!--
+    Compiled by the web build from this file (see src/landing.css), fonts included.
+    There is deliberately no <script src> and no remote stylesheet here: the page
+    promises "no external cloud dependencies", and on an office LAN with no
+    internet a CDN-loaded page renders as unstyled text.
+  -->
+  <link rel="stylesheet" href="/src/landing.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-slate-200">
+
+  <!-- Top System Bar -->
+  <aside class="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 font-medium text-slate-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          Host Node: On-Premise Internal Network
+        </span>
+        <span class="text-slate-600">|</span>
+        <span class="text-slate-400 hidden sm:inline">Row-Level Security: Active (PostgreSQL)</span>
+        <span class="text-slate-600 hidden sm:inline">|</span>
+        <span class="text-slate-400 hidden md:inline">Directory Auth: Active Directory / LDAP</span>
+      </div>
+      <div class="flex items-center gap-4 text-slate-400">
+        <a href="#boundaries" class="hover:text-slate-200 transition-colors">Design Boundaries</a>
+        <a href="#technical" class="hover:text-slate-200 transition-colors">Technical Architecture</a>
+        <a href="#access" class="text-slate-200 font-medium hover:underline">Help & Access</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Navigation -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="shrink-0" aria-label="Summit Logic Tech Business Solutions Corp. — home">
+          <img src="/landing/logo-summit.png" width="824" height="246"
+               alt="Summit Logic Tech Business Solutions Corp."
+               class="h-10 w-auto" decoding="async">
+        </a>
+        <span class="hidden sm:block h-8 w-px bg-slate-200" aria-hidden="true"></span>
+        <div class="hidden sm:block">
+          <a href="#" class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">
+            Performance & Talent Management System
+          </a>
+          <span class="text-xs text-slate-500 font-medium">Enterprise Edition</span>
+        </div>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <a href="#overview" class="hover:text-[#2c455d] transition-colors">Overview</a>
+        <a href="#capabilities" class="hover:text-[#2c455d] transition-colors">Capabilities</a>
+        <a href="#workflow" class="hover:text-[#2c455d] transition-colors">Evaluation Cycles</a>
+        <a href="#technical" class="hover:text-[#2c455d] transition-colors">Architecture</a>
+        <a href="#boundaries" class="hover:text-[#2c455d] transition-colors">Scope Limits</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <!-- Direct Corporate Login Link -->
+        <a href="/home" class="inline-flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold text-white bg-[#2c455d] hover:bg-[#1d2d3d] transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+          </svg>
+          <span>Sign In to Portal</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section id="overview" class="pt-16 pb-14 bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-5">
+          Enterprise Portal & Solution Overview
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-5">
+          Structured performance management on your own hardware.
+        </h1>
+        <p class="text-lg text-slate-600 leading-relaxed mb-8">
+          An on-premise system built for mid-sized and large organizations (200 to 1,500 staff): targets and KPIs, calibrated evaluations, peer input, competencies, and talent development. Installed on your server, with all records staying strictly inside your network.
+        </p>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap items-center gap-4">
+          <a href="/home" class="px-5 py-2.5 rounded text-sm font-semibold text-white bg-[#2c455d] hover:bg-[#1d2d3d] transition-colors shadow-sm flex items-center gap-2">
+            <span>Access System via Corporate Directory</span>
+            <span class="text-slate-300">→</span>
+          </a>
+          <a href="#capabilities" class="px-4 py-2.5 rounded text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors">
+            Explore System Capabilities
+          </a>
+        </div>
+      </div>
+
+      <!-- Core Design Commitments (Boxed Bar) -->
+      <div class="mt-14 pt-8 border-t border-slate-200 grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
+        <div>
+          <div class="font-bold text-slate-900 mb-1">Access at the Record Level</div>
+          <p class="text-xs text-slate-500 leading-normal">
+            PostgreSQL Row-Level Security ensures records you are not entitled to see cannot be returned by any query or report.
+          </p>
+        </div>
+        <div>
+          <div class="font-bold text-slate-900 mb-1">Single Sign-On Only</div>
+          <p class="text-xs text-slate-500 leading-normal">
+            Authenticates directly against Active Directory or LDAP. The system never sees or stores passwords.
+          </p>
+        </div>
+        <div>
+          <div class="font-bold text-slate-900 mb-1">Historical Immutability</div>
+          <p class="text-xs text-slate-500 leading-normal">
+            Rules and forms are versioned. Revising next year’s appraisal template cannot alter ratings already completed.
+          </p>
+        </div>
+        <div>
+          <div class="font-bold text-slate-900 mb-1">Complete Data Custody</div>
+          <p class="text-xs text-slate-500 leading-normal">
+            Your data is stored in standard, open formats on your server. No telemetry, no external cloud dependencies.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 1: Practical Capabilities (The 8 Modules) -->
+  <section id="capabilities" class="py-16 bg-slate-50 border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="mb-12">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-[#2c455d] mb-1">System Capabilities</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">What the system does</h3>
+        <p class="text-sm text-slate-600 mt-2 max-w-2xl">
+          Everything described below is built, tested, and actively operational. Designed specifically to handle real-world organizational complexity across multiple companies and branches.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Card 1 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">01 / ORGANISATION</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">Structure & Employment History</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              Supports six organizational levels—holdings, group, company, division, department, and branch. Several distinct companies live in one installation with strict mutual isolation.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Dated reporting lines preserve supervisory history</li>
+              <li>Custom rank ladder linked to role seniority</li>
+              <li>Bulk staff import with pre-commit dry-run preview</li>
+              <li>Separates historical corrections from date-effective events</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">02 / GOALS & KPIS</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">Target Setting & Weight Enforcement</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              Measures, baselines, goals, and weights for set periods. Enforces that each individual's target weights total exactly 100% before evaluation cycles can close.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Reusable organization-wide KPI library</li>
+              <li>Periodic check-ins with automatic achievement math</li>
+              <li>Two-stage approval: Supervisor and optional HR audit</li>
+              <li>Per-role task indicator scorecards</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">03 / EVALUATIONS</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">Appraisal Cycles & Calibrated Forms</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              Handles Annual, Probationary, Semi-Annual, Project, and KPI-based reviews as pure configuration rather than distinct custom code.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Form builder with sections, rating scales, and weights</li>
+              <li>Calibrated score calculated out of 100 points</li>
+              <li>Approval chain: Self, Supervisor, Dept Head, Moderation</li>
+              <li>Completion gate names the specific blocking reviewer</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">04 / PEER INPUT</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">360° Multi-Source & Peer Feedback</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              Panel rules configure who can evaluate whom by rank distance and organizational branch, eliminating rater bias and administrative chasing.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Automated sampling according to rank rules</li>
+              <li>Automatic substitute drawn when a reviewer declines</li>
+              <li>Eligibility filters exclude peers without working history</li>
+              <li>Distinct weighted instruments for peer assessments</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">05 / DEVELOPMENT</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">Competencies, IDP & PIPs</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              Version-controlled competency library mapped to job profiles. Identifies skills deficits and governs structured improvement plans.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Position benchmark requirements & automatic gap analysis</li>
+              <li>Career progression routes with typical dwell times</li>
+              <li>Formal Performance Improvement Plans (PIPs)</li>
+              <li>Strict milestone check-ins with immutable final outcomes</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">06 / ANALYTICS</div>
+            <h4 class="text-lg font-bold text-slate-900 mb-2">Calibration, 9-Box & Scoped Views</h4>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              One clear screen per role tier: Employee, Supervisor, Dept Head, and HR. Gives executives cross-divisional calibration visibility.
+            </p>
+            <ul class="text-xs text-slate-500 space-y-1.5 list-disc pl-4">
+              <li>Nine-box talent grid (Performance vs. Potential)</li>
+              <li>Rater generosity vs. strictness comparison curves</li>
+              <li>Audit log of all moderation meeting rating revisions</li>
+              <li>Fast spreadsheet exports scoped to current user rights</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2: Concrete Workflow (How an Appraisal Runs) -->
+  <section id="workflow" class="py-16 bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="mb-10">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-[#2c455d] mb-1">Operational Lifecycle</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">How an evaluation cycle progresses</h3>
+        <p class="text-sm text-slate-600 mt-2 max-w-2xl">
+          The software moves each appraisal through a deterministic state machine. Nothing skips gates, and ratings cannot be rewritten after final sign-off.
+        </p>
+      </div>
+
+      <!-- Linear Step Sequence -->
+      <div class="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-200 bg-slate-50/50">
+        
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <span class="w-7 h-7 rounded bg-[#2c455d] text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">Target Agreement & 100% Weight Verification</h5>
+              <p class="text-xs text-slate-600">Employee and supervisor agree on periodic targets from the KPI library. The period cannot open until weights total 100%.</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 shrink-0">Pre-Cycle Gate</span>
+        </div>
+
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <span class="w-7 h-7 rounded bg-[#2c455d] text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">Form Auto-Assignment & Self-Appraisal</h5>
+              <p class="text-xs text-slate-600">Forms automatically match staff classification. Employee submits their self-review and achievement narratives.</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 shrink-0">Draft / Self</span>
+        </div>
+
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <span class="w-7 h-7 rounded bg-[#2c455d] text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">Concurrent Supervisor & Peer Input</h5>
+              <p class="text-xs text-slate-600">Supervisor rates weighted line items. In parallel, sampled peer reviewers complete separate weighted peer forms without cross-visibility.</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 shrink-0">In Review</span>
+        </div>
+
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <span class="w-7 h-7 rounded bg-[#2c455d] text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">Department Head Review & Moderation (Calibration)</h5>
+              <p class="text-xs text-slate-600">Department head can approve, revise, or return for corrections. Calibration meetings compare rating distributions across divisions.</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 shrink-0">Moderation</span>
+        </div>
+
+        <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-start gap-4">
+            <span class="w-7 h-7 rounded bg-[#2c455d] text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">Formal Release, Employee Acknowledgement & Archive</h5>
+              <p class="text-xs text-slate-600">Evaluation becomes visible to the subject only upon release. Employee sign-off is logged, and final scores are frozen forever.</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 shrink-0">Final / Frozen</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Architecture & Security -->
+  <section id="technical" class="py-16 bg-slate-50 border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid lg:grid-cols-2 gap-12 items-start">
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-[#2c455d] mb-1">Architecture & Data Protection</h2>
+          <h3 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            Why security sits in the database kernel
+          </h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-4">
+            Almost every business application checks permissions at the application door. If code has an unexpected flaw, or someone queries the API directly, protection drops.
+          </p>
+          <p class="text-sm text-slate-600 leading-relaxed mb-6">
+            This system puts access rules on each record using <strong>PostgreSQL Row-Level Security (RLS)</strong>. When the application issues a query, it connects as that specific user context. Records outside their authority are never returned.
+          </p>
+
+          <div class="space-y-3 text-xs">
+            <div class="p-3.5 rounded bg-white border border-slate-200">
+              <strong class="text-slate-900 block mb-0.5">Application bugs cannot leak records</strong>
+              <span class="text-slate-500">Because unauthorized rows never leave the database engine, they cannot be accidentally exposed by screens or exports.</span>
+            </div>
+            <div class="p-3.5 rounded bg-white border border-slate-200">
+              <strong class="text-slate-900 block mb-0.5">Attempted unauthorized access returns "not found"</strong>
+              <span class="text-slate-500">Returning "forbidden" confirms that a record exists. For appraisal records, confirming existence is itself a privacy disclosure.</span>
+            </div>
+            <div class="p-3.5 rounded bg-white border border-slate-200">
+              <strong class="text-slate-900 block mb-0.5">Zero stored passwords</strong>
+              <span class="text-slate-500">Delegates sign-in to your Active Directory / LDAP. Deactivating a departed employee in the company directory immediately terminates access here.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Infrastructure Specifications -->
+        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+          <h4 class="text-base font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <span>Server Sizing & System Specification</span>
+            <span class="text-xs font-mono font-normal text-slate-400">Single-Node Host</span>
+          </h4>
+
+          <dl class="grid grid-cols-2 gap-y-3.5 gap-x-4 text-xs">
+            <div>
+              <dt class="text-slate-400 font-medium">Recommended Server</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">8 vCPU, 32 GB RAM</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Storage Sizing</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">500 GB Mirrored Enterprise SSD</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Operating System</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">Ubuntu LTS or Red Hat Enterprise Linux</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Database Store</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">PostgreSQL with Row-Level Security</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Network Scope</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">Internal LAN / Corporate VPN</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Mail Notification</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">Internal SMTP Relay (Local Network)</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Automated Backups</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">Nightly, compressed, encrypted off-host</dd>
+            </div>
+            <div>
+              <dt class="text-slate-400 font-medium">Disaster Recovery</dt>
+              <dd class="text-slate-800 font-semibold mt-0.5">Built-in verified restore drill utility</dd>
+            </div>
+          </dl>
+
+          <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+            <strong class="text-slate-700">Test Assurance:</strong> 742 logic tests, 138 browser UI tests, and 14 end-to-end integration tests run against an actual database instance during every release build.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4: Deliberate Boundaries (Honest Exclusions) -->
+  <section id="boundaries" class="py-16 bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-[#2c455d] mb-1">Scope Clarity</h2>
+        <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">What the system deliberately does not do</h3>
+        <p class="text-sm text-slate-600 mt-2">
+          These boundaries are explicit architectural choices rather than oversights. Keeping them separate protects personnel data privacy and avoids software bloat.
+        </p>
+      </div>
+
+      <div class="border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="py-3 px-4 w-1/4">Excluded Function</th>
+              <th class="py-3 px-4">Design Rationale & How It Is Handled</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 text-slate-600">
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Payroll Calculation</td>
+              <td class="py-3 px-4">Payroll carries different statutory tax calculations and reporting obligations. The system integrates via exports; it does not process payroll.</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Daily Biometric Attendance</td>
+              <td class="py-3 px-4">Where attendance affects an evaluation score, it receives a summary count for the period rather than raw daily clock records.</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Leave Management</td>
+              <td class="py-3 px-4">Leave approvals and balances stay in dedicated time-off software; period counts feed into reviews where required.</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Salary & Compensation Figures</td>
+              <td class="py-3 px-4">There is no salary field in the database. Appraisals are reviewed by many supervisors; holding pay numbers would drastically widen exposure.</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Government ID Numbers</td>
+              <td class="py-3 px-4">No SSS, TIN, PhilHealth, or Pag-IBIG numbers are stored. Their complete absence eliminates major statutory breach liabilities under data privacy laws.</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-slate-900">Direct Document/File Hosting</td>
+              <td class="py-3 px-4">Portfolios and work evidence are referenced by URL link to your existing corporate document stores (Google Drive, SharePoint, or internal network shares).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5: Access & Sign-In Portal Guide -->
+  <section id="access" class="py-16 bg-[#f4efe6] border-b border-slate-300">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <h3 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">
+        Ready to access the performance portal?
+      </h3>
+      <p class="text-sm text-slate-700 max-w-2xl mx-auto mb-8 leading-relaxed">
+        Employees, supervisors, department heads, and HR administrators sign in using their standard enterprise network credentials. If you are accessing this within the corporate intranet, select below:
+      </p>
+
+      <div class="inline-flex flex-col sm:flex-row items-center gap-4">
+        <a href="/home" class="px-8 py-3.5 rounded text-base font-bold text-white bg-[#2c455d] hover:bg-[#1d2d3d] transition-colors shadow-md flex items-center gap-2">
+          <span>Sign In to System Portal</span>
+          <span>→</span>
+        </a>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-300/60 grid sm:grid-cols-3 gap-4 text-xs text-slate-600 text-left">
+        <div>
+          <strong class="text-slate-900 block mb-1">For General Staff</strong>
+          <span>Access your target worksheets, submit self-evaluations, and view released appraisal records.</span>
+        </div>
+        <div>
+          <strong class="text-slate-900 block mb-1">For Supervisors & Heads</strong>
+          <span>Review team KPI progress, complete scorecards, and attend moderation calibration reviews.</span>
+        </div>
+        <div>
+          <strong class="text-slate-900 block mb-1">For HR Administrators</strong>
+          <span>Manage evaluation periods, form builders, peer panel samplings, and system readiness checks.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-10 bg-slate-900 text-slate-400 text-xs">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <img src="/landing/logo-summit-light.png" width="824" height="246"
+             alt="Summit Logic Tech Business Solutions Corp."
+             class="h-9 w-auto" decoding="async" loading="lazy">
+        <span class="text-slate-600" aria-hidden="true">·</span>
+        <span>Performance and Talent Management System</span>
+      </div>
+
+      <div class="flex items-center gap-6 text-slate-400">
+        <a href="#overview" class="hover:text-slate-200">Overview</a>
+        <a href="#capabilities" class="hover:text-slate-200">Capabilities</a>
+        <a href="#technical" class="hover:text-slate-200">Architecture</a>
+        <a href="#boundaries" class="hover:text-slate-200">Boundaries</a>
+        <a href="/home" class="text-slate-200 font-semibold hover:underline">Portal Login</a>
+      </div>
+
+      <div class="text-slate-500">
+        © 2026 Summit Logic Solutions. On-Premise Enterprise Edition.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

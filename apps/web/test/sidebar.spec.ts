@@ -14,6 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { buildGroups } from '../src/components/Sidebar';
+import { HOME_PATH } from '../src/routes';
 
 const titles = (roles: string[], hasReports = false) =>
   buildGroups(roles, hasReports).map((g) => g.title);
@@ -72,10 +73,11 @@ describe('what each group contains', () => {
 
 describe('route wiring', () => {
   it('marks only the dashboard as an exact match', () => {
-    // Without `end`, "/" would stay lit on every route, since every path
-    // starts with it.
+    // Without `end`, the home route would stay lit on any path that begins with
+    // it. (It used to be "/", which prefixes every path; it is "/home" now that
+    // the site root is the public landing page, and the rule is the same.)
     const all = buildGroups(['employee', 'hr_admin'], true).flatMap((g) => g.items);
-    expect(all.filter((i) => i.end).map((i) => i.to)).toEqual(['/']);
+    expect(all.filter((i) => i.end).map((i) => i.to)).toEqual([HOME_PATH]);
   });
 
   it('points every item at a distinct route', () => {

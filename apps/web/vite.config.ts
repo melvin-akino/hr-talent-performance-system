@@ -1,12 +1,46 @@
-import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+/**
+ * Serves the public landing page at `/` in the dev server.
+ *
+ * In production the web server does this (nginx.conf: `location = /`), so the
+ * site root is the marketing page and the application starts at /home (see
+ * src/routes.ts). Without the same rule here, `pnpm dev` would show the
+ * application at `/` while every deployed copy shows the landing page — the sort
+ * of difference that is only noticed after it ships.
+ *
+ * Only the exact root. Every other path, `/home` and `/callback` included, still
+ * falls through to the application.
+ */
+function landingAtRoot(): Plugin {
+  return {
+    name: 'landing-at-root',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? '';
+        if (url === '/' || url.startsWith('/?')) req.url = `/landing.html${url.slice(1)}`;
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), landingAtRoot()],
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      // Two documents: the application and the public landing page. The landing
+      // page is a plain HTML entry with its own stylesheet and no script.
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        landing: resolve(__dirname, 'landing.html'),
+      },
+    },
   },
   server: {
     // Deliberately NOT Vite's default 5173. That port is shared by every Vite

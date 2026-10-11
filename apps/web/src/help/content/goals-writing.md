@@ -4,7 +4,7 @@ title: Writing a goal
 summary: What makes a goal measurable here, and how weights add up to 100%.
 section: goals
 audience: [everyone]
-routes: ["/goals/new", "/", "/goals/:id"]
+routes: ["/goals/new", "/home", "/goals/:id"]
 keywords: [goal, KPI, target, SMART, weight, objective, kra, measure, baseline]
 order: 10
 ---

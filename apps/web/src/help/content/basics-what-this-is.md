@@ -4,7 +4,7 @@ title: What this system is for
 summary: Goals, reviews, competencies and development — and the things it deliberately does not do.
 section: basics
 audience: [everyone]
-routes: ["/"]
+routes: ["/home"]
 keywords: [overview, start, new, introduction, sprout]
 order: 1
 ---

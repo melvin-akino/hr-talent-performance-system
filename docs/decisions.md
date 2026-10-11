@@ -695,3 +695,31 @@ tests say; the PIP screen was the second route in a week with this failure.
 **Revisit this decision when** R21–R24 are answered. In particular R23: if all four
 signatures are required before a plan counts, that becomes a gate on activation or
 on use, and it should be a database rule rather than a screen convention.
+
+## D-020 — The site root is the public landing page; the application starts at /home
+
+The marketing page (`docs/sales/landing-page.html`) is now `apps/web/landing.html`
+and is served at exactly `/`. The application's signed-in home moved from `/` to
+`/home` (`apps/web/src/routes.ts`, `HOME_PATH`). Every other route is unchanged.
+
+- **Why not put the application under a prefix.** `/callback` is the OIDC redirect
+  URI registered with Keycloak; a prefix would have moved it. Moving only the home
+  leaves Keycloak, Caddy and every deep link alone. Bare `/` inside the SPA still
+  redirects to `/home`, so an old bookmark lands somewhere sensible.
+- **Self-contained, on purpose.** The page promised "no external cloud
+  dependencies" while loading Tailwind from a CDN and fonts from Google. It now
+  compiles its own stylesheet (`src/landing.css`, kept separate from the
+  application's) with self-hosted fonts, and `test/landing.spec.ts` fails if a
+  remote resource creeps back in.
+- **Sign-in buttons go to `/home`**, not `/auth/login` (which was never a page: in
+  this deployment `/auth/*` is Keycloak). `/home` redirects to Keycloak when there
+  is no session and returns the visitor there.
+- **Logos.** The real Summit Logic Tech logo, byte-identical, in the header; a
+  white variant derived from it for the dark footer band, plus a favicon and touch
+  icon cut from the mark. The derived files are ours, not supplied artwork.
+
+**Known, unresolved:** the logo reads "Summit Logic Tech Business Solutions Corp."
+while the page title, metadata and copyright line say "Summit Logic Solutions" —
+one of them is wrong and only the company can say which. The landing page is
+indexable while the application is `noindex`. On-premise staff opening the site
+address now see the marketing page first; their bookmark to `/home` skips it.

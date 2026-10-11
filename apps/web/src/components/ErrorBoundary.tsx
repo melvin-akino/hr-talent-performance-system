@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { HOME_PATH } from '../routes';
 
 /**
  * Stops one bad render from blanking the whole application.
@@ -45,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button className="btn btn-secondary" onClick={() => this.setState({ error: null })}>
               Try again
             </button>
-            <a href="/" className="btn btn-secondary">Back to my goals</a>
+            <a href={HOME_PATH} className="btn btn-secondary">Back to my goals</a>
           </div>
         </div>
       </div>

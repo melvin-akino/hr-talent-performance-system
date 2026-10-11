@@ -17,7 +17,9 @@ const USER = process.env.E2E_USER ?? 'maria';
 const PASSWORD = process.env.E2E_PASSWORD ?? 'test1234';
 
 setup('authenticate as an HR admin', async ({ page }) => {
-  await page.goto('/');
+  // The app's home, not `/`: the site root is the public landing page, which does
+  // not redirect to Keycloak. /home signs you in and returns you there.
+  await page.goto('/home');
 
   // Keycloak's own login page, on its own origin.
   await page.getByLabel(/username or email/i).fill(USER);

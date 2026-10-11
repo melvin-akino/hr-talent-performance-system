@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HOME_PATH } from '../routes';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../auth';
@@ -63,7 +64,7 @@ export default function GoalDetail() {
 
   return (
     <Section>
-      <Link to="/" style={{ fontSize: 13, color: 'var(--color-accent-700)', textDecoration: 'none' }}>
+      <Link to={HOME_PATH} style={{ fontSize: 13, color: 'var(--color-accent-700)', textDecoration: 'none' }}>
         ← Back to My goals
       </Link>
 

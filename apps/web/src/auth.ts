@@ -1,4 +1,5 @@
 import { UserManager, WebStorageStateStore, type User } from 'oidc-client-ts';
+import { HOME_PATH } from './routes';
 
 /**
  * OIDC (authorization code + PKCE) against Keycloak.
@@ -71,7 +72,7 @@ let signinCompletion: Promise<User | null> | null = null;
 export function signInAndReturnHere(): Promise<void> {
   const returnTo = window.location.pathname + window.location.search;
   return userManager.signinRedirect({
-    state: { returnTo: returnTo === '/callback' ? '/' : returnTo },
+    state: { returnTo: returnTo === '/callback' ? HOME_PATH : returnTo },
   });
 }
 
@@ -80,10 +81,15 @@ function restoredPath(user: User | null): string {
   const returnTo = state?.returnTo;
   // Only ever a same-origin path. An absolute URL arriving here would be an
   // open redirect, and `state` is round-tripped through a query string.
-  return typeof returnTo === 'string' && returnTo.startsWith('/')
-    && !returnTo.startsWith('//')
-    ? returnTo
-    : '/';
+  // `/` is the public landing page now, so "back where they were going" must
+  // never be `/`: signing in and arriving on a marketing page would read as the
+  // sign-in having failed. (A returnTo of `/` can still arrive from a tab that
+  // was opened before the landing page existed.)
+  if (typeof returnTo === 'string' && returnTo.startsWith('/')
+      && !returnTo.startsWith('//') && returnTo !== '/') {
+    return returnTo;
+  }
+  return HOME_PATH;
 }
 
 export function completeSigninIfCallback(): Promise<User | null> {
@@ -101,7 +107,7 @@ export function completeSigninIfCallback(): Promise<User | null> {
       // exists, use it rather than showing an error the user cannot act on.
       const existing = await currentUser();
       if (existing) {
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', HOME_PATH);
         return existing;
       }
       throw err;

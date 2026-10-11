@@ -4,7 +4,7 @@ title: Your privacy — what is stored and who can see it
 summary: Exactly which fields exist, which deliberately do not, and who can read your records.
 section: basics
 audience: [everyone]
-routes: ["/"]
+routes: ["/home"]
 keywords: [privacy, data, personal, tin, sss, philhealth, pagibig, confidential, who can see, RA 10173, data privacy act]
 order: 2
 ---

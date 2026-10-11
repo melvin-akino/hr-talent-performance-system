@@ -1,0 +1,81 @@
+/*
+ * The public landing page (landing.html), served at the site root.
+ *
+ * ITS OWN STYLESHEET, NOT THE APPLICATION'S.
+ *
+ * The landing page is a corporate marketing page and the application is a dense
+ * line-of-business screen; they share a brand colour and a typeface and nothing
+ * else. So it compiles its own CSS from its own markup (`source(none)` plus an
+ * explicit `@source`), and the application's stylesheet is told to ignore the
+ * landing page in turn (see `@source not` in index.css). Neither can quietly grow
+ * the other's bundle or inherit the other's rules.
+ *
+ * COMPILED HERE, NOT LOADED FROM A CDN.
+ *
+ * The page originally pulled Tailwind from a CDN script and its fonts from Google
+ * Fonts. That is a runtime dependency on two outside hosts, on a page whose
+ * headline promise is "no external cloud dependencies" — and on an office LAN
+ * with no internet it renders as unstyled text. Everything it needs is built into
+ * the web image instead, fonts included (the same @fontsource packages the
+ * application uses).
+ */
+@import 'tailwindcss' source(none);
+
+@import '@fontsource/barlow/300.css';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+
+@source '../landing.html';
+
+@theme {
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /*
+   * The page was drawn with JetBrains Mono for its small tags ("01 / ORGANISATION",
+   * "Pre-Cycle Gate"). It is not installed anywhere in this project and fetching it
+   * would reintroduce the outside dependency removed above, so these use the
+   * system's own monospace. At 12px, in small caps-style labels, the difference is
+   * slight.
+   */
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/*
+ * The page's own base rules live in the BASE layer, and that is not a stylistic
+ * choice. In Tailwind v4, utilities are layered and unlayered CSS beats any layer
+ * regardless of specificity, so the same rules written outside a layer would
+ * override `font-extrabold` and `tracking-tight` on every heading — which is the
+ * opposite of what the markup says. In the CDN build these rules lost to the
+ * class selectors by specificity; here they lose by layer order. Same outcome.
+ */
+@layer base {
+  :root {
+    --color-text-main: #1e293b;
+  }
+
+  body {
+    font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--color-text-main);
+    background-color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /*
+   * Tailwind v4 defaults borders to `currentColor`; v3, which this markup was
+   * written against, defaulted them to a pale grey. Pinned so a `border` with no
+   * colour class does not suddenly turn black.
+   */
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: #e2e8f0;
+  }
+}

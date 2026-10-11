@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { HOME_PATH } from '../routes';
 
 /**
  * Grouped navigation: Mine / My team / Company.
@@ -69,7 +70,7 @@ export function buildGroups(roles: string[], hasReports: boolean): Group[] {
       title: 'Mine',
       visible: true,
       items: [
-        { to: '/', label: 'My goals', icon: icons.target, end: true },
+        { to: HOME_PATH, label: 'My goals', icon: icons.target, end: true },
         { to: '/reviews', label: 'Reviews', icon: icons.clipboard },
         { to: '/competencies', label: 'Competencies', icon: icons.layers },
         { to: '/development', label: 'Development', icon: icons.sprout },

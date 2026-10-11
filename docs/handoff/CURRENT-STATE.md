@@ -177,7 +177,12 @@ A deploy needs, in this order:
    migrations 0047–0049 and none of the new templates. Re-running also retires
    `GGC-TOF` / `GGC-ADMIN` where nothing uses them, and says so where it declines;
 3. verify the two routes now answer 401 rather than 404, and that an employee can
-   acknowledge a PIP — which they could not before.
+   acknowledge a PIP — which they could not before;
+4. **the site root is now the public landing page, not the application** (D-020).
+   `/` serves `apps/web/landing.html`; the application's home is `/home`. This ships
+   in the `web` image, so the same redeploy carries it. Caddy and Keycloak are
+   unchanged (`/callback` did not move). After deploying, check `/` shows the
+   landing page with both logos and that signing in from it lands on `/home`.
 
 **The employee-acknowledge and `POST /pips` bugs are live on the host until then.**
 The demo's PIP screen cannot create a plan without showing an error for it.

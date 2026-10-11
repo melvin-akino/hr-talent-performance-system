@@ -26,7 +26,7 @@ import { test, expect, type Page } from '@playwright/test';
  * and are exercised by the golden-path journeys instead.
  */
 const SCREENS = [
-  '/', '/team', '/reviews', '/competencies', '/development', '/feedback',
+  '/home', '/team', '/reviews', '/competencies', '/development', '/feedback',
   '/notifications', '/monitoring', '/pips', '/hr', '/review-admin', '/analytics',
   '/kpis', '/setup',
 ];
@@ -44,7 +44,7 @@ test.describe('phone — 375px', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test('the sidebar becomes a horizontal strip rather than disappearing', async ({ page }) => {
-    await gotoApp(page, '/');
+    await gotoApp(page, '/home');
     // Infrequent users need to see where they can go; hiding navigation behind
     // a hamburger costs more than the space it saves.
     const direction = await page.locator('.hr-sidebar')
@@ -116,7 +116,7 @@ test.describe('phone — 375px', () => {
   });
 
   test('the help drawer takes the full width', async ({ page }) => {
-    await gotoApp(page, '/');
+    await gotoApp(page, '/home');
     await page.getByRole('button', { name: 'Open help' }).click();
     const panel = page.getByRole('dialog', { name: 'Help' });
     await expect(panel).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('old office monitor — 1366×768', () => {
   test.use({ viewport: { width: 1366, height: 768 } });
 
   test('the sidebar is a column and nothing overflows', async ({ page }) => {
-    await gotoApp(page, '/');
+    await gotoApp(page, '/home');
     const direction = await page.locator('.hr-sidebar')
       .evaluate((el) => getComputedStyle(el).flexDirection);
     expect(direction).toBe('column');

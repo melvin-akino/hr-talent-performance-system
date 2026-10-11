@@ -1,6 +1,16 @@
 @import 'tailwindcss';
 
 /*
+ * The public landing page is built from its own stylesheet (landing.css). Without
+ * these, Tailwind's automatic source detection reads its markup too and compiles
+ * every class it uses into the APPLICATION's bundle — including the slate colour
+ * classes the design system deliberately forbids in application code — and the
+ * comments in landing.css, which name utilities, would be picked up as well.
+ */
+@source not '../landing.html';
+@source not './landing.css';
+
+/*
  * Internal line-of-business UI. Dense, legible, and boring on purpose --
  * this screen is used to run a review cycle, not to impress anyone.
  */

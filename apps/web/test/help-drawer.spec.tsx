@@ -25,10 +25,11 @@ vi.mock('../src/auth', () => ({
 import { HelpDrawer } from '../src/components/HelpDrawer';
 import { renderMarkdown, inline } from '../src/help/markdown';
 import { loadArticles } from '../src/help';
+import { HOME_PATH } from '../src/routes';
 
 afterEach(cleanup);
 
-const wrap = (node: React.ReactNode, path = '/') => {
+const wrap = (node: React.ReactNode, path: string = HOME_PATH) => {
   // No retries and no cache between tests: a shared client would carry one
   // test's articles into the next.
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -39,7 +40,7 @@ const wrap = (node: React.ReactNode, path = '/') => {
   );
 };
 
-const drawer = (roles: string[], path = '/') =>
+const drawer = (roles: string[], path: string = HOME_PATH) =>
   wrap(<HelpDrawer open onClose={vi.fn()} roles={roles} />, path);
 
 describe('markdown rendering', () => {

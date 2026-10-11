@@ -14,6 +14,7 @@ import {
 import { APP_ROUTES, AUDIENCES, SECTIONS } from '../src/help/schema';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DIAGRAMS, DIAGRAM_IDS } from '../src/help/diagrams';
+import { HOME_PATH } from '../src/routes';
 
 const articles = loadArticles();
 
@@ -86,7 +87,7 @@ describe('routes', () => {
   });
 
   it('offers contextual help on the screens that most need it', () => {
-    for (const path of ['/', '/reviews', '/team', '/pips', '/analytics', '/development']) {
+    for (const path of [HOME_PATH, '/reviews', '/team', '/pips', '/analytics', '/development']) {
       expect(articlesForRoute(articles, path).length,
         `no help offered on ${path}`).toBeGreaterThan(0);
     }
@@ -102,14 +103,31 @@ describe('routes', () => {
       .not.toContain('managing-goals');
   });
 
-  it('treats "/" as the dashboard only, not as a prefix of everything', () => {
-    const everywhere = articles.filter((a) => a.routes.includes('/'));
+  it('treats the home route as the dashboard only, not as a prefix of other screens', () => {
+    const onHome = articles.filter((a) => a.routes.includes(HOME_PATH));
+    expect(onHome.length).toBeGreaterThan(0);   // not vacuous: home has help
     const onPips = articlesForRoute(articles, '/pips');
-    for (const a of everywhere) {
-      if (!a.routes.some((r) => r !== '/' && r.startsWith('/pips'))) {
+    for (const a of onHome) {
+      if (!a.routes.some((r) => r !== HOME_PATH && r.startsWith('/pips'))) {
         expect(onPips.map((x) => x.id)).not.toContain(a.id);
       }
     }
+  });
+
+  it('knows the signed-in home, which is no longer "/"', () => {
+    // "/" is the public landing page and has no help. If the home path moves,
+    // this fails until the route registry and the articles follow it.
+    expect(APP_ROUTES).toContain(HOME_PATH);
+    expect(APP_ROUTES as readonly string[]).not.toContain('/');
+    expect(articlesForRoute(articles, HOME_PATH).length).toBeGreaterThan(0);
+  });
+
+  it('still refuses to let a bare "/" route match everything', () => {
+    // The matcher keeps its guard even though no article uses "/" any more: the
+    // next one that does would otherwise appear on every screen.
+    const rogue = { ...articles[0]!, id: 'rogue', routes: ['/'] };
+    expect(articlesForRoute([rogue], '/pips').map((a) => a.id)).toEqual([]);
+    expect(articlesForRoute([rogue], '/').map((a) => a.id)).toEqual(['rogue']);
   });
 });
 

@@ -1,6 +1,7 @@
 import { ThemeToggle } from './components/ds';
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { HOME_PATH } from './routes';
 import { useQuery } from '@tanstack/react-query';
 import { api, completeSigninIfCallback, currentUser, signInAndReturnHere, userManager } from './auth';
 import { PeriodProvider, usePeriod } from './PeriodContext';
@@ -141,7 +142,12 @@ function Shell() {
               which is where the user was originally heading. Hardcoding "/"
               here silently discarded that destination. */}
           <Route path="/callback" element={<CallbackRedirect />} />
-          <Route path="/" element={<MyGoals />} />
+          <Route path={HOME_PATH} element={<MyGoals />} />
+          {/* `/` is the public landing page, served by the web server and never by
+              this router on a fresh load. This catches the one way to reach it from
+              inside the app, a client-side navigation to `/`, and sends it home
+              rather than leaving it on a path that, reloaded, is somewhere else. */}
+          <Route path="/" element={<Navigate to={HOME_PATH} replace />} />
           <Route path="/goals/new" element={<NewGoal />} />
           <Route path="/goals/:id" element={<GoalDetail />} />
           <Route path="/employees/:employeeId/goals" element={<EmployeeGoals />} />

@@ -71,7 +71,9 @@ export interface HelpArticle {
  * When a route is added to the app, add it here too.
  */
 export const APP_ROUTES = [
-  '/',
+  // The signed-in home. `/` itself is the public landing page, which is not a
+  // route of this app and has no help.
+  '/home',
   '/goals/new',
   '/goals/:id',
   '/employees/:employeeId/goals',

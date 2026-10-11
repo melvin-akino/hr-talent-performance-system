@@ -4,7 +4,7 @@ title: Signing in and getting access
 summary: You use your normal office account. What to do when that does not work.
 section: basics
 audience: [everyone]
-routes: ["/"]
+routes: ["/home"]
 keywords: [login, log in, password, account, access, cannot sign in, locked out, VPN, remote]
 order: 3
 ---

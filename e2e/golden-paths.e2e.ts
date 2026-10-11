@@ -25,7 +25,7 @@ async function gotoApp(page: Page, path: string) {
 
 test.describe('navigation reflects the signed-in user', () => {
   test('an HR admin is offered all three groups', async ({ page }) => {
-    await gotoApp(page, '/');
+    await gotoApp(page, '/home');
     const nav = page.getByRole('navigation', { name: 'Main' });
 
     // Maria holds hr_admin, so Company is present. That a plain employee sees
@@ -40,7 +40,7 @@ test.describe('navigation reflects the signed-in user', () => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-    for (const path of ['/', '/reviews', '/competencies', '/development',
+    for (const path of ['/home', '/reviews', '/competencies', '/development',
       '/feedback', '/notifications', '/team', '/monitoring', '/pips',
       '/hr', '/review-admin', '/analytics', '/kpis', '/setup']) {
       await gotoApp(page, path);

@@ -4,7 +4,7 @@ title: Check-ins — keeping a goal honest
 summary: What a check-in is, how often one is due, and why "at risk" early is better than "off track" late.
 section: goals
 audience: [everyone]
-routes: ["/goals/:id", "/", "/monitoring"]
+routes: ["/goals/:id", "/home", "/monitoring"]
 keywords: [check-in, checkin, update, progress, on track, at risk, off track, cadence, overdue]
 order: 11
 ---
