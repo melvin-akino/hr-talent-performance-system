@@ -23,9 +23,8 @@ via Testcontainers, 180 web, plus 14 Playwright journeys (not run this session).
 Every screen listed in the README is built.
 
 **Deployed vs built are different, and today they differ:** the live demo host
-is at F3 (migration 0046). **F2, F4, B3b and F6 — migrations 0047, 0048, 0049 —
-are built, tested and committed, and NOT deployed.** See "The live demo" below
-for what a deploy needs.
+runs everything through F6 (migration 0049) and the landing page at the site
+root, as of 2026-10-12. See "The live demo" below.
 
 Delivered beyond the original phases, most recent first:
 
@@ -166,26 +165,22 @@ a bogus route answers 404, so the routes exist and are guarded; `app.has_org_gra
 is present; the web bundle contains the Import staff tab; 622 MB of 909 in use
 with 538 MB of swap, unchanged by the new code.
 
-**NOT on the host as of 2026-10-07: F2 (0047), F4 (0048), B3b and F6 (0049).**
-Probed, not assumed: `/api/reports/evaluations` and `/api/requests` answer 404.
-A deploy needs, in this order:
+**Deployed 2026-10-12:** F2, F4, B3b, F6 (migrations 0047–0049) and the landing
+page at the site root (D-020). Verified, not assumed: `/api/reports/evaluations`
+and `/api/requests` answer 401 (they were 404); `/` serves the landing page with
+the footer logo; `/home` and `/callback` answer 200; migrations 0048 and 0049 are
+applied; `pip_acknowledgement` and `change_request` exist; the four `GGC-PEF-*`
+templates are published (`install.sh` re-runs provisioning itself, so no separate
+`provision-org` was needed). `GGC-TOF` and `GGC-ADMIN` remain because they are in
+use. **Not verified:** an employee acknowledging a PIP, and signing in from the
+landing page, in a browser.
 
-1. the normal redeploy, which applies 0047–0049. 0049 seeds the signature grants
-   for existing organisations itself;
-2. **`hr provision-org --org GGCHCM …` re-run.** The new evaluation formats are
-   published by provisioning, not by a migration, so without this the host has
-   migrations 0047–0049 and none of the new templates. Re-running also retires
-   `GGC-TOF` / `GGC-ADMIN` where nothing uses them, and says so where it declines;
-3. verify the two routes now answer 401 rather than 404, and that an employee can
-   acknowledge a PIP — which they could not before;
-4. **the site root is now the public landing page, not the application** (D-020).
-   `/` serves `apps/web/landing.html`; the application's home is `/home`. This ships
-   in the `web` image, so the same redeploy carries it. Caddy and Keycloak are
-   unchanged (`/callback` did not move). After deploying, check `/` shows the
-   landing page with both logos and that signing in from it lands on `/home`.
-
-**The employee-acknowledge and `POST /pips` bugs are live on the host until then.**
-The demo's PIP screen cannot create a plan without showing an error for it.
+Redeploy notes learned the hard way:
+- Pre-flight reports one failure on this host by design (shared-password demo accounts).
+- The deploy script stops at a DNS prompt and reads stdin; `echo yes |` answers it
+  when DNS already resolves.
+- If the AWS CLI fails TLS verification, Avast has rotated its root: regenerate
+  `~/.aws/ca-bundle.pem` from the current root in the Windows certificate store.
 
 A redeploy is ~8 minutes of build plus a 307 MB upload. It reuses the security
 group, key pair, instance and address, and leaves `.env` alone, so secrets and
