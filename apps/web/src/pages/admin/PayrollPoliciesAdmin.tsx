@@ -16,6 +16,22 @@ interface SalaryMatrix {
 export default function PayrollPoliciesAdmin() {
   const queryClient = useQueryClient();
   const [showAddMatrixModal, setShowAddMatrixModal] = useState(false);
+  const [editingMatrixId, setEditingMatrixId] = useState<string | null>(null);
+  const [editMatrixForm, setEditMatrixForm] = useState<{
+    gradeCode: string;
+    gradeName: string;
+    minMonthlyRate: number;
+    maxMonthlyRate: number;
+    region: string;
+    industryType: string;
+  }>({
+    gradeCode: '',
+    gradeName: '',
+    minMonthlyRate: 0,
+    maxMonthlyRate: 0,
+    region: 'NCR',
+    industryType: 'General',
+  });
 
   const [matrixForm, setMatrixForm] = useState({
     gradeCode: '',
@@ -28,12 +44,12 @@ export default function PayrollPoliciesAdmin() {
 
   const { data: matrices, isLoading } = useQuery({
     queryKey: ['salary-matrices'],
-    queryFn: () => api<SalaryMatrix[]>('/payroll/salary-matrices'),
+    queryFn: () => api<SalaryMatrix[]>('/payroll/salary-matrix'),
   });
 
   const createMatrixMutation = useMutation({
     mutationFn: (body: typeof matrixForm) =>
-      api<SalaryMatrix>('/payroll/salary-matrices', {
+      api<SalaryMatrix>('/payroll/salary-matrix', {
         method: 'POST',
         body,
       }),
@@ -48,6 +64,15 @@ export default function PayrollPoliciesAdmin() {
         industryType: 'General',
         region: 'NCR',
       });
+    },
+  });
+
+  const updateMatrixMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: typeof editMatrixForm }) =>
+      api(`/admin/salary-matrices/${id}`, { method: 'PATCH', body }),
+    onSuccess: () => {
+      setEditingMatrixId(null);
+      queryClient.invalidateQueries({ queryKey: ['salary-matrices'] });
     },
   });
 
@@ -94,28 +119,113 @@ export default function PayrollPoliciesAdmin() {
               </tr>
             </thead>
             <tbody>
-              {(matrices || []).map((m) => (
-                <tr key={m.id}>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{m.grade_code}</td>
-                  <td style={{ fontWeight: 600 }}>{m.grade_name}</td>
-                  <td><Tag tone="neutral">{m.region}</Tag></td>
-                  <td>{m.industry_type}</td>
-                  <td style={{ fontWeight: 600, color: '#38bdf8' }}>
-                    ₱{Number(m.min_monthly_rate).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td style={{ fontWeight: 600, color: '#4ade80' }}>
-                    ₱{Number(m.max_monthly_rate).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => deleteMatrixMutation.mutate(m.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {(matrices || []).map((m) =>
+                editingMatrixId === m.id ? (
+                  <tr key={m.id}>
+                    <td>
+                      <input
+                        className="input-sm"
+                        style={{ width: 90 }}
+                        value={editMatrixForm.gradeCode}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, gradeCode: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input-sm"
+                        value={editMatrixForm.gradeName}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, gradeName: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input-sm"
+                        style={{ width: 100 }}
+                        value={editMatrixForm.region}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, region: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input-sm"
+                        style={{ width: 120 }}
+                        value={editMatrixForm.industryType}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, industryType: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="input-sm"
+                        style={{ width: 110 }}
+                        value={editMatrixForm.minMonthlyRate}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, minMonthlyRate: Number(e.target.value) })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="input-sm"
+                        style={{ width: 110 }}
+                        value={editMatrixForm.maxMonthlyRate}
+                        onChange={(e) => setEditMatrixForm({ ...editMatrixForm, maxMonthlyRate: Number(e.target.value) })}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={updateMatrixMutation.isPending}
+                        onClick={() => updateMatrixMutation.mutate({ id: m.id, body: editMatrixForm })}
+                      >
+                        Save
+                      </button>{' '}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setEditingMatrixId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={m.id}>
+                    <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{m.grade_code}</td>
+                    <td style={{ fontWeight: 600 }}>{m.grade_name}</td>
+                    <td><Tag tone="neutral">{m.region}</Tag></td>
+                    <td>{m.industry_type}</td>
+                    <td style={{ fontWeight: 600, color: '#38bdf8' }}>
+                      ₱{Number(m.min_monthly_rate).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ fontWeight: 600, color: '#4ade80' }}>
+                      ₱{Number(m.max_monthly_rate).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setEditingMatrixId(m.id);
+                          setEditMatrixForm({
+                            gradeCode: m.grade_code,
+                            gradeName: m.grade_name,
+                            minMonthlyRate: Number(m.min_monthly_rate),
+                            maxMonthlyRate: Number(m.max_monthly_rate),
+                            region: m.region,
+                            industryType: m.industry_type,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>{' '}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => deleteMatrixMutation.mutate(m.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>

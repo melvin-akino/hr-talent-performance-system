@@ -149,6 +149,14 @@ export default function AttendanceDashboard() {
     count: 1,
   });
 
+  // Holiday Modal state
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({
+    name: '',
+    holidayDate: new Date().toISOString().slice(0, 10),
+    holidayType: 'regular_holiday',
+  });
+
   const attendanceEnabled = me.data?.features?.feature_time_attendance ?? false;
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -181,7 +189,7 @@ export default function AttendanceDashboard() {
   // 4. Fetch Kiosk Terminal Enrollments
   const enrollmentsQuery = useQuery({
     queryKey: ['kiosk-enrollments'],
-    queryFn: () => api<TerminalCredential[]>('/attendance/kiosk/enrollments'),
+    queryFn: () => api<TerminalCredential[]>('/attendance/enrollments'),
     enabled: attendanceEnabled && activeTab === 'kiosk-enrollment',
   });
 
@@ -195,7 +203,7 @@ export default function AttendanceDashboard() {
   // 6. Fetch Tardiness Infractions & Memos
   const infractionsQuery = useQuery({
     queryKey: ['tardiness-infractions'],
-    queryFn: () => api<any[]>('/attendance/infractions'),
+    queryFn: () => api<any[]>('/attendance/tardiness-summary'),
     enabled: attendanceEnabled && activeTab === 'tardiness-memos',
   });
 
@@ -234,7 +242,7 @@ export default function AttendanceDashboard() {
   // Enroll Kiosk PIN Mutation
   const enrollMutation = useMutation({
     mutationFn: (data: { employeeId: string; pin: string }) =>
-      api('/attendance/kiosk/enroll', {
+      api('/attendance/enroll-pin', {
         method: 'POST',
         body: data,
       }),
@@ -251,16 +259,22 @@ export default function AttendanceDashboard() {
 
   // Issue Disciplinary Memo Mutation
   const issueMemoMutation = useMutation({
-    mutationFn: (data: { employeeId: string; subject: string; body: string }) =>
-      api('/attendance/memos', {
+    mutationFn: (data: { employeeId: string; subject: string; body: string; totalInfractions?: number }) => {
+      const due = new Date();
+      due.setDate(due.getDate() + 5);
+      return api('/attendance/memos', {
         method: 'POST',
         body: {
           employeeId: data.employeeId,
           memoType: 'notice_to_explain',
-          subject: data.subject,
-          body: data.body,
+          incidentPeriodStart: currentMonthStart,
+          incidentPeriodEnd: todayStr,
+          totalInfractions: data.totalInfractions ?? 1,
+          details: `${data.subject}\n\n${data.body}`,
+          responseDueDate: due.toISOString().slice(0, 10),
         },
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disciplinary-memos'] });
       setMemoModalEmployee(null);
@@ -282,12 +296,51 @@ export default function AttendanceDashboard() {
     },
   });
 
+  // Approve Business Trip Mutation
+  const approveTripMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/attendance/business-trips/${id}/approve`, { method: 'POST' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['business-trips'] }),
+  });
+
+  // Approve DTR Record Mutation
+  const approveDtrMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/attendance/records/${id}/approve`, { method: 'POST' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance-records'] }),
+  });
+
+  // Approve Shift Swap Mutation
+  const approveSwapMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/attendance/shift-swap/${id}/approve`, { method: 'POST' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shift-swaps'] }),
+  });
+
+  // Create Holiday Mutation
+  const createHolidayMutation = useMutation({
+    mutationFn: (data: typeof holidayForm) =>
+      api('/attendance/holidays', { method: 'POST', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-holidays'] });
+      setShowHolidayModal(false);
+      setHolidayForm({
+        name: '',
+        holidayDate: new Date().toISOString().slice(0, 10),
+        holidayType: 'regular_holiday',
+      });
+    },
+  });
+
   // Issue Meal Voucher Mutation
   const voucherMutation = useMutation({
     mutationFn: (data: typeof voucherForm) =>
       api('/attendance/meal-vouchers', {
         method: 'POST',
-        body: data,
+        body: {
+          employeeId: me.data?.id,
+          mealType: data.mealType,
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meal-vouchers'] });
@@ -297,9 +350,10 @@ export default function AttendanceDashboard() {
 
   // Redeem Meal Voucher Mutation
   const redeemVoucherMutation = useMutation({
-    mutationFn: (voucherId: string) =>
-      api(`/attendance/meal-vouchers/${voucherId}/redeem`, {
-        method: 'PATCH',
+    mutationFn: (voucherCode: string) =>
+      api('/attendance/meal-vouchers/redeem', {
+        method: 'POST',
+        body: { voucherCode },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meal-vouchers'] });
@@ -508,6 +562,7 @@ export default function AttendanceDashboard() {
                   <th style={{ padding: '10px 16px', textAlign: 'right' }}>Tardy (mins)</th>
                   <th style={{ padding: '10px 16px' }}>Punch Mode</th>
                   <th style={{ padding: '10px 16px', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -540,11 +595,22 @@ export default function AttendanceDashboard() {
                           {r.status.toUpperCase()}
                         </Tag>
                       </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        {r.status !== 'approved' && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={approveDtrMutation.isPending}
+                            onClick={() => approveDtrMutation.mutate(r.id)}
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                    <td colSpan={11} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
                       No attendance records found for this period. Click 'Web Clock In' or punch via Biometric Kiosk.
                     </td>
                   </tr>
@@ -783,6 +849,7 @@ export default function AttendanceDashboard() {
                 <th style={{ padding: '10px 12px' }}>Target Date</th>
                 <th style={{ padding: '10px 12px' }}>Reason</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -798,11 +865,22 @@ export default function AttendanceDashboard() {
                         {sw.status.toUpperCase()}
                       </Tag>
                     </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      {sw.status === 'pending' && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={approveSwapMutation.isPending}
+                          onClick={() => approveSwapMutation.mutate(sw.id)}
+                        >
+                          Approve Swap
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
                     No pending shift swap applications in this period.
                   </td>
                 </tr>
@@ -831,7 +909,7 @@ export default function AttendanceDashboard() {
 
             {infractionsQuery.data && infractionsQuery.data.length > 0 ? (
               infractionsQuery.data.map((inf: any) => (
-                <div key={inf.employee_id} style={{
+                <div key={inf.employeeId} style={{
                   padding: '12px',
                   border: '1px solid var(--color-border)',
                   borderRadius: '8px',
@@ -842,17 +920,17 @@ export default function AttendanceDashboard() {
                 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '14.5px' }}>
-                      {inf.first_name} {inf.last_name}
+                      {inf.employeeName}
                     </div>
                     <div style={{ fontSize: '15px', color: '#f87171' }}>
-                      {inf.tardy_days} tardy days • {inf.total_tardy_mins} accumulated minutes late
+                      {inf.tardinessCount} tardy days • {inf.totalTardinessMinutes} accumulated minutes late
                     </div>
                   </div>
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => {
                       setMemoModalEmployee(inf);
-                      setMemoSubject(`Notice to Explain: Habitual Tardiness (${inf.tardy_days} instances)`);
+                      setMemoSubject(`Notice to Explain: Habitual Tardiness (${inf.tardinessCount} instances)`);
                       setMemoBody(`You are hereby requested to submit a written explanation within 5 days regarding habitual tardiness recorded between ${currentMonthStart} and ${todayStr}.`);
                     }}
                   >
@@ -931,7 +1009,7 @@ export default function AttendanceDashboard() {
                   Issue Notice to Explain (NTE)
                 </h3>
                 <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '0 0 16px 0' }}>
-                  Recipient: <strong>{memoModalEmployee.first_name} {memoModalEmployee.last_name}</strong>
+                  Recipient: <strong>{memoModalEmployee.employeeName || `${memoModalEmployee.first_name ?? ''} ${memoModalEmployee.last_name ?? ''}`}</strong>
                 </p>
 
                 <div style={{ marginBottom: '12px' }}>
@@ -961,9 +1039,10 @@ export default function AttendanceDashboard() {
                     disabled={issueMemoMutation.isPending}
                     onClick={() =>
                       issueMemoMutation.mutate({
-                        employeeId: memoModalEmployee.employee_id,
+                        employeeId: memoModalEmployee.employeeId || memoModalEmployee.employee_id,
                         subject: memoSubject,
                         body: memoBody,
+                        totalInfractions: memoModalEmployee.tardinessCount ?? memoModalEmployee.tardy_days ?? 1,
                       })
                     }
                   >
@@ -1005,6 +1084,7 @@ export default function AttendanceDashboard() {
                 <th style={{ padding: '10px 12px' }}>Inclusive Dates</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right' }}>Per Diem (Daily)</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1021,11 +1101,22 @@ export default function AttendanceDashboard() {
                         {trip.status.toUpperCase()}
                       </Tag>
                     </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      {trip.status === 'pending' && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={approveTripMutation.isPending}
+                          onClick={() => approveTripMutation.mutate(trip.id)}
+                        >
+                          Approve
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                  <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
                     No business travel trips filed for this period.
                   </td>
                 </tr>
@@ -1151,32 +1242,36 @@ export default function AttendanceDashboard() {
             </thead>
             <tbody>
               {vouchersQuery.data && vouchersQuery.data.length > 0 ? (
-                vouchersQuery.data.map((vc) => (
-                  <tr key={vc.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{vc.voucher_number}</td>
-                    <td style={{ padding: '10px 12px' }}>{vc.first_name} {vc.last_name}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ textTransform: 'capitalize' }}>{vc.meal_type.replace(/_/g, ' ')}</span>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>{vc.valid_date}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                      <Tag tone={vc.is_redeemed ? 'neutral' : 'accent'}>
-                        {vc.is_redeemed ? 'REDEEMED' : 'ACTIVE'}
-                      </Tag>
-                    </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                      {!vc.is_redeemed && (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => redeemVoucherMutation.mutate(vc.id)}
-                          disabled={redeemVoucherMutation.isPending}
-                        >
-                          Mark Redeemed
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                vouchersQuery.data.map((vc: any) => {
+                  const code = vc.voucher_code || vc.voucher_number;
+                  const redeemed = vc.status === 'redeemed' || vc.is_redeemed;
+                  return (
+                    <tr key={vc.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{code}</td>
+                      <td style={{ padding: '10px 12px' }}>{vc.employeeName || `${vc.first_name ?? ''} ${vc.last_name ?? ''}`}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{ textTransform: 'capitalize' }}>{(vc.meal_type || 'duty_meal').replace(/_/g, ' ')}</span>
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>{vc.valid_date || (vc.created_at ? String(vc.created_at).slice(0, 10) : '—')}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <Tag tone={redeemed ? 'neutral' : 'accent'}>
+                          {redeemed ? 'REDEEMED' : 'ACTIVE'}
+                        </Tag>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        {!redeemed && code && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => redeemVoucherMutation.mutate(code)}
+                            disabled={redeemVoucherMutation.isPending}
+                          >
+                            Mark Redeemed
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
@@ -1246,17 +1341,93 @@ export default function AttendanceDashboard() {
 
       {/* Tab 8: Holidays */}
       {activeTab === 'holidays' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-          {holidaysQuery.data?.map((h) => (
-            <Card key={h.id} kicker={h.holiday_type.replace(/_/g, ' ').toUpperCase()} title={h.name}>
-              <div style={{ marginTop: '8px', fontSize: '14.5px', fontWeight: 600 }}>
-                Date: {h.holiday_date}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Statutory &amp; Company Holidays</h2>
+              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
+                Regular &amp; special non-working holidays applied to attendance &amp; payroll holiday premiums.
+              </p>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowHolidayModal(true)}>
+              + Add Holiday
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {holidaysQuery.data?.map((h) => (
+              <Card key={h.id} kicker={h.holiday_type.replace(/_/g, ' ').toUpperCase()} title={h.name}>
+                <div style={{ marginTop: '8px', fontSize: '14.5px', fontWeight: 600 }}>
+                  Date: {h.holiday_date}
+                </div>
+                <div style={{ fontSize: '15px', color: 'var(--color-muted)', marginTop: '4px' }}>
+                  Coverage: {h.branch_name || 'Nationwide (All Branches)'}
+                </div>
+              </Card>
+            ))}
+          </div>
+          {showHolidayModal && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 100,
+            }}>
+              <div style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '12px',
+                padding: '24px',
+                width: '100%',
+                maxWidth: '420px',
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0' }}>Add Holiday</h3>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>Holiday Name:</label>
+                  <input
+                    type="text"
+                    value={holidayForm.name}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
+                    placeholder="e.g. Bonifacio Day"
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>Date:</label>
+                  <input
+                    type="date"
+                    value={holidayForm.holidayDate}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, holidayDate: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>Type:</label>
+                  <select
+                    value={holidayForm.holidayType}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, holidayType: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                  >
+                    <option value="regular_holiday">Regular Holiday (200%)</option>
+                    <option value="special_non_working">Special Non-Working (130%)</option>
+                    <option value="special_working">Special Working</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button className="btn btn-ghost" onClick={() => setShowHolidayModal(false)}>Cancel</button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!holidayForm.name.trim() || createHolidayMutation.isPending}
+                    onClick={() => createHolidayMutation.mutate(holidayForm)}
+                  >
+                    {createHolidayMutation.isPending ? 'Saving...' : 'Save Holiday'}
+                  </button>
+                </div>
               </div>
-              <div style={{ fontSize: '15px', color: 'var(--color-muted)', marginTop: '4px' }}>
-                Coverage: {h.branch_name || 'Nationwide (All Branches)'}
-              </div>
-            </Card>
-          ))}
+            </div>
+          )}
         </div>
       )}
     </div>

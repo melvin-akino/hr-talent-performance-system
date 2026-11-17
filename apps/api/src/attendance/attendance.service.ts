@@ -989,4 +989,16 @@ export class AttendanceService {
       };
     });
   }
+
+  async listBranches(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT id, code, name, region
+           FROM branch
+          WHERE org_id = app.current_org_id()
+          ORDER BY code ASC`,
+      );
+      return res.rows;
+    });
+  }
 }

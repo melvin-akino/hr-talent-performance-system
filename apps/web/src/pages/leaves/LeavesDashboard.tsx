@@ -47,6 +47,7 @@ export default function LeavesDashboard() {
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<Employee>('/employees/me') });
   const [activeTab, setActiveTab] = useState<'balances' | 'requests' | 'types'>('balances');
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
 
   const [applyForm, setApplyForm] = useState({
     leaveTypeId: '',
@@ -56,8 +57,33 @@ export default function LeavesDashboard() {
     reason: '',
   });
 
+  const [allocateForm, setAllocateForm] = useState({
+    employeeId: '',
+    leaveTypeId: '',
+    year: new Date().getFullYear(),
+    allocatedDays: 5,
+  });
+
   const leavesEnabled = me.data?.features?.feature_leave_management ?? false;
+  const isHrAdmin = (me.data?.roles ?? []).some((r) =>
+    ['hr_admin', 'org_admin', 'hr_manager'].includes(r),
+  );
   const currentYear = new Date().getFullYear();
+
+  const employeesQuery = useQuery({
+    queryKey: ['employees-list-leaves'],
+    queryFn: () => api<{ id: string; firstName: string; lastName: string; employeeNumber: string }[]>('/employees?limit=200'),
+    enabled: leavesEnabled && isHrAdmin && showAllocateModal,
+  });
+
+  const allocateMutation = useMutation({
+    mutationFn: (payload: typeof allocateForm) =>
+      api('/leaves/allocate', { method: 'POST', body: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
+      setShowAllocateModal(false);
+    },
+  });
 
   // 1. Fetch Balances
   const balancesQuery = useQuery({
@@ -217,13 +243,23 @@ export default function LeavesDashboard() {
           </p>
         </div>
 
-        {/* Apply Leave Action */}
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowApplyModal(true)}
-        >
-          + File Leave Application
-        </button>
+        {/* Apply & Allocate Leave Actions */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {isHrAdmin && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowAllocateModal(true)}
+            >
+              + Allocate Leave Credits
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowApplyModal(true)}
+          >
+            + File Leave Application
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -578,6 +614,94 @@ export default function LeavesDashboard() {
                 }
               >
                 {applyMutation.isPending ? 'Submitting...' : 'Submit Application'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAllocateModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '460px',
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
+              Allocate Leave Credits
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14.5px', fontWeight: 600, marginBottom: '4px' }}>Employee</label>
+                <select
+                  value={allocateForm.employeeId}
+                  onChange={(e) => setAllocateForm({ ...allocateForm, employeeId: e.target.value })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                >
+                  <option value="">Select employee...</option>
+                  {(employeesQuery.data ?? []).map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.lastName}, {emp.firstName} ({emp.employeeNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14.5px', fontWeight: 600, marginBottom: '4px' }}>Leave Type</label>
+                <select
+                  value={allocateForm.leaveTypeId}
+                  onChange={(e) => setAllocateForm({ ...allocateForm, leaveTypeId: e.target.value })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                >
+                  <option value="">Select leave type...</option>
+                  {(typesQuery.data ?? []).map((lt) => (
+                    <option key={lt.id} value={lt.id}>
+                      {lt.name} ({lt.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14.5px', fontWeight: 600, marginBottom: '4px' }}>Year</label>
+                  <input
+                    type="number"
+                    value={allocateForm.year}
+                    onChange={(e) => setAllocateForm({ ...allocateForm, year: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14.5px', fontWeight: 600, marginBottom: '4px' }}>Days</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={allocateForm.allocatedDays}
+                    onChange={(e) => setAllocateForm({ ...allocateForm, allocatedDays: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowAllocateModal(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                disabled={!allocateForm.employeeId || !allocateForm.leaveTypeId || allocateMutation.isPending}
+                onClick={() => allocateMutation.mutate(allocateForm)}
+              >
+                {allocateMutation.isPending ? 'Saving...' : 'Allocate Credits'}
               </button>
             </div>
           </div>

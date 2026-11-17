@@ -292,4 +292,11 @@ export class AttendanceController {
   createHoliday(@Req() req: AuthenticatedRequest, @Body() body: CreateHolidayDto) {
     return this.attendance.createHoliday(req.auth, body);
   }
+
+  @Get('branches')
+  @UseGuards(AuthGuard, FeatureGuard)
+  @RequireFeature('feature_time_attendance')
+  listBranches(@Req() req: AuthenticatedRequest) {
+    return this.attendance.listBranches(req.auth);
+  }
 }

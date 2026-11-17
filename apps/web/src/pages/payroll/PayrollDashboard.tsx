@@ -270,9 +270,20 @@ export default function PayrollDashboard() {
     },
   });
 
+  const updateLoanStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'active' | 'paused' | 'paid_off' }) =>
+      api(`/payroll/loans/${id}/status`, {
+        method: 'PATCH',
+        body: { status },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-loans'] });
+    },
+  });
+
   const distributeServiceChargeMutation = useMutation({
     mutationFn: (data: typeof serviceChargeForm) =>
-      api('/payroll/service-charge/distribute', {
+      api('/payroll/service-charge', {
         method: 'POST',
         body: data,
       }),
@@ -333,7 +344,7 @@ export default function PayrollDashboard() {
   };
 
   if (me.isLoading) {
-    return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading payroll workspace…</div>;
+    return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading payroll workspaceâ€¦</div>;
   }
 
   // Graceful degradation when Philippine Payroll is not enabled for this tenant
@@ -461,10 +472,10 @@ export default function PayrollDashboard() {
             BIR TRAIN Withholding
           </div>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-fg)', marginTop: '4px' }}>
-            2023–2026 Tax Table
+            2023â€“2026 Tax Table
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            0% below ₱20,833/mo · Graduated 15%–35%
+            0% below â‚±20,833/mo Â· Graduated 15%â€“35%
           </div>
         </div>
 
@@ -481,7 +492,7 @@ export default function PayrollDashboard() {
             14% Contribution Rate
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            EE: 4.5% · ER: 9.5% · MSC Cap ₱35,000
+            EE: 4.5% Â· ER: 9.5% Â· MSC Cap â‚±35,000
           </div>
         </div>
 
@@ -498,7 +509,7 @@ export default function PayrollDashboard() {
             5.0% Premium Rate
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            EE: 2.5% · ER: 2.5% · Floor ₱10k, Ceiling ₱100k
+            EE: 2.5% Â· ER: 2.5% Â· Floor â‚±10k, Ceiling â‚±100k
           </div>
         </div>
 
@@ -512,10 +523,10 @@ export default function PayrollDashboard() {
             Pag-IBIG / HDMF
           </div>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-fg)', marginTop: '4px' }}>
-            ₱200 EE / ₱200 ER
+            â‚±200 EE / â‚±200 ER
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            Circular 460 · MFS Cap ₱10,000
+            Circular 460 Â· MFS Cap â‚±10,000
           </div>
         </div>
       </div>
@@ -541,7 +552,7 @@ export default function PayrollDashboard() {
           >
             {runs.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.title} ({r.code}) — {r.status.toUpperCase()}
+                {r.title} ({r.code}) â€” {r.status.toUpperCase()}
               </option>
             ))}
           </select>
@@ -598,7 +609,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Gross Payroll (PHP)</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    ₱ {Number(selectedRun.totalGross || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    â‚± {Number(selectedRun.totalGross || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>
                     {selectedRun.employeeCount} Employees ({selectedRun.runType})
@@ -608,7 +619,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">BIR Withholding Tax</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    ₱ {Number(selectedRun.totalWithholdingTax || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    â‚± {Number(selectedRun.totalWithholdingTax || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>TRAIN Law Withholding</div>
                 </Card>
@@ -616,7 +627,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Statutory Deductions (EE)</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    ₱ {(
+                    â‚± {(
                       Number(selectedRun.totalSssEe || 0) +
                       Number(selectedRun.totalPhilhealthEe || 0) +
                       Number(selectedRun.totalPagibigEe || 0)
@@ -628,7 +639,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Total Net Pay Disbursable</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px', color: '#38bdf8' }}>
-                    ₱ {Number(selectedRun.totalNetPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    â‚± {Number(selectedRun.totalNetPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>Payout Date: {selectedRun.payoutDate}</div>
                 </Card>
@@ -722,15 +733,15 @@ export default function PayrollDashboard() {
                           <td style={{ padding: '12px 16px', fontWeight: 600 }}>{row.employeeNo}</td>
                           <td style={{ padding: '12px 16px' }}>{row.lastName}, {row.firstName}</td>
                           <td style={{ padding: '12px 16px', color: 'var(--color-muted)' }}>{row.branchName || 'Head Office'}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.basic_pay).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.de_minimis_allowances).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.gross_pay).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.sss_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.philhealth_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.pagibig_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.withholding_tax).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.basic_pay).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.de_minimis_allowances).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.gross_pay).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.sss_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.philhealth_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.pagibig_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.withholding_tax).toFixed(2)}</td>
                           <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#38bdf8' }}>
-                            ₱ {Number(row.net_pay).toFixed(2)}
+                            â‚± {Number(row.net_pay).toFixed(2)}
                           </td>
                           <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                             <Tag tone={row.disbursement_status === 'paid' ? 'accent' : 'neutral'}>
@@ -765,7 +776,7 @@ export default function PayrollDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           <Card kicker="Social Security System" title="Monthly SSS R-3 Contribution Report">
             <p className="card-body" style={{ fontSize: '14.5px' }}>
-              Includes Employee (4.5%) and Employer (9.5%) shares plus WISP mandatory provident fund for salaries exceeding ₱20,000.
+              Includes Employee (4.5%) and Employer (9.5%) shares plus WISP mandatory provident fund for salaries exceeding â‚±20,000.
             </p>
             <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
               <button
@@ -855,6 +866,7 @@ export default function PayrollDashboard() {
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Monthly Amortization</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Balance Remaining</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -865,20 +877,49 @@ export default function PayrollDashboard() {
                     <td style={{ padding: '12px 14px' }}>
                       <span style={{ textTransform: 'capitalize' }}>{l.loan_type.replace(/_/g, ' ')}</span>
                     </td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>{l.reference_number || '—'}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(l.principal_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#f87171' }}>₱{Number(l.monthly_amortization).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(l.balance_remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>{l.reference_number || 'â€”'}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(l.principal_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#f87171' }}>â‚±{Number(l.monthly_amortization).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>â‚±{Number(l.balance_remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                       <Tag tone={l.status === 'active' ? 'accent' : 'neutral'}>
                         {l.status.toUpperCase()}
                       </Tag>
                     </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {l.status === 'active' && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          disabled={updateLoanStatusMutation.isPending}
+                          onClick={() => updateLoanStatusMutation.mutate({ id: l.id, status: 'paused' })}
+                        >
+                          Pause
+                        </button>
+                      )}
+                      {l.status === 'paused' && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          disabled={updateLoanStatusMutation.isPending}
+                          onClick={() => updateLoanStatusMutation.mutate({ id: l.id, status: 'active' })}
+                        >
+                          Resume
+                        </button>
+                      )}
+                      {l.status !== 'paid_off' && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          disabled={updateLoanStatusMutation.isPending}
+                          onClick={() => updateLoanStatusMutation.mutate({ id: l.id, status: 'paid_off' })}
+                        >
+                          Mark Paid
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                  <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
                     No employee loans registered. Click '+ Register New Loan' above.
                   </td>
                 </tr>
@@ -924,10 +965,10 @@ export default function PayrollDashboard() {
                 serviceChargeQuery.data.map((sc) => (
                   <tr key={sc.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{sc.pool_period}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sc.total_collected_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>₱{Number(sc.distributed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sc.total_collected_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>â‚±{Number(sc.distributed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>{sc.eligible_employee_count} staff</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>₱{Number(sc.amount_per_employee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>â‚±{Number(sc.amount_per_employee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px' }}>{sc.distribution_date}</td>
                   </tr>
                 ))
@@ -977,9 +1018,9 @@ export default function PayrollDashboard() {
                     <td style={{ padding: '12px 14px' }}>{sm.industry_type}</td>
                     <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{sm.rank_level}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>SG-{sm.salary_grade}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.min_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.max_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(sm.standard_daily_rate).toFixed(2)}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sm.min_base_salary).toLocaleString()}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sm.max_base_salary).toLocaleString()}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>â‚±{Number(sm.standard_daily_rate).toFixed(2)}</td>
                     <td style={{ padding: '12px 14px' }}>{sm.effective_date}</td>
                   </tr>
                 ))
@@ -1011,7 +1052,7 @@ export default function PayrollDashboard() {
               </p>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => setShowRetroModal(true)}>
-              ⚡ Calculate Retro Pay
+              âš¡ Calculate Retro Pay
             </button>
           </div>
 
@@ -1040,11 +1081,11 @@ export default function PayrollDashboard() {
                       <td style={{ padding: '12px 14px', fontWeight: 600 }}>{adj.last_name}, {adj.first_name}</td>
                       <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{adj.adjustment_type.replace(/_/g, ' ')}</td>
                       <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600, color: Number(adj.amount) >= 0 ? '#10b981' : '#f87171' }}>
-                        ₱{Number(adj.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        â‚±{Number(adj.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>{adj.is_taxable ? 'Yes' : 'No (Tax-Exempt)'}</td>
                       <td style={{ padding: '12px 14px' }}>{adj.effective_date}</td>
-                      <td style={{ padding: '12px 14px', color: 'var(--color-muted)' }}>{adj.remarks || '—'}</td>
+                      <td style={{ padding: '12px 14px', color: 'var(--color-muted)' }}>{adj.remarks || 'â€”'}</td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <Tag tone={adj.status === 'applied' ? 'accent' : 'neutral'}>
                           {adj.status.toUpperCase()}
@@ -1143,7 +1184,7 @@ export default function PayrollDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Principal Amount (₱)
+                    Principal Amount (â‚±)
                   </label>
                   <input
                     type="number"
@@ -1155,7 +1196,7 @@ export default function PayrollDashboard() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Monthly Amortization (₱)
+                    Monthly Amortization (â‚±)
                   </label>
                   <input
                     type="number"
@@ -1219,7 +1260,7 @@ export default function PayrollDashboard() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Total Collected Service Charge from Guests (₱)
+                  Total Collected Service Charge from Guests (â‚±)
                 </label>
                 <input
                   type="number"
@@ -1230,8 +1271,8 @@ export default function PayrollDashboard() {
                 />
               </div>
               <div style={{ padding: '10px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '6px', fontSize: '15px' }}>
-                <div>• <strong>85% Covered Worker Share:</strong> ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                <div style={{ color: 'var(--color-muted)', marginTop: '2px' }}>• 15% Management / Breakage Reserve: ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div>â€¢ <strong>85% Covered Worker Share:</strong> â‚±{(Number(serviceChargeForm.totalCollectedAmount) * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div style={{ color: 'var(--color-muted)', marginTop: '2px' }}>â€¢ 15% Management / Breakage Reserve: â‚±{(Number(serviceChargeForm.totalCollectedAmount) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
@@ -1301,7 +1342,7 @@ export default function PayrollDashboard() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Old Monthly Rate (₱)</label>
+                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Old Monthly Rate (â‚±)</label>
                   <input
                     type="number"
                     className="input"
@@ -1311,7 +1352,7 @@ export default function PayrollDashboard() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>New Monthly Rate (₱)</label>
+                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>New Monthly Rate (â‚±)</label>
                   <input
                     type="number"
                     className="input"
@@ -1324,7 +1365,7 @@ export default function PayrollDashboard() {
 
               {retroResult && (
                 <div style={{ padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: '8px', border: '1px solid #10b981', marginTop: '8px' }}>
-                  <div style={{ fontWeight: 600, color: '#10b981', fontSize: '15px' }}>Computed Backpay: ₱{Number(retroResult.totalRetroPay).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontWeight: 600, color: '#10b981', fontSize: '15px' }}>Computed Backpay: â‚±{Number(retroResult.totalRetroPay).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                   <div style={{ fontSize: '15px', color: 'var(--color-fg)', marginTop: '2px' }}>Across {retroResult.cutoffsAffected} previous payroll cut-off period(s). Adjustment queued!</div>
                 </div>
               )}
@@ -1382,525 +1423,6 @@ export default function PayrollDashboard() {
               </button>
             </div>
           </Card>
-        </div>
-      )}
-
-      {/* Tab 4: Loans & Amortizations */}
-      {activeTab === 'loans' && (
-        <div style={{
-          backgroundColor: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>SSS, Pag-IBIG & Company Employee Loans</h2>
-              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
-                Active amortizations are automatically deducted during payroll runs and settle toward loan balance upon payout.
-              </p>
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowLoanModal(true)}>
-              + Register New Loan
-            </button>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)', backgroundColor: 'var(--color-surface-hover)' }}>
-                <th style={{ padding: '12px 14px' }}>Employee</th>
-                <th style={{ padding: '12px 14px' }}>Loan Type</th>
-                <th style={{ padding: '12px 14px' }}>Ref / SSS / Pag-IBIG No.</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Principal</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Monthly Amortization</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Balance Remaining</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loansQuery.data && loansQuery.data.length > 0 ? (
-                loansQuery.data.map((l) => (
-                  <tr key={l.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{l.last_name}, {l.first_name}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ textTransform: 'capitalize' }}>{l.loan_type.replace(/_/g, ' ')}</span>
-                    </td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>{l.reference_number || '—'}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(l.principal_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#f87171' }}>₱{Number(l.monthly_amortization).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(l.balance_remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                      <Tag tone={l.status === 'active' ? 'accent' : 'neutral'}>
-                        {l.status.toUpperCase()}
-                      </Tag>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
-                    No employee loans registered. Click '+ Register New Loan' above.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Tab 5: Service Charge Pool (RA 11360) */}
-      {activeTab === 'service-charge' && (
-        <div style={{
-          backgroundColor: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Hospitality Service Charge Distribution</h2>
-              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
-                Republic Act 11360 requires 85% distributed equally among covered rank-and-file & supervisory staff.
-              </p>
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowServiceChargeModal(true)}>
-              + Distribute Monthly Service Charge
-            </button>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)', backgroundColor: 'var(--color-surface-hover)' }}>
-                <th style={{ padding: '12px 14px' }}>Pool Period</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Collected</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>85% Employee Share</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Covered Workers</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Net Payout Per Staff</th>
-                <th style={{ padding: '12px 14px' }}>Distributed Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {serviceChargeQuery.data && serviceChargeQuery.data.length > 0 ? (
-                serviceChargeQuery.data.map((sc) => (
-                  <tr key={sc.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{sc.pool_period}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sc.total_collected_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>₱{Number(sc.distributed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>{sc.eligible_employee_count} staff</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>₱{Number(sc.amount_per_employee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px' }}>{sc.distribution_date}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
-                    No service charge distribution pools recorded yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Tab 6: Salary Matrices & Regional Rates */}
-      {activeTab === 'salary-matrix' && (
-        <div style={{
-          backgroundColor: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '8px',
-          padding: '20px',
-        }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 6px 0' }}>Salary Matrices & Regional Wage Rates</h2>
-          <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginBottom: '16px' }}>
-            Benchmarked against DOLE National Wages and Productivity Commission (NWPC) regional minimum wage orders.
-          </p>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)', backgroundColor: 'var(--color-surface-hover)' }}>
-                <th style={{ padding: '12px 14px' }}>Region</th>
-                <th style={{ padding: '12px 14px' }}>Industry</th>
-                <th style={{ padding: '12px 14px' }}>Rank Level</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Grade</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Base Min</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Base Max</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Daily Standard</th>
-                <th style={{ padding: '12px 14px' }}>Effective Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {salaryMatrixQuery.data && salaryMatrixQuery.data.length > 0 ? (
-                salaryMatrixQuery.data.map((sm) => (
-                  <tr key={sm.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{sm.region}</td>
-                    <td style={{ padding: '12px 14px' }}>{sm.industry_type}</td>
-                    <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{sm.rank_level}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>SG-{sm.salary_grade}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.min_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.max_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(sm.standard_daily_rate).toFixed(2)}</td>
-                    <td style={{ padding: '12px 14px' }}>{sm.effective_date}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
-                    {salaryMatrixQuery.isLoading ? 'Loading matrix...' : 'No regional salary grades configured.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Tab 7: Adjustments & Retro Pay */}
-      {activeTab === 'adjustments' && (
-        <div>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Retroactive Pay & Custom Adjustments</h2>
-              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
-                Calculate backpay differential across past cutoffs or apply one-time adjustments and attendance bonuses.
-              </p>
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowRetroModal(true)}>
-              ⚡ Calculate Retro Pay
-            </button>
-          </div>
-
-          <div style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)', backgroundColor: 'var(--color-surface-hover)' }}>
-                  <th style={{ padding: '12px 14px' }}>Employee</th>
-                  <th style={{ padding: '12px 14px' }}>Adjustment Type</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Amount</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Taxable</th>
-                  <th style={{ padding: '12px 14px' }}>Effective Date</th>
-                  <th style={{ padding: '12px 14px' }}>Remarks</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adjustmentsQuery.data && adjustmentsQuery.data.length > 0 ? (
-                  adjustmentsQuery.data.map((adj) => (
-                    <tr key={adj.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 600 }}>{adj.last_name}, {adj.first_name}</td>
-                      <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{adj.adjustment_type.replace(/_/g, ' ')}</td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600, color: Number(adj.amount) >= 0 ? '#10b981' : '#f87171' }}>
-                        ₱{Number(adj.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>{adj.is_taxable ? 'Yes' : 'No (Tax-Exempt)'}</td>
-                      <td style={{ padding: '12px 14px' }}>{adj.effective_date}</td>
-                      <td style={{ padding: '12px 14px', color: 'var(--color-muted)' }}>{adj.remarks || '—'}</td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <Tag tone={adj.status === 'applied' ? 'accent' : 'neutral'}>
-                          {adj.status.toUpperCase()}
-                        </Tag>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-muted)' }}>
-                      No adjustments logged. Use 'Calculate Retro Pay' above to simulate backpay.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Loan Modal */}
-      {showLoanModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '480px',
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
-              Register Employee Loan
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Select Employee
-                </label>
-                <select
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={loanForm.employeeId}
-                  onChange={(e) => setLoanForm({ ...loanForm, employeeId: e.target.value })}
-                >
-                  <option value="">Select Employee...</option>
-                  {lineItems.map((item) => (
-                    <option key={item.employee_id} value={item.employee_id}>
-                      {item.lastName}, {item.firstName} ({item.employeeNo})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Loan Type
-                </label>
-                <select
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={loanForm.loanType}
-                  onChange={(e) => setLoanForm({ ...loanForm, loanType: e.target.value })}
-                >
-                  <option value="sss_salary_loan">SSS Salary Loan</option>
-                  <option value="sss_calamity_loan">SSS Calamity Loan</option>
-                  <option value="pagibig_mpl">Pag-IBIG Multi-Purpose Loan (MPL)</option>
-                  <option value="pagibig_housing_loan">Pag-IBIG Housing Loan</option>
-                  <option value="company_emergency_loan">Company Emergency / Salary Loan</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Loan Reference / Billing Number
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  style={{ width: '100%' }}
-                  placeholder="e.g. SSS-LN-2026-9921"
-                  value={loanForm.referenceNumber}
-                  onChange={(e) => setLoanForm({ ...loanForm, referenceNumber: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Principal Amount (₱)
-                  </label>
-                  <input
-                    type="number"
-                    className="input"
-                    style={{ width: '100%' }}
-                    value={loanForm.principalAmount}
-                    onChange={(e) => setLoanForm({ ...loanForm, principalAmount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Monthly Amortization (₱)
-                  </label>
-                  <input
-                    type="number"
-                    className="input"
-                    style={{ width: '100%' }}
-                    value={loanForm.monthlyAmortization}
-                    onChange={(e) => setLoanForm({ ...loanForm, monthlyAmortization: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowLoanModal(false)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                disabled={!loanForm.employeeId || createLoanMutation.isPending}
-                onClick={() => createLoanMutation.mutate(loanForm)}
-              >
-                {createLoanMutation.isPending ? 'Saving...' : 'Register Loan'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Service Charge Modal */}
-      {showServiceChargeModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '460px',
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
-              Distribute Service Charge Pool (RA 11360)
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Pool Period (YYYY-MM)
-                </label>
-                <input
-                  type="month"
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={serviceChargeForm.poolPeriod}
-                  onChange={(e) => setServiceChargeForm({ ...serviceChargeForm, poolPeriod: e.target.value })}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Total Collected Service Charge from Guests (₱)
-                </label>
-                <input
-                  type="number"
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={serviceChargeForm.totalCollectedAmount}
-                  onChange={(e) => setServiceChargeForm({ ...serviceChargeForm, totalCollectedAmount: e.target.value })}
-                />
-              </div>
-              <div style={{ padding: '10px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '6px', fontSize: '15px' }}>
-                <div>• <strong>85% Covered Worker Share:</strong> ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                <div style={{ color: 'var(--color-muted)', marginTop: '2px' }}>• 15% Management / Breakage Reserve: ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowServiceChargeModal(false)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                disabled={distributeServiceChargeMutation.isPending}
-                onClick={() => distributeServiceChargeMutation.mutate(serviceChargeForm)}
-              >
-                {distributeServiceChargeMutation.isPending ? 'Distributing...' : 'Distribute Pool'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Retro Pay Modal */}
-      {showRetroModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '480px',
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
-              Calculate Retroactive Salary Increase
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Select Employee</label>
-                <select
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={retroForm.employeeId}
-                  onChange={(e) => setRetroForm({ ...retroForm, employeeId: e.target.value })}
-                >
-                  <option value="">Select Employee...</option>
-                  {lineItems.map((item) => (
-                    <option key={item.employee_id} value={item.employee_id}>
-                      {item.lastName}, {item.firstName} ({item.employeeNo})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Effective Date of Increase</label>
-                <input
-                  type="date"
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={retroForm.effectiveDate}
-                  onChange={(e) => setRetroForm({ ...retroForm, effectiveDate: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Old Monthly Rate (₱)</label>
-                  <input
-                    type="number"
-                    className="input"
-                    style={{ width: '100%' }}
-                    value={retroForm.previousMonthlyRate}
-                    onChange={(e) => setRetroForm({ ...retroForm, previousMonthlyRate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>New Monthly Rate (₱)</label>
-                  <input
-                    type="number"
-                    className="input"
-                    style={{ width: '100%' }}
-                    value={retroForm.newMonthlyRate}
-                    onChange={(e) => setRetroForm({ ...retroForm, newMonthlyRate: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {retroResult && (
-                <div style={{ padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: '8px', border: '1px solid #10b981', marginTop: '8px' }}>
-                  <div style={{ fontWeight: 600, color: '#10b981', fontSize: '15px' }}>Computed Backpay: ₱{Number(retroResult.totalRetroPay).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                  <div style={{ fontSize: '15px', color: 'var(--color-fg)', marginTop: '2px' }}>Across {retroResult.cutoffsAffected} previous payroll cut-off period(s). Adjustment queued!</div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-              <button className="btn btn-secondary" onClick={() => { setShowRetroModal(false); setRetroResult(null); }}>Close</button>
-              <button
-                className="btn btn-primary"
-                disabled={!retroForm.employeeId || calculateRetroMutation.isPending}
-                onClick={() => calculateRetroMutation.mutate(retroForm)}
-              >
-                {calculateRetroMutation.isPending ? 'Calculating...' : 'Compute & Queue Retro Pay'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
