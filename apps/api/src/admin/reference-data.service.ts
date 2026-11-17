@@ -398,6 +398,103 @@ export class ReferenceDataService {
     return orgId;
   }
 
+  // --- Comprehensive HR Settings -------------------------------------------
+
+  async getHrSettings(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      let res = await client.query(
+        `SELECT * FROM hr_settings WHERE org_id = app.current_org_id()`,
+      );
+      if (!res.rows[0]) {
+        const orgRes = await client.query(
+          `SELECT name FROM organization WHERE id = app.current_org_id()`,
+        );
+        const orgName = orgRes.rows[0]?.name || 'My Company Inc.';
+        const insertRes = await client.query(
+          `INSERT INTO hr_settings (
+             org_id, company_registered_name, company_trade_name
+           ) VALUES (app.current_org_id(), $1, $1)
+           ON CONFLICT (org_id) DO UPDATE SET updated_at = now()
+           RETURNING *`,
+          [orgName],
+        );
+        return insertRes.rows[0];
+      }
+      return res.rows[0];
+    });
+  }
+
+  async updateHrSettings(ctx: RequestContext, payload: any) {
+    return this.db.withContext(ctx, async (client) => {
+      await this.getHrSettings(ctx);
+
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      const allowedKeys = [
+        'company_registered_name',
+        'company_trade_name',
+        'tin',
+        'rdo_code',
+        'sss_employer_no',
+        'philhealth_employer_no',
+        'pagibig_employer_no',
+        'sec_dti_reg_no',
+        'official_business_address',
+        'contact_number',
+        'official_hr_email',
+        'standard_working_days_per_week',
+        'standard_hours_per_day',
+        'probationary_months',
+        'retirement_age',
+        'required_201_documents',
+        'default_shift_code',
+        'grace_period_mins',
+        'tardiness_monthly_threshold',
+        'overtime_approval_required',
+        'enable_kiosk_camera',
+        'require_kiosk_passcode',
+        'allow_mobile_attendance',
+        'pay_frequency',
+        'cutoff_1_start',
+        'cutoff_1_end',
+        'cutoff_2_start',
+        'cutoff_2_end',
+        'payout_day_quindena_1',
+        'payout_day_quindena_2',
+        'train_tax_active',
+        'sss_wisp_active',
+        'thirteenth_month_tax_exempt_ceiling',
+        'service_charge_enabled',
+        'service_charge_staff_share_pct',
+        'default_currency',
+      ];
+
+      for (const key of allowedKeys) {
+        if (payload[key] !== undefined) {
+          values.push(payload[key]);
+          fields.push(`${key} = $${values.length}`);
+        }
+      }
+
+      if (fields.length === 0) {
+        return this.getHrSettings(ctx);
+      }
+
+      values.push(new Date());
+      fields.push(`updated_at = $${values.length}`);
+
+      const res = await client.query(
+        `UPDATE hr_settings
+            SET ${fields.join(', ')}
+          WHERE org_id = app.current_org_id()
+          RETURNING *`,
+        values,
+      );
+      return res.rows[0];
+    });
+  }
+
   private async wrap<T>(fn: () => Promise<T>): Promise<T> {
 
     try {

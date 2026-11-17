@@ -88,7 +88,7 @@ export default function Requests() {
     <Section>
       <PageHead
         title="Requests"
-        meta={<span style={{ fontSize: 14, opacity: 0.7 }}>
+        meta={<span style={{ fontSize: 15, opacity: 0.7 }}>
           Extra competency · special evaluation · scoring adjustment
         </span>}
       >
@@ -129,7 +129,7 @@ export default function Requests() {
 
       {/* Said on the screen, not only in the migration. People read an
           approval as the thing being done, and then nobody does it. */}
-      <p className="text-muted" style={{ fontSize: 13 }}>
+      <p className="text-muted" style={{ fontSize: 15.5 }}>
         Approving a request records the decision. The change itself is still
         made on the screen that owns it — competencies, evaluations, the review
         — so that it is audited as the change it is.
@@ -380,7 +380,7 @@ function DecideDialog(
                   onChange={(e) => setNote(e.target.value)} />
       </Field>
 
-      <p className="text-muted" style={{ fontSize: 13 }}>
+      <p className="text-muted" style={{ fontSize: 15.5 }}>
         Approving records your decision. It does not make the change — that is
         still done on the screen that owns it.
       </p>

@@ -132,7 +132,7 @@ export default function ReviewForm() {
     <Section>
       <PageHead
         title={r.reviewerRole === 'self' ? 'My self review' : `Review of ${r.subjectName}`}
-        meta={<span style={{ fontSize: 13, opacity: 0.65 }}>{r.cycleName}</span>}
+        meta={<span style={{ fontSize: 15.5, opacity: 0.65 }}>{r.cycleName}</span>}
       >
         <ReviewStateTag state={r.state} />
       </PageHead>
@@ -142,7 +142,7 @@ export default function ReviewForm() {
       {r.state === 'returned' && r.returnedReason && (
         <Card accent elevated style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Icon path={paths.triangleAlert} size={18} stroke="var(--color-accent-800)" />
-          <div style={{ fontSize: 14 }}>
+          <div style={{ fontSize: 15 }}>
             <strong>Returned by your manager.</strong> {r.returnedReason}
           </div>
         </Card>
@@ -151,7 +151,7 @@ export default function ReviewForm() {
       {readOnly && (
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Icon path={paths.check} size={18} stroke="var(--color-accent-700)" />
-          <div style={{ fontSize: 14 }}>
+          <div style={{ fontSize: 15 }}>
             This review has been submitted and can no longer be edited.
           </div>
         </Card>
@@ -186,7 +186,7 @@ export default function ReviewForm() {
       )}
 
       {!readOnly && allFields.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, opacity: 0.7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, opacity: 0.7 }}>
           <div style={{ flex: 1 }}>
             <Bar pct={(answeredCount / allFields.length) * 100} />
           </div>
@@ -208,7 +208,7 @@ export default function ReviewForm() {
               }}>
                 {section.title}{' '}
                 <span style={{
-                  fontSize: 12, fontWeight: 400, opacity: 0.6, fontFamily: 'var(--font-body)',
+                  fontSize: 15, fontWeight: 400, opacity: 0.6, fontFamily: 'var(--font-body)',
                 }}>
                   {done} of {section.fields.length}
                 </span>
@@ -240,7 +240,7 @@ export default function ReviewForm() {
             justifyContent: 'flex-end', borderTop: '1px solid var(--color-divider)',
             paddingTop: 'var(--space-3)',
           }}>
-            <span className="text-muted" style={{ fontSize: 12, marginRight: 'auto' }}>
+            <span className="text-muted" style={{ fontSize: 15, marginRight: 'auto' }}>
               Submitting locks your answers. A change afterwards requires the review
               to be returned.
             </span>
@@ -319,7 +319,7 @@ function FieldInput({ field, value, ratingPoints, readOnly, onChange }: {
                   color: isOn ? 'var(--color-bg)' : 'inherit',
                   borderColor: isOn ? 'var(--color-accent)' : 'var(--color-divider)',
                   opacity: readOnly && !isOn ? 0.5 : 1,
-                  fontSize: 12,
+                  fontSize: 15,
                   padding: '5px 10px',
                 }}
               >
@@ -331,7 +331,7 @@ function FieldInput({ field, value, ratingPoints, readOnly, onChange }: {
         {/* The chosen point's description, so the scale explains itself at the
             moment of choosing rather than in a policy document. */}
         {selected?.description && (
-          <p style={{ fontSize: 12, opacity: 0.65, margin: '6px 0 0' }}>
+          <p style={{ fontSize: 15, opacity: 0.65, margin: '6px 0 0' }}>
             {selected.description}
           </p>
         )}

@@ -7,6 +7,7 @@ audience: [everyone]
 routes: ["/goals/:id", "/home", "/monitoring"]
 keywords: [check-in, checkin, update, progress, on track, at risk, off track, cadence, overdue]
 order: 11
+features: [feature_performance, feature_kpis]
 ---
 
 A check-in is a short, dated statement of how a goal is going. It takes a

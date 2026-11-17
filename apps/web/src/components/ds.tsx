@@ -120,7 +120,7 @@ export function Stat(
         </div>
         {tag}
       </div>
-      {note && <p className="card-body" style={{ fontSize: 11, margin: 0 }}>{note}</p>}
+      {note && <p className="card-body" style={{ fontSize: 15.5, margin: 0 }}>{note}</p>}
     </Card>
   );
 }
@@ -206,7 +206,7 @@ export function DeliveryStateTag({ state }: { state: string }) {
  */
 export function CheckinStatus({ status }: { status: string | null | undefined }) {
   const row = (icon: ReactNode, label: string, bold = false) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15 }}>
       {icon}<span style={bold ? { fontWeight: 600 } : undefined}>{label}</span>
     </span>
   );
@@ -282,12 +282,12 @@ export function Bar({ pct, tone = 'accent' }: { pct: number; tone?: 'accent' | '
 
 export function Attainment({ pct }: { pct: string | number | null | undefined }) {
   if (pct == null || pct === '') {
-    return <div style={{ fontSize: 12, opacity: 0.5 }}>Not yet measured</div>;
+    return <div style={{ fontSize: 15, opacity: 0.5 }}>Not yet measured</div>;
   }
   const value = Number(pct);
   return (
     <>
-      <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>
+      <div style={{ fontSize: 15, opacity: 0.65, marginBottom: 4 }}>
         {value.toFixed(0)}% attained
       </div>
       <Bar pct={value} />
@@ -375,7 +375,7 @@ export function ThemeToggle() {
     <button
       type="button"
       className="link-btn"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15.5 }}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
       onClick={() => { setTheme(next); setThemeState(next); }}

@@ -127,7 +127,7 @@ export default function ReviewAdmin() {
         title="Review cycles"
         meta={active && (
           <>
-            <span style={{ fontSize: 14, opacity: 0.7 }}>{active.name}</span>
+            <span style={{ fontSize: 15, opacity: 0.7 }}>{active.name}</span>
             {/* The state machine is one-way; showing all four with the current
                 one filled makes that visible without a legend. */}
             <div style={{ display: 'flex', gap: 4 }}>
@@ -237,10 +237,10 @@ export default function ReviewAdmin() {
                           <td>
                             <div style={{ fontWeight: 500 }}>{s.subjectName}</div>
                             {s.department && (
-                              <div style={{ fontSize: 12, opacity: 0.6 }}>{s.department}</div>
+                              <div style={{ fontSize: 15, opacity: 0.6 }}>{s.department}</div>
                             )}
                           </td>
-                          <td style={{ fontSize: 13 }}>
+                          <td style={{ fontSize: 15.5 }}>
                             {s.submittedCount}/{s.instanceCount} submitted
                           </td>
                           <td>
@@ -248,7 +248,7 @@ export default function ReviewAdmin() {
                                 may not be linked to a goal period — and is shown
                                 plainly rather than hidden behind a zero. */}
                             {s.goalAttainmentPct == null
-                              ? <span style={{ opacity: 0.5, fontSize: 12 }}>not measured</span>
+                              ? <span style={{ opacity: 0.5, fontSize: 15 }}>not measured</span>
                               : <Attainment pct={s.goalAttainmentPct} />}
                           </td>
                           <td className="tabular-nums">{overall?.toFixed(1) ?? '—'}</td>

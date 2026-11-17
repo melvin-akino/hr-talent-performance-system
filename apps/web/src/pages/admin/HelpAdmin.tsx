@@ -112,11 +112,11 @@ export default function HelpAdmin() {
                   <tr key={a.id}>
                     <td>
                       <div style={{ fontWeight: 500 }}>{a.title}</div>
-                      <div style={{ fontSize: 12, opacity: 0.65 }}>{a.summary}</div>
+                      <div style={{ fontSize: 15, opacity: 0.65 }}>{a.summary}</div>
                     </td>
-                    <td style={{ fontSize: 13 }}>{SECTION_LABELS[a.section] ?? a.section}</td>
-                    <td style={{ fontSize: 12 }}>{a.audience.join(', ')}</td>
-                    <td style={{ fontSize: 12 }}>
+                    <td style={{ fontSize: 15.5 }}>{SECTION_LABELS[a.section] ?? a.section}</td>
+                    <td style={{ fontSize: 15 }}>{a.audience.join(', ')}</td>
+                    <td style={{ fontSize: 15 }}>
                       {a.routes.length ? a.routes.join(', ') : <span style={{ opacity: 0.5 }}>—</span>}
                     </td>
                     <td>
@@ -277,7 +277,7 @@ function ArticleForm({ article, onDone }: {
                 </label>
               ))}
             </div>
-            <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+            <p className="text-muted" style={{ fontSize: 15, marginTop: 4 }}>
               This decides who is offered the article. It is not a security
               control — help should never contain anything confidential.
             </p>
@@ -307,7 +307,7 @@ function ArticleForm({ article, onDone }: {
               {preview ? 'Hide preview' : 'Preview'}
             </Btn>
             <Btn type="button" onClick={onDone}>Cancel</Btn>
-            <span className="text-muted" style={{ fontSize: 12, alignSelf: 'center' }}>
+            <span className="text-muted" style={{ fontSize: 15, alignSelf: 'center' }}>
               Saving does not publish. Publish from the list when it is ready.
             </span>
           </div>

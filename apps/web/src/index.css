@@ -22,6 +22,8 @@
 }
 
 html {
+  /* Scale default typography */
+  font-size: 17px;
   /* The Industry system is light-only; it defines no dark palette. */
   color-scheme: light;
 }

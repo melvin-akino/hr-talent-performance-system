@@ -7,6 +7,7 @@ audience: [manager, hr_admin, hr_partner]
 routes: ["/requests"]
 keywords: [request, approval, extra competency, special evaluation, scoring adjustment, adjust score, decline, withdraw, approve]
 order: 43
+features: [feature_performance, feature_competencies_pip]
 ---
 
 Sometimes a section needs something the standard cycle does not provide: a

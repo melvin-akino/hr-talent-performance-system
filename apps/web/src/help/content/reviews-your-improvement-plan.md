@@ -7,6 +7,7 @@ audience: [everyone]
 routes: ["/pips"]
 keywords: [PIP, improvement plan, performance improvement, sign, acknowledge, acknowledgement, signature, clarification, coaching]
 order: 25
+features: [feature_competencies_pip]
 ---
 
 A Performance Improvement Plan is a written plan, agreed between you and your

@@ -6,7 +6,8 @@ section: managing
 audience: [manager, hr_admin, hr_partner]
 routes: ["/pips"]
 keywords: [PIP, improvement, underperformance, coaching, termination, due process, NTE, twin notice, regularization]
-order: 42
+order: 42
+features: [feature_competencies_pip]
 ---
 
 A Performance Improvement Plan is a documented, time-bound plan to close a

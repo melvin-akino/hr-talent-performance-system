@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards,
+  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
@@ -24,21 +24,6 @@ export class EmployeesController {
     private readonly employees: EmployeesService,
     private readonly lifecycle: EmployeeLifecycleService,
   ) {}
-
-  /*
-   * THE FOUR OPERATIONS OF D-016, AND WHY THERE IS NO PUT.
-   *
-   * Employment is effective-dated. Correcting a misspelt surname and recording
-   * a promotion are one word in English and opposites in the data: a correction
-   * rewrites history because the old value was never true, a change appends to
-   * it because the old value WAS true until a date.
-   *
-   * A single update endpoint would let a transfer overwrite the row it should
-   * have closed. Nothing would error — and every goal and review pointing at
-   * the old department would silently re-parent itself, so "which section was
-   * this person in when they were rated" would quietly change for every past
-   * cycle. So: Add, Correct, Record a change, End employment. Four verbs.
-   */
 
   @Post()
   create(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
@@ -67,8 +52,6 @@ export class EmployeesController {
 
   /**
    * What separating them would orphan — read this before posting the separation.
-   * Advisory, not a veto: HR sometimes must separate somebody mid-cycle, and a
-   * system that refuses outright gets worked around in the database.
    */
   @Get(':id/separation-blockers')
   separationBlockers(
@@ -87,13 +70,11 @@ export class EmployeesController {
     return this.lifecycle.separate(req.auth, id, separate.parse(body));
   }
 
-
   @Get('me')
   me(@Req() req: AuthenticatedRequest) {
     return this.employees.me(req.auth);
   }
 
-  /** Phase 0 exit criteria: a manager sees exactly their own reports. */
   @Get('me/reports')
   reports(@Req() req: AuthenticatedRequest, @Query('asOf') asOf?: string) {
     return this.employees.directReports(req.auth, asOf ? new Date(asOf) : undefined);
@@ -117,5 +98,53 @@ export class EmployeesController {
   @Get(':id')
   byId(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.employees.byId(req.auth, id);
+  }
+
+  /**
+   * 201 Digital Document Vault
+   */
+  @Post(':id/documents')
+  uploadDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { docType: string; title: string; fileUrl: string; fileName: string; fileSizeBytes?: number },
+  ) {
+    return this.employees.uploadDocument(req.auth, { ...body, employeeId: id });
+  }
+
+  @Get(':id/documents')
+  listDocuments(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.employees.listDocuments(req.auth, id);
+  }
+
+  @Delete(':id/documents/:docId')
+  deleteDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('docId', ParseUUIDPipe) docId: string,
+  ) {
+    return this.employees.deleteDocument(req.auth, docId);
+  }
+
+  /**
+   * 201 Merits, Commendations & Certifications
+   */
+  @Post(':id/merits')
+  recordMerit(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { awardTitle: string; awardType: string; awardedOn?: string; issuer: string; description?: string; certificateUrl?: string },
+  ) {
+    return this.employees.recordMeritAward(req.auth, { ...body, employeeId: id });
+  }
+
+  @Get(':id/merits')
+  listMerits(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.employees.listMeritAwards(req.auth, id);
   }
 }

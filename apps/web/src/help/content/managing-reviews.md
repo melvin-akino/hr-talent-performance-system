@@ -6,7 +6,8 @@ section: managing
 audience: [manager, hr_admin, hr_partner]
 routes: ["/reviews", "/reviews/:id", "/review-admin"]
 keywords: [supervisor review, rating, calibration, moderation, distribution, rater, bias, sign off]
-order: 41
+order: 41
+features: [feature_performance]
 ---
 
 ## Before you write

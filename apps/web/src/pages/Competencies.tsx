@@ -128,13 +128,13 @@ function GapTable({ report, assessments }: {
                 <td>
                   <div style={{ fontWeight: 500 }}>{c.name}</div>
                   {c.category && (
-                    <div style={{ fontSize: 12, opacity: 0.6 }}>{c.category}</div>
+                    <div style={{ fontSize: 15, opacity: 0.6 }}>{c.category}</div>
                   )}
                   {/* The assessor's note is the reasoning behind the level. It is
                       the most useful thing on the row and was previously not
                       shown at all. */}
                   {a?.notes && (
-                    <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
+                    <div style={{ fontSize: 15, opacity: 0.75, marginTop: 2 }}>
                       “{a.notes}”
                     </div>
                   )}
@@ -152,7 +152,7 @@ function GapTable({ report, assessments }: {
                         ? <Tag tone="accent">met</Tag>
                         : <Tag tone="accent">+{c.gap} above</Tag>}
                 </td>
-                <td style={{ fontSize: 12 }}>
+                <td style={{ fontSize: 15 }}>
                   {a?.assessedBy
                     ? <>{a.assessedBy}<div style={{ opacity: 0.6 }}>{c.assessedOn}</div></>
                     : <span style={{ opacity: 0.4 }}>—</span>}
@@ -300,7 +300,7 @@ function FamilyGaps() {
       {report.error ? <ErrorNote error={report.error} /> : null}
       {report.data && (
         <Card kicker={`Capability gaps — ${active}`}>
-          <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+          <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
             Ordered by the number of people below the required level: the top row is
             where a training investment pays off most.
           </p>
@@ -331,7 +331,7 @@ function FamilyGaps() {
                       <td>
                         <span style={{ fontWeight: 500 }}>{r.name}</span>
                         {r.category && (
-                          <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.55 }}>
+                          <span style={{ marginLeft: 8, fontSize: 15, opacity: 0.55 }}>
                             {r.category}
                           </span>
                         )}

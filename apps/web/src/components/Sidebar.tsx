@@ -1,38 +1,26 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { HOME_PATH } from '../routes';
+import type { TenantFeatures } from '../types';
 
-/**
- * Grouped navigation: Mine / My team / Company.
- *
- * Replaces the flat thirteen-tab row. The grouping answers "which hat am I
- * wearing" — acting on your own record and acting on someone else's are
- * different things with different consequences, and the old row made them look
- * identical.
- *
- * Group visibility is driven by the caller's roles, but **this is not an
- * authorization boundary**. RLS is. Someone who forces a hidden route sees
- * empty results, not other people's data. Hiding is about not offering a
- * console to somebody who has no rows for it.
- */
-
-interface Item {
+export interface Item {
   to: string;
   label: string;
   icon: ReactNode;
-  /** Match child routes too — /reviews should stay lit on /reviews/:id. */
+  /** Match exact route only, or allow child routes */
   end?: boolean;
 }
 
-interface Group {
+export interface MenuGroup {
+  id: string;
   title: string;
+  icon: ReactNode;
   items: Item[];
   visible: boolean;
 }
 
-/* Lucide outlines at stroke-width 1.5, inlined as SVG. The design system
-   specifies no icon font and the office LAN has no internet, so nothing here
-   may be fetched at runtime. */
+/* Lucide outlines at stroke-width 1.5, inlined as SVG. No runtime web fonts. */
 const icon = (path: ReactNode) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -59,87 +47,273 @@ const icons = {
   inbox: icon(<><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" /></>),
   fileText: icon(<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M15 2v5h5" /><path d="M9 13h6M9 17h4" /></>),
   bell: icon(<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>),
+  banknote: icon(<><rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></>),
+  clock: icon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>),
+  calendarDays: icon(<><rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>),
+  building: icon(<><rect width="16" height="20" x="4" y="2" rx="2" /><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" /></>),
 };
 
-export function buildGroups(roles: string[], hasReports: boolean): Group[] {
+/**
+ * Builds organized functional navigation groups:
+ * 1. KPIs & Performance (My Goals, KPI Library, Metrics, Evaluations, Reviews, Review cycles, Competencies, Development, PIPs, Feedback, Analytics)
+ * 2. Time & Attendance (Attendance & DTR, Biometric Kiosk, Leave Management)
+ * 3. Payroll & Compensation (PH Payroll RA 10963, My Payslips)
+ * 4. Core HR (HR Console, Team, Unit, Monitoring, Requests, Reports, Setup, Notifications)
+ */
+export function buildGroups(
+  roles: string[],
+  hasReports: boolean,
+  features?: TenantFeatures,
+): MenuGroup[] {
   const isManager = roles.includes('manager') || hasReports;
   const isHr = roles.includes('hr_admin') || roles.includes('hr_partner');
 
-  return [
+  // When `features` is undefined (e.g. initial load or legacy unit tests),
+  // default performance flags to true; once loaded, respect exact tenant flags.
+  const hasPerformance = features ? !!features.feature_performance : true;
+  const hasKpis = features ? !!features.feature_kpis : true;
+  const hasPeerReviews = features ? !!features.feature_peer_reviews : true;
+  const hasCompetenciesPip = features ? !!features.feature_competencies_pip : true;
+  const hasGoals = hasPerformance || hasKpis;
+  const hasAnyPerformance =
+    hasPerformance || hasKpis || hasPeerReviews || hasCompetenciesPip;
+
+  // 1. KPI & Performance Management
+  const kpiItems: Item[] = [];
+  if (hasGoals) {
+    kpiItems.push({ to: HOME_PATH, label: 'My Goals', icon: icons.target, end: true });
+  }
+  if ((isHr || isManager) && hasKpis) {
+    kpiItems.push({ to: '/kpis', label: 'KPI Library', icon: icons.library });
+    kpiItems.push({ to: '/metrics', label: 'Task Metrics', icon: icons.checklist });
+  }
+  if ((isHr || isManager) && hasGoals) {
+    kpiItems.push({ to: '/evaluations', label: 'Evaluations', icon: icons.gauge });
+  }
+  if (hasPerformance) {
+    kpiItems.push({ to: '/reviews', label: 'Reviews', icon: icons.clipboard });
+    if (isHr) {
+      kpiItems.push({ to: '/review-admin', label: 'Review Cycles', icon: icons.calendar });
+    }
+  }
+  if (hasCompetenciesPip) {
+    kpiItems.push({ to: '/competencies', label: 'Competencies', icon: icons.layers });
+  }
+  if (hasCompetenciesPip || hasPerformance) {
+    kpiItems.push({ to: '/development', label: 'Development', icon: icons.sprout });
+  }
+  if ((isManager || isHr) && hasCompetenciesPip) {
+    kpiItems.push({ to: '/pips', label: 'Improvement Plans (PIPs)', icon: icons.lifeBuoy });
+  }
+  if (hasPeerReviews) {
+    kpiItems.push({ to: '/feedback', label: '360° Feedback', icon: icons.message });
+  }
+  if (isHr && hasAnyPerformance) {
+    kpiItems.push({ to: '/analytics', label: 'Analytics', icon: icons.chart });
+  }
+
+  // 2. Time, Attendance & Leaves
+  const timeItems: Item[] = [];
+  if (features?.feature_time_attendance) {
+    timeItems.push({ to: '/attendance', label: 'Attendance & DTR', icon: icons.clock });
+    timeItems.push({ to: '/kiosk', label: 'Biometric Kiosk', icon: icons.clock });
+  }
+  if (features?.feature_leave_management) {
+    timeItems.push({ to: '/leaves', label: 'Leave Management', icon: icons.calendarDays });
+  }
+
+  // 3. Payroll & Payslips
+  const payrollItems: Item[] = [];
+  if (features?.feature_ph_payroll) {
+    if (isHr || isManager) {
+      payrollItems.push({ to: '/payroll', label: 'PH Payroll (RA 10963)', icon: icons.banknote });
+    }
+    payrollItems.push({ to: '/my-payslips', label: 'My Payslips', icon: icons.banknote });
+  }
+
+  // 4. Core HR & Personnel
+  const coreHrItems: Item[] = [
+    { to: '/ess', label: 'Self-Service & Bulletin', icon: icons.inbox },
+  ];
+  if (isHr || isManager) {
+    coreHrItems.push({ to: '/executive-dashboard', label: 'Executive Outflow', icon: icons.chart });
+  }
+  if (isHr) {
+    coreHrItems.push({ to: '/employees', label: 'Employee Directory', icon: icons.users });
+    coreHrItems.push({ to: '/offboarding', label: 'Offboarding & Final Pay', icon: icons.briefcase });
+    if (hasGoals) {
+      coreHrItems.push({ to: '/hr', label: 'HR Console & Directory', icon: icons.briefcase });
+    }
+  }
+  if (isManager || isHr) {
+    coreHrItems.push({ to: '/team', label: 'Team Hierarchy', icon: icons.users });
+    if (hasGoals) {
+      coreHrItems.push({ to: '/unit', label: 'My Unit', icon: icons.layers });
+      coreHrItems.push({ to: '/monitoring', label: 'Workforce Monitoring', icon: icons.activity });
+    }
+    if (hasAnyPerformance) {
+      coreHrItems.push({ to: '/requests', label: 'Employee Requests', icon: icons.inbox });
+    }
+    coreHrItems.push({ to: '/reports', label: 'Personnel Reports', icon: icons.fileText });
+  }
+  coreHrItems.push({ to: '/notifications', label: 'Notifications', icon: icons.bell });
+  if (isHr) {
+    coreHrItems.push({ to: '/setup', label: 'System Setup', icon: icons.settings });
+  }
+
+  const groups: MenuGroup[] = [
     {
-      title: 'Mine',
-      visible: true,
-      items: [
-        { to: HOME_PATH, label: 'My goals', icon: icons.target, end: true },
-        { to: '/reviews', label: 'Reviews', icon: icons.clipboard },
-        { to: '/competencies', label: 'Competencies', icon: icons.layers },
-        { to: '/development', label: 'Development', icon: icons.sprout },
-        { to: '/feedback', label: 'Feedback', icon: icons.message },
-        { to: '/notifications', label: 'Notifications', icon: icons.bell },
-      ],
+      id: 'kpi_performance',
+      title: 'Goals & KPIs',
+      icon: icons.target,
+      visible: kpiItems.length > 0,
+      items: kpiItems,
     },
     {
-      title: 'My team',
-      visible: isManager || isHr,
-      items: [
-        { to: '/team', label: 'Team', icon: icons.users },
-        { to: '/monitoring', label: 'Monitoring', icon: icons.activity },
-        // Offered to managers and HR; the page itself declines for anyone
-        // whose scope is only themselves, because RLS is the real gate and a
-        // hidden menu item is not a permission.
-        { to: '/unit', label: 'My unit', icon: icons.layers ?? icons.activity },
-        { to: '/evaluations', label: 'Evaluations', icon: icons.gauge },
-        // Under "My team" rather than "Company": the report is scoped by RLS,
-        // so a Department Head running it gets their section. Filing it under
-        // the HR-only group would have hidden it from the people the §7.2
-        // requirement was written for.
-        { to: '/reports', label: 'Reports', icon: icons.fileText },
-        // Everyone who can raise one sees it; an approver sees their queue in
-        // the same list, because RLS returns the union and the page splits it
-        // on the data rather than on a claim about the user.
-        { to: '/requests', label: 'Requests', icon: icons.inbox },
-        // Everyone can reach a PIP by URL — an employee on a plan must be able
-        // to read it — but only managers are offered the list.
-        { to: '/pips', label: 'PIPs', icon: icons.lifeBuoy },
-      ],
+      id: 'time_attendance',
+      title: 'Time & Attendance',
+      icon: icons.clock,
+      visible: timeItems.length > 0,
+      items: timeItems,
     },
     {
-      title: 'Company',
-      visible: isHr,
-      items: [
-        { to: '/hr', label: 'HR console', icon: icons.briefcase },
-        { to: '/review-admin', label: 'Review cycles', icon: icons.calendar },
-        { to: '/analytics', label: 'Analytics', icon: icons.chart },
-        { to: '/kpis', label: 'KPI library', icon: icons.library },
-        { to: '/metrics', label: 'Task metrics', icon: icons.checklist },
-        { to: '/setup', label: 'Setup', icon: icons.settings },
-      ],
+      id: 'payroll_statutory',
+      title: 'Payroll & Payslips',
+      icon: icons.banknote,
+      visible: payrollItems.length > 0,
+      items: payrollItems,
     },
-  ].filter((g) => g.visible);
+    {
+      id: 'core_hr',
+      title: 'Core HR',
+      icon: icons.building,
+      visible: coreHrItems.length > 0,
+      items: coreHrItems,
+    },
+  ];
+
+  return groups.filter((g) => g.visible);
 }
 
-export function Sidebar({ roles, hasReports }: { roles: string[]; hasReports: boolean }) {
-  const groups = buildGroups(roles, hasReports);
+export function Sidebar({
+  roles,
+  hasReports,
+  features,
+  orgName,
+}: {
+  roles: string[];
+  hasReports: boolean;
+  features?: TenantFeatures;
+  orgName?: string;
+}) {
+  const location = useLocation();
+  const groups = buildGroups(roles, hasReports, features);
+
+  // Track expanded/collapsed state for each menu group
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const group of groups) {
+      initial[group.id] = true; // Default expanded so all sub-features are visible
+    }
+    return initial;
+  });
+
+  // Automatically expand group if user navigates into one of its child routes
+  useEffect(() => {
+    for (const group of groups) {
+      const isChildActive = group.items.some((item) =>
+        item.end
+          ? location.pathname === item.to
+          : location.pathname.startsWith(item.to)
+      );
+      if (isChildActive && !openGroups[group.id]) {
+        setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+      }
+    }
+  }, [location.pathname, groups]);
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
 
   return (
-    <nav className="hr-sidebar no-print" aria-label="Main">
-      <div className="hr-brand">HR System</div>
-      {groups.map((group) => (
-        <div key={group.title} className="hr-navgroup">
-          <div className="hr-navgroup-title">{group.title}</div>
-          {group.items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `hr-navlink${isActive ? ' is-active' : ''}`}
-            >
-              {item.icon}
-              {item.label}
-            </NavLink>
-          ))}
-        </div>
-      ))}
+    <nav className="hr-sidebar no-print" aria-label="Main Navigation">
+      <div className="hr-brand">
+        <span style={{ fontWeight: 800, color: 'var(--color-accent)' }}>⚡</span>{' '}
+        {orgName ? orgName : 'HR Enterprise'}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {groups.map((group) => {
+          const isOpen = openGroups[group.id] ?? true;
+          const hasActiveChild = group.items.some((item) =>
+            item.end
+              ? location.pathname === item.to
+              : location.pathname.startsWith(item.to)
+          );
+
+          return (
+            <div key={group.id} className="hr-navgroup">
+              {/* Parent Expandable Menu Item */}
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.id)}
+                className={`hr-nav-group-header${hasActiveChild ? ' has-active-child' : ''}`}
+                aria-expanded={isOpen}
+              >
+                <div className="hr-nav-group-title">
+                  <span style={{ color: hasActiveChild ? 'var(--color-accent)' : 'inherit', display: 'flex', alignItems: 'center' }}>
+                    {group.icon}
+                  </span>
+                  <span>{group.title}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="hr-nav-badge">{group.items.length}</span>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transition: 'transform 0.2s ease',
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                      opacity: 0.65,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* Sub-features list */}
+              {isOpen && (
+                <div className="hr-nav-sublist">
+                  {group.items.map((subItem) => (
+                    <NavLink
+                      key={subItem.to}
+                      to={subItem.to}
+                      end={subItem.end}
+                      className={({ isActive }) => `hr-navsublink${isActive ? ' is-active' : ''}`}
+                    >
+                      <span style={{ opacity: 0.8, display: 'flex', alignItems: 'center' }}>{subItem.icon}</span>
+                      <span>{subItem.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </nav>
   );
 }

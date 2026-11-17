@@ -349,3 +349,34 @@ describe('diagrams, steps and callouts', () => {
     }
   });
 });
+
+
+describe('feature-flag filtering', () => {
+  it('hides performance, KPI, review, competency, and PIP articles when performance features are disabled', () => {
+    const coreOnly = {
+      feature_core_hr: true,
+      feature_performance: false,
+      feature_kpis: false,
+      feature_peer_reviews: false,
+      feature_competencies_pip: false,
+      feature_leave_management: true,
+      feature_time_attendance: true,
+      feature_ph_payroll: true,
+      feature_bank_disbursement: true,
+      feature_bir_statutory_gen: true,
+    };
+    const visible = articlesFor(articles, ['employee', 'manager', 'hr_admin', 'hr_partner'], coreOnly);
+    const ids = visible.map((a) => a.id);
+    for (const hiddenId of [
+      'writing-goals', 'check-ins', 'your-review', 'managing-reviews',
+      'running-a-cycle', 'competencies', 'pips', 'your-improvement-plan',
+      'managing-goals', 'requests', 'reading-analytics', 'configuring-the-system',
+      'feedback-and-development',
+    ]) {
+      expect(ids, `${hiddenId} should be hidden when performance features are disabled`).not.toContain(hiddenId);
+    }
+    for (const keptId of ['what-this-is', 'your-privacy', 'signing-in', 'notifications', 'managing-people', 'reports', 'glossary']) {
+      expect(ids, `${keptId} should remain visible`).toContain(keptId);
+    }
+  });
+});

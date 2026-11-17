@@ -111,7 +111,7 @@ export default function NewGoal() {
       onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
     >
       <PageHead title="New goal" meta={
-        <span style={{ fontSize: 14, opacity: 0.7 }}>{period.name}</span>
+        <span style={{ fontSize: 15, opacity: 0.7 }}>{period.name}</span>
       } />
 
       <Card kicker="Goal details">

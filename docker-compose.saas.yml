@@ -1,0 +1,133 @@
+name: hr-system
+
+# Multi-tenant SaaS Production Profile (Optimized for AWS Free Tier / t3.micro & t4g.micro)
+#
+# Memory budget on 1 GiB host:
+#   Postgres: 320 MB
+#   NestJS API: 280 MB (V8 old-space 180 MB)
+#   Web (Nginx): 32 MB
+#   Caddy (TLS): 48 MB
+#   Total budgeted: 680 MB -> Leaves >340 MB for Linux kernel, sshd & page cache.
+#
+# Native SaaS JWT Auth replaces heavy Java Keycloak container, saving 420 MB RAM.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hr}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-hr_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      POSTGRES_MIGRATOR_USER: ${POSTGRES_MIGRATOR_USER:-hr_migrator}
+      POSTGRES_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD}
+      LANG: C.UTF-8
+    command:
+      - postgres
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=40
+      - -c
+      - max_worker_processes=2
+      - -c
+      - max_parallel_workers=1
+      - -c
+      - max_parallel_workers_per_gather=0
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d ${POSTGRES_DB:-hr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 320m
+    expose:
+      - "5432"
+
+  api:
+    image: hr-system-api:latest
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgres://${POSTGRES_APP_USER:-hr_app}:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB:-hr}
+      JWT_SECRET: ${JWT_SECRET}
+      SUPERADMIN_SECRET: ${SUPERADMIN_SECRET}
+      NODE_OPTIONS: "--max-old-space-size=180"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 280m
+    expose:
+      - "3000"
+
+  web:
+    image: hr-system-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_URL:-https://${PUBLIC_HOST}}/api
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 32m
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./ops/caddy/Caddyfile.saas:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+    depends_on:
+      - api
+      - web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

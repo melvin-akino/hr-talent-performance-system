@@ -6,7 +6,8 @@ section: growth
 audience: [everyone]
 routes: ["/feedback", "/development"]
 keywords: [feedback, peer, 360, request, development plan, learning, training, career path, promotion, next role]
-order: 31
+order: 31
+features: [feature_peer_reviews, feature_competencies_pip, feature_performance]
 ---
 
 ## Requesting feedback

@@ -1,15 +1,25 @@
 import { ThemeToggle } from './components/ds';
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { HOME_PATH } from './routes';
 import { useQuery } from '@tanstack/react-query';
-import { api, completeSigninIfCallback, currentUser, signInAndReturnHere, userManager } from './auth';
+import { api, completeSigninIfCallback, currentUser, signInAndReturnHere, logout } from './auth';
 import { PeriodProvider, usePeriod } from './PeriodContext';
 import type { Employee } from './types';
 import { ErrorNote, Spinner } from './components/ui';
 import { ScrollToTop } from './components/ScrollToTop';
 import { Sidebar } from './components/Sidebar';
 import { HelpButton, HelpDrawer } from './components/HelpDrawer';
+
+import Login from './pages/auth/Login';
+import SuperadminLogin from './pages/superadmin/SuperadminLogin';
+import SuperadminDashboard from './pages/superadmin/SuperadminDashboard';
+import PayrollDashboard from './pages/payroll/PayrollDashboard';
+import ExecutiveDashboard from './pages/ExecutiveDashboard';
+import EmployeeDirectory from './pages/EmployeeDirectory';
+import EssPortal from './pages/EssPortal';
+import OffboardingDashboard from './pages/OffboardingDashboard';
+
 import MyGoals from './pages/MyGoals';
 import GoalDetail from './pages/GoalDetail';
 import NewGoal from './pages/NewGoal';
@@ -34,8 +44,40 @@ import Development from './pages/Development';
 import Analytics from './pages/Analytics';
 import Reports from './pages/Reports';
 import Requests from './pages/Requests';
+import AttendanceDashboard from './pages/attendance/AttendanceDashboard';
+import KioskTerminal from './pages/attendance/KioskTerminal';
+import LeavesDashboard from './pages/leaves/LeavesDashboard';
+import MyPayslips from './pages/payroll/MyPayslips';
 
 export default function App() {
+  const location = useLocation();
+  if (location.pathname === '/kiosk') {
+    return <KioskTerminal />;
+  }
+
+  const isAuthRoute =
+    location.pathname === '/login' ||
+    location.pathname === '/superadmin/login' ||
+    location.pathname.startsWith('/superadmin');
+
+  if (isAuthRoute) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/superadmin/login" element={<SuperadminLogin />} />
+        <Route path="/superadmin" element={<SuperadminDashboard />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <PeriodProvider>
+      <TenantApp />
+    </PeriodProvider>
+  );
+}
+
+function TenantApp() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,11 +85,10 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        // Handle the OIDC redirect leg before anything else renders. This is
-        // idempotent — see completeSigninIfCallback().
         await completeSigninIfCallback();
-        if (!(await currentUser())) {
-          await signInAndReturnHere();
+        const user = await currentUser();
+        if (!user) {
+          signInAndReturnHere();
           return;
         }
         if (!cancelled) setReady(true);
@@ -55,33 +96,49 @@ export default function App() {
         if (!cancelled) setError((err as Error).message);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (error) return <div className="p-6"><ErrorNote error={new Error(error)} /></div>;
   if (!ready) return <Spinner label="Signing in…" />;
 
-  return (
-    <PeriodProvider>
-      <Shell />
-    </PeriodProvider>
-  );
+  return <Shell />;
 }
 
 /**
  * Resolves the router's state after the OIDC callback.
- *
- * By the time this renders, completeSigninIfCallback() has already replaced the
- * URL with the path the user was heading for. Reading it back from
- * `window.location` is what lets a deep link survive a sign-in — a link to a
- * specific review, which is how people arrive from a notification email.
- *
- * The guard matters: if the rewrite has not happened, navigating to /callback
- * again would loop.
  */
 function CallbackRedirect() {
   const target = window.location.pathname + window.location.search;
   return <Navigate to={target.startsWith('/callback') ? '/' : target} replace />;
+}
+
+function HomePage({
+  me,
+  isLoading,
+  isManager,
+}: {
+  me?: Employee;
+  isLoading: boolean;
+  isManager: boolean;
+}) {
+  if (isLoading) return <Spinner />;
+  const f = me?.features;
+  const hasGoals = f ? !!(f.feature_performance || f.feature_kpis) : true;
+  if (hasGoals) return <MyGoals />;
+
+  const roles = me?.roles ?? [];
+  const isHr = roles.includes('hr_admin') || roles.includes('hr_partner');
+  if (f?.feature_time_attendance) return <Navigate to="/attendance" replace />;
+  if (f?.feature_leave_management) return <Navigate to="/leaves" replace />;
+  if (f?.feature_ph_payroll) {
+    return <Navigate to={isHr || isManager ? '/executive-dashboard' : '/my-payslips'} replace />;
+  }
+  if (isHr) return <Navigate to="/employees" replace />;
+  if (isManager) return <Navigate to="/team" replace />;
+  return <Navigate to="/notifications" replace />;
 }
 
 function Shell() {
@@ -89,23 +146,27 @@ function Shell() {
   const { period, periods, setPeriodId } = usePeriod();
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Nav is not an authorization boundary -- RLS is. A user who types /hr
-  // without the grants simply sees empty or 404 results, which is correct.
-  // Reports drive visibility of the Team tab purely to reduce clutter.
   const reports = useQuery({
     queryKey: ['reports'],
     queryFn: () => api<Employee[]>('/employees/me/reports'),
   });
   const isManager = (reports.data?.length ?? 0) > 0;
+  const features = me.data?.features;
+  const hasGoals = features ? !!(features.feature_performance || features.feature_kpis) : true;
 
   return (
     <div className="hr-app">
-      <Sidebar roles={me.data?.roles ?? []} hasReports={isManager} />
+      <Sidebar
+        roles={me.data?.roles ?? []}
+        hasReports={isManager}
+        features={features}
+        orgName={me.data?.organization?.name}
+      />
 
       <main className="hr-main">
         <div className="hr-topbar no-print">
           <div className="hr-topbar-right">
-            {periods.length > 0 && (
+            {hasGoals && periods.length > 0 && (
               <select
                 className="input"
                 style={{ width: 'auto' }}
@@ -120,12 +181,12 @@ function Shell() {
             )}
             <ThemeToggle />
             <HelpButton onClick={() => setHelpOpen(true)} />
-            <span style={{ fontSize: 14 }}>
+            <span style={{ fontSize: 15 }}>
               {me.data ? `${me.data.firstName} ${me.data.lastName}` : '…'}
             </span>
             <button
               className="btn btn-ghost"
-              onClick={() => void userManager.signoutRedirect()}
+              onClick={() => void logout()}
             >
               Sign out
             </button>
@@ -134,22 +195,23 @@ function Shell() {
 
         <ScrollToTop />
         <Routes>
-          {/* The OIDC redirect lands here. completeSigninIfCallback() rewrites
-              the URL via history.replaceState, but that emits no popstate, so
-              React Router still believes it is on /callback and would render
-              "Page not found". This route resolves the router's own state —
-              sending it to whatever replaceState just put in the address bar,
-              which is where the user was originally heading. Hardcoding "/"
-              here silently discarded that destination. */}
           <Route path="/callback" element={<CallbackRedirect />} />
-          <Route path={HOME_PATH} element={<MyGoals />} />
-          {/* `/` is the public landing page, served by the web server and never by
-              this router on a fresh load. This catches the one way to reach it from
-              inside the app, a client-side navigation to `/`, and sends it home
-              rather than leaving it on a path that, reloaded, is somewhere else. */}
+          <Route
+            path={HOME_PATH}
+            element={<HomePage me={me.data} isLoading={me.isLoading} isManager={isManager} />}
+          />
           <Route path="/" element={<Navigate to={HOME_PATH} replace />} />
+          <Route path="/my-payslips" element={<MyPayslips />} />
+          <Route path="/payroll" element={<PayrollDashboard />} />
+          <Route path="/attendance" element={<AttendanceDashboard />} />
+          <Route path="/kiosk" element={<KioskTerminal />} />
+          <Route path="/leaves" element={<LeavesDashboard />} />
           <Route path="/goals/new" element={<NewGoal />} />
           <Route path="/goals/:id" element={<GoalDetail />} />
+          <Route path="/employees" element={<EmployeeDirectory />} />
+          <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+          <Route path="/ess" element={<EssPortal />} />
+          <Route path="/offboarding" element={<OffboardingDashboard />} />
           <Route path="/employees/:employeeId/goals" element={<EmployeeGoals />} />
           <Route path="/employees/:employeeId/history" element={<EmployeeHistory />} />
           <Route path="/team" element={<Team />} />
@@ -176,8 +238,8 @@ function Shell() {
       </main>
 
       <HelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)}
-                  roles={me.data?.roles ?? []} />
+                  roles={me.data?.roles ?? []}
+                  features={features} />
     </div>
   );
 }
-

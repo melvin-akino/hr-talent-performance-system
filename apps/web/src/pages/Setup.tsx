@@ -5,6 +5,10 @@ import DevelopmentAdmin from './admin/DevelopmentAdmin';
 import HelpAdmin from './admin/HelpAdmin';
 import EvaluationTypes from './admin/EvaluationTypes';
 import ImportStaff from './admin/ImportStaff';
+import HrSettingsAdmin from './admin/HrSettingsAdmin';
+import LeavePoliciesAdmin from './admin/LeavePoliciesAdmin';
+import AttendancePoliciesAdmin from './admin/AttendancePoliciesAdmin';
+import PayrollPoliciesAdmin from './admin/PayrollPoliciesAdmin';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../auth';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
@@ -74,40 +78,126 @@ interface Rank {
  * edit: every foreign key is on the UUID, and the code is only a human-facing
  * key used to match import rows.
  */
+type SetupDomain = 'core' | 'attendance' | 'leaves' | 'payroll' | 'performance';
+
+interface DomainConfig {
+  id: SetupDomain;
+  label: string;
+  defaultTab: string;
+  tabs: Array<{ id: string; label: string }>;
+}
+
+const DOMAINS: DomainConfig[] = [
+  {
+    id: 'core',
+    label: '🏢 Core HR & Company',
+    defaultTab: 'hr_settings',
+    tabs: [
+      { id: 'hr_settings', label: 'Company Profile & 201 Rules' },
+      { id: 'departments', label: 'Departments & Org Tree' },
+      { id: 'types', label: 'Employment Types' },
+      { id: 'positions', label: 'Positions & Rank Ladder' },
+      { id: 'import', label: '201 Staff Bulk Import' },
+    ],
+  },
+  {
+    id: 'attendance',
+    label: '⏰ Time & Attendance',
+    defaultTab: 'attendance_shifts',
+    tabs: [
+      { id: 'attendance_shifts', label: 'Shifts, Overtime & Biometrics' },
+    ],
+  },
+  {
+    id: 'leaves',
+    label: '🏖️ Leave Policies',
+    defaultTab: 'leave_types',
+    tabs: [
+      { id: 'leave_types', label: 'Statutory & Company Leaves' },
+    ],
+  },
+  {
+    id: 'payroll',
+    label: '💰 Payroll & Compensation',
+    defaultTab: 'payroll_matrices',
+    tabs: [
+      { id: 'payroll_matrices', label: 'Salary Matrices, Tax & Statutory' },
+    ],
+  },
+  {
+    id: 'performance',
+    label: '🎯 Goals & Performance',
+    defaultTab: 'evaluations',
+    tabs: [
+      { id: 'evaluations', label: 'Evaluation Types' },
+      { id: 'forms', label: 'Review Forms & Rubrics' },
+      { id: 'competencies', label: 'Competencies' },
+      { id: 'development', label: 'Development Actions' },
+      { id: 'help', label: 'Help Content' },
+    ],
+  },
+];
+
 export default function Setup() {
-  const [tab, setTab] = useState<
-    'departments' | 'types' | 'positions' | 'import' | 'evaluations' | 'forms'
-    | 'competencies' | 'development' | 'help'
-  >('departments');
+  const [domain, setDomain] = useState<SetupDomain>('core');
+  const [tab, setTab] = useState<string>('hr_settings');
+
+  const currentDomainConfig = DOMAINS.find((d) => d.id === domain) ?? DOMAINS[0]!;
+
+  const handleDomainChange = (newDomain: SetupDomain) => {
+    setDomain(newDomain);
+    const conf = DOMAINS.find((d) => d.id === newDomain);
+    if (conf) {
+      setTab(conf.defaultTab);
+    }
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-      <PageHead title="Setup" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <PageHead title="HR System Administration & Configuration" />
 
-      <nav className="seg no-print" aria-label="Setup section" style={{ flexWrap: 'wrap' }}>
-        {([
-          ['departments', 'Departments'],
-          ['types', 'Employment types'],
-          ['positions', 'Positions'],
-          ['import', 'Import staff'],
-          ['evaluations', 'Evaluation types'],
-          ['forms', 'Review forms'],
-          ['competencies', 'Competencies'],
-          ['development', 'Development'],
-          ['help', 'Help content'],
-        ] as const).map(([key, label]) => (
-          <label key={key} className="seg-opt">
-            <input type="radio" name="setup-section" checked={tab === key}
-                   onChange={() => setTab(key)} />
-            <span>{label}</span>
+      {/* Top Domain Switcher */}
+      <nav className="seg no-print" aria-label="Setup domain" style={{ flexWrap: 'wrap' }}>
+        {DOMAINS.map((d) => (
+          <label key={d.id} className="seg-opt">
+            <input
+              type="radio"
+              name="setup-domain"
+              checked={domain === d.id}
+              onChange={() => handleDomainChange(d.id)}
+            />
+            <span style={{ fontWeight: domain === d.id ? 600 : 400 }}>{d.label}</span>
           </label>
         ))}
       </nav>
 
+      {/* Sub-tab Switcher (if domain has multiple sub-tabs) */}
+      {currentDomainConfig.tabs.length > 1 && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid var(--color-border)', paddingBottom: '12px' }}>
+          {currentDomainConfig.tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={tab === t.id ? 'btn btn-primary' : 'btn btn-secondary'}
+              style={{ fontSize: '14.5px', padding: '6px 14px' }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active Tab Content */}
+      {tab === 'hr_settings' && <HrSettingsAdmin />}
       {tab === 'departments' && <Departments />}
       {tab === 'types' && <EmploymentTypes />}
       {tab === 'positions' && <Positions />}
       {tab === 'import' && <ImportStaff />}
+
+      {tab === 'attendance_shifts' && <AttendancePoliciesAdmin />}
+      {tab === 'leave_types' && <LeavePoliciesAdmin />}
+      {tab === 'payroll_matrices' && <PayrollPoliciesAdmin />}
+
       {tab === 'evaluations' && <EvaluationTypes />}
       {tab === 'forms' && <FormBuilder />}
       {tab === 'competencies' && <CompetencyAdmin />}
@@ -160,7 +250,7 @@ function Departments() {
         title="Departments"
         actions={
           <div className="flex items-center gap-3 no-print">
-            <label className="flex items-center gap-1.5" style={{ fontSize: 12 }}>
+            <label className="flex items-center gap-1.5" style={{ fontSize: 15 }}>
               <input type="checkbox" checked={showClosed}
                      onChange={(e) => setShowClosed(e.target.checked)} />
               Show closed
@@ -171,7 +261,7 @@ function Departments() {
           </div>
         }
       >
-        <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+        <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
           Codes are what the 201 import matches on. Editing one is safe — records
           link by internal id, not by code.
         </p>
@@ -203,17 +293,17 @@ function Departments() {
                                pending={save.isPending} />
                     ) : (
                       <>
-                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{d.code}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: 15 }}>{d.code}</td>
                         <td>
                           {d.name}
                           {!d.isCurrent && (
-                            <span style={{ marginLeft: 8, fontSize: 12 }}>
+                            <span style={{ marginLeft: 8, fontSize: 15 }}>
                               closed {d.effectiveTo}
                             </span>
                           )}
                         </td>
-                        <td style={{ fontSize: 12 }}>{d.unitType}</td>
-                        <td style={{ fontSize: 12 }}>{d.parentName ?? '—'}</td>
+                        <td style={{ fontSize: 15 }}>{d.unitType}</td>
+                        <td style={{ fontSize: 15 }}>{d.parentName ?? '—'}</td>
                         <td className="tabular-nums">{d.headcount}</td>
                         <td className="no-print" style={{ textAlign: 'right' }}>
                           {d.isCurrent && (
@@ -267,7 +357,7 @@ function EditRow({ department, onSave, onCancel, pending }: {
     <>
       <td>
         <input className={inputClass} aria-label="Department code"
-               style={{ width: '7rem', fontFamily: 'monospace', fontSize: 12 }}
+               style={{ width: '7rem', fontFamily: 'monospace', fontSize: 15 }}
                value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
       </td>
       <td>
@@ -276,7 +366,7 @@ function EditRow({ department, onSave, onCancel, pending }: {
       </td>
       <td>
         <select className={inputClass} aria-label="Org unit level"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: 15 }}
                 value={unitType}
                 onChange={(e) => setUnitType(e.target.value as UnitType)}>
           {UNIT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -374,7 +464,7 @@ function EmploymentTypes() {
 
   return (
     <Card kicker="Employment types">
-      <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+      <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
         <strong>Review eligible</strong> decides who a review cycle picks up. Types
         the 201 import created default to eligible, except consultants and interns.
       </p>
@@ -392,7 +482,7 @@ function EmploymentTypes() {
           <tbody>
             {q.data?.map((t) => (
               <tr key={t.id} style={t.isActive ? undefined : { opacity: 0.55 }}>
-                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{t.code}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: 15 }}>{t.code}</td>
                 <td>{t.name}</td>
                 <td className="tabular-nums">{t.headcount}</td>
                 <td>
@@ -404,7 +494,7 @@ function EmploymentTypes() {
                       onChange={(e) => update.mutate({
                         id: t.id, isEligibleForReview: e.target.checked })}
                     />
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>
+                    <span style={{ fontSize: 15, opacity: 0.7 }}>
                       {t.isEligibleForReview ? 'included' : 'excluded'}
                     </span>
                   </label>
@@ -469,7 +559,7 @@ function Positions() {
 
   return (
     <Card kicker="Positions">
-      <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+      <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
         Job family groups positions for the competency gap report; a blank family
         means those positions are absent from it. <strong>Rank</strong> is the
         ladder — it is what "one rank above" means when evaluators are chosen, so
@@ -515,13 +605,13 @@ function PositionRow({ position, ranks, onSave, pending }: {
   return (
     <tr>
       <td style={{ fontWeight: 500 }}>{position.title}</td>
-      <td style={{ fontSize: 12 }}>{position.departmentName ?? '—'}</td>
+      <td style={{ fontSize: 15 }}>{position.departmentName ?? '—'}</td>
       <td className="tabular-nums">{position.headcount}</td>
       <td>
         {/* Saves on change rather than on blur: it is one choice from a short
             list, so there is nothing to finish typing. */}
         <select
-          className={inputClass} style={{ width: '11rem', fontSize: 12 }}
+          className={inputClass} style={{ width: '11rem', fontSize: 15 }}
           aria-label={`Rank for ${position.title}`}
           value={position.rankId ?? ''}
           disabled={pending || ranks.length === 0}

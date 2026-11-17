@@ -150,7 +150,7 @@ function DistributionPanel({ cycleId }: { cycleId: string }) {
 
           return (
             <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <div style={{ width: 120, fontSize: 13, flex: 'none' }}>{dept}</div>
+              <div style={{ width: 120, fontSize: 15.5, flex: 'none' }}>{dept}</div>
               {/* One stacked bar per department: proportions are directly
                   comparable across rows, which separate bars per rating are not. */}
               <div style={{
@@ -173,7 +173,7 @@ function DistributionPanel({ cycleId }: { cycleId: string }) {
       </div>
       <div style={{
         display: 'flex', gap: 14, marginTop: 'var(--space-3)',
-        fontSize: 11, opacity: 0.7, flexWrap: 'wrap',
+        fontSize: 15.5, opacity: 0.7, flexWrap: 'wrap',
       }}>
         {ratings.map((rating) => (
           <span key={rating}>
@@ -207,7 +207,7 @@ function NineBoxPanel({ cycleId }: { cycleId: string }) {
       <div className="overflow-x-auto">
         <div style={{
           display: 'grid', gridTemplateColumns: 'auto repeat(3, 1fr)',
-          gridTemplateRows: 'repeat(3, 92px) auto', gap: 4, fontSize: 11, marginTop: 8,
+          gridTemplateRows: 'repeat(3, 92px) auto', gap: 4, fontSize: 15.5, marginTop: 8,
         }}>
           {[3, 2, 1].map((pot) => (
             <Fragment key={pot}>
@@ -240,12 +240,12 @@ function NineBoxPanel({ cycleId }: { cycleId: string }) {
                       {people.length}
                     </span>
                     {people.slice(0, 4).map((p) => (
-                      <span key={p.subjectEmployeeId} style={{ fontSize: 11 }}>
+                      <span key={p.subjectEmployeeId} style={{ fontSize: 15.5 }}>
                         {p.employeeName}
                       </span>
                     ))}
                     {people.length > 4 && (
-                      <span style={{ fontSize: 11, opacity: 0.5 }}>
+                      <span style={{ fontSize: 15.5, opacity: 0.5 }}>
                         +{people.length - 4} more
                       </span>
                     )}

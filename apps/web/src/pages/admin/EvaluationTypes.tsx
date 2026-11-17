@@ -205,7 +205,7 @@ function EditDefinition({ definition, onDone }: {
   });
 
   const field = { display: 'flex', flexDirection: 'column' as const,
-                  gap: 'var(--space-1)', fontSize: 12 };
+                  gap: 'var(--space-1)', fontSize: 15 };
 
   const toggle = (p: Participant) => setD({
     ...d,

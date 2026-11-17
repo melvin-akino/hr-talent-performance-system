@@ -67,7 +67,7 @@ export default function MyGoals() {
           ? <Link to="/goals/new" className="btn btn-primary">
               New goal
             </Link>
-          : <span className="text-muted" style={{ fontSize: 13 }}>Period is {period.state}</span>}
+          : <span className="text-muted" style={{ fontSize: 15.5 }}>Period is {period.state}</span>}
       </PageHead>
 
       <div style={{
@@ -109,8 +109,8 @@ export default function MyGoals() {
                     ? 'var(--color-accent-700)' : 'var(--color-accent-900)'}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{g.title}</div>
-                  <div style={{ fontSize: 12, opacity: 0.65 }}>
+                  <div style={{ fontSize: 15, fontWeight: 500 }}>{g.title}</div>
+                  <div style={{ fontSize: 15, opacity: 0.65 }}>
                     {g.latestStatus == null
                       ? 'Never checked in since this goal was set'
                       : `${g.latestStatus === 'off_track' ? 'Off track' : 'At risk'}${
@@ -138,12 +138,12 @@ export default function MyGoals() {
                   <span className="card-title" style={{ fontSize: 16 }}>{g.title}</span>
                   <GoalStateTag state={g.state} />
                   {g.kpiCode && (
-                    <span style={{ fontSize: 11, opacity: 0.5 }}>
+                    <span style={{ fontSize: 15.5, opacity: 0.5 }}>
                       {g.kpiCode} v{g.kpiDefinitionVersion}
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>
+                <div style={{ fontSize: 15, opacity: 0.65, marginTop: 4 }}>
                   Weight {Number(g.weight)}% · Due {g.dueOn ?? '—'}
                 </div>
               </div>
@@ -157,7 +157,7 @@ export default function MyGoals() {
                     being "never checked in" is noise, not a finding. */}
                 {g.state === 'active'
                   ? <CheckinStatus status={g.latestStatus} />
-                  : <span style={{ opacity: 0.4, fontSize: 12 }}>—</span>}
+                  : <span style={{ opacity: 0.4, fontSize: 15 }}>—</span>}
               </div>
 
               <Link to={`/goals/${g.id}`} className="btn btn-ghost btn-icon" aria-label={`Open ${g.title}`}>

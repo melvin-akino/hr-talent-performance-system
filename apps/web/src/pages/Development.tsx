@@ -162,7 +162,7 @@ function Plans() {
             <Btn variant="primary" onClick={() => setCreating((v) => !v)}>New plan</Btn>
           }
         >
-          <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+          <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
             Your manager can see these. That is deliberate — a development plan is a
             growth conversation, not a disciplinary record.
           </p>
@@ -182,7 +182,7 @@ function Plans() {
                     >
                       {p.title}
                     </button>
-                    <p style={{ margin: '2px 0 6px', fontSize: 12, opacity: 0.7 }}>
+                    <p style={{ margin: '2px 0 6px', fontSize: 15, opacity: 0.7 }}>
                       {p.actionsCompleted}/{p.actionCount} actions complete
                       {p.targetPositionTitle && ` · toward ${p.targetPositionTitle}`}
                       {p.targetDate && ` · by ${p.targetDate}`}
@@ -243,11 +243,11 @@ function PlanDetail({ planId, state }: { planId: string; state: string }) {
       padding: 'var(--space-4)',
     }}>
       {plan.data?.objective && (
-        <p style={{ margin: 0, fontSize: 14 }}>{plan.data.objective}</p>
+        <p style={{ margin: 0, fontSize: 15 }}>{plan.data.objective}</p>
       )}
 
       {(plan.data?.actions?.length ?? 0) === 0 ? (
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>
+        <p style={{ margin: 0, fontSize: 15.5, opacity: 0.7 }}>
           This plan has no actions yet — there is nothing to track until it has at
           least one.
         </p>
@@ -264,15 +264,15 @@ function PlanDetail({ planId, state }: { planId: string; state: string }) {
             }}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 14 }}>{a.description}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, opacity: 0.7 }}>
+                  <p style={{ margin: 0, fontSize: 15 }}>{a.description}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 15, opacity: 0.7 }}>
                     {a.competencyName && `${a.competencyName}`}
                     {a.targetLevel && ` → level ${a.targetLevel}`}
                     {a.targetDate && ` · due ${a.targetDate}`}
                     {a.completedOn && ` · done ${a.completedOn}`}
                   </p>
                   {a.learningResourceTitle && (
-                    <p style={{ margin: '4px 0 0', fontSize: 12 }}>
+                    <p style={{ margin: '4px 0 0', fontSize: 15 }}>
                       {a.learningResourceUrl ? (
                         <a href={a.learningResourceUrl} target="_blank"
                            rel="noreferrer noopener">
@@ -282,11 +282,11 @@ function PlanDetail({ planId, state }: { planId: string; state: string }) {
                     </p>
                   )}
                 </div>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: 15 }}>
                   <span className="sr-only">Status for “{a.description}”</span>
                   <select
                     className={inputClass}
-                    style={{ fontSize: 12, paddingBlock: 4 }}
+                    style={{ fontSize: 15, paddingBlock: 4 }}
                     value={a.status}
                     onChange={(e) => setStatus.mutate({ id: a.id, status: e.target.value })}
                   >
@@ -350,10 +350,10 @@ function NewPlan({ onDone }: { onDone: () => void }) {
         <div className="hr-note" style={{
           marginBottom: 'var(--space-4)', padding: 'var(--space-2) var(--space-3)',
         }}>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
             Based on your competency gaps, you might work on:
           </p>
-          <ul style={{ margin: '4px 0 0', paddingLeft: '1.1em', fontSize: 12 }}>
+          <ul style={{ margin: '4px 0 0', paddingLeft: '1.1em', fontSize: 15 }}>
             {recs.data?.slice(0, 4).map((r) => (
               <li key={`${r.competencyId}-${r.resourceId}`}>
                 {r.competencyName}
@@ -387,7 +387,7 @@ function NewPlan({ onDone }: { onDone: () => void }) {
         <div className="sm:col-span-2">
           <div className="flex items-center justify-between"
                style={{ marginBottom: 'var(--space-2)' }}>
-            <span style={{ fontSize: 14, fontWeight: 500 }}>Actions</span>
+            <span style={{ fontSize: 15, fontWeight: 500 }}>Actions</span>
             <Btn type="button"
                  onClick={() => setActions((p) => [...p, { description: '', targetDate: '' }])}>
               Add action
@@ -467,7 +467,7 @@ function Learning() {
 
       <Card kicker="My library">
         {assignments.data?.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>
+          <p style={{ margin: 0, fontSize: 15.5, opacity: 0.75 }}>
             Nothing assigned to you yet. Recommendations below are drawn from your
             competency gaps and need no assignment to act on.
           </p>
@@ -492,25 +492,25 @@ function Learning() {
                           {a.title}
                         </a>
                       ) : <span style={{ fontWeight: 500 }}>{a.title}</span>}
-                      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.55 }}>
+                      <span style={{ marginLeft: 8, fontSize: 15, opacity: 0.55 }}>
                         {a.resourceType}
                         {a.durationMinutes ? ` · ${a.durationMinutes} min` : ''}
                       </span>
                       {/* Who assigned it decides who to ask about it. */}
                       {a.assignedBy && (
-                        <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
+                        <p style={{ margin: 0, fontSize: 15, opacity: 0.7 }}>
                           assigned by {a.assignedBy}
                         </p>
                       )}
                     </td>
-                    <td style={{ fontSize: 12 }}>{a.competencyName ?? '—'}</td>
-                    <td style={{ fontSize: 12 }}>{a.dueOn ?? '—'}</td>
+                    <td style={{ fontSize: 15 }}>{a.competencyName ?? '—'}</td>
+                    <td style={{ fontSize: 15 }}>{a.dueOn ?? '—'}</td>
                     <td>
                       <label>
                         <span className="sr-only">Status for {a.title}</span>
                         <select
                           className={inputClass}
-                          style={{ fontSize: 12, paddingBlock: 4 }}
+                          style={{ fontSize: 15, paddingBlock: 4 }}
                           value={a.state}
                           onChange={(e) => setState.mutate({ id: a.id, state: e.target.value })}
                         >
@@ -530,13 +530,13 @@ function Learning() {
       </Card>
 
       <Card kicker="Recommended for you">
-        <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+        <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
           Matched to competencies where you are below the required level, or have
           not been assessed at all.
         </p>
         {recs.error ? <ErrorNote error={recs.error} /> : null}
         {recs.data?.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>
+          <p style={{ margin: 0, fontSize: 15.5, opacity: 0.75 }}>
             Nothing outstanding — every mapped competency is met.
           </p>
         ) : (
@@ -549,10 +549,10 @@ function Learning() {
                     borderTop: '1px solid var(--color-neutral-200)',
                   }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
                     {r.resourceTitle}
                   </p>
-                  <p style={{ margin: 0, fontSize: 12, opacity: 0.75 }}>
+                  <p style={{ margin: 0, fontSize: 15, opacity: 0.75 }}>
                     {r.competencyName} ·{' '}
                     {r.gap === null
                       ? 'not yet assessed'
@@ -589,7 +589,7 @@ function Career() {
 
   return (
     <Card kicker="Where I could go next">
-      <p style={{ marginTop: 0, fontSize: 12, opacity: 0.7 }}>
+      <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
         Based on career paths defined for your current position, and how your
         assessed competencies compare to each role's requirements.
       </p>
@@ -607,8 +607,8 @@ function Career() {
             {options.data?.map((o) => (
               <tr key={o.toPositionId}>
                 <td style={{ fontWeight: 500 }}>{o.toPositionTitle}</td>
-                <td style={{ fontSize: 12 }}>{o.moveType.replace(/_/g, ' ')}</td>
-                <td style={{ fontSize: 12 }}>
+                <td style={{ fontSize: 15 }}>{o.moveType.replace(/_/g, ' ')}</td>
+                <td style={{ fontSize: 15 }}>
                   {o.typicalMonths ? `~${o.typicalMonths} months` : '—'}
                 </td>
                 {/* The counts sit in separate spans, so they need an explicit
@@ -618,7 +618,7 @@ function Career() {
                     Readiness is drawn against the TOTAL, and unassessed
                     requirements are stated rather than folded in: "3 of 4 met"
                     with one unassessed is not 75% ready, it is unknown. */}
-                <td style={{ fontSize: 12, minWidth: 190 }}>
+                <td style={{ fontSize: 15, minWidth: 190 }}>
                   <div>
                     {o.requirementsMet} of {o.requirementsTotal} met
                     {o.requirementsUnassessed > 0

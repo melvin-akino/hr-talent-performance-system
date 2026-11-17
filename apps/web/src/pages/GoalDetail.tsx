@@ -64,7 +64,7 @@ export default function GoalDetail() {
 
   return (
     <Section>
-      <Link to={HOME_PATH} style={{ fontSize: 13, color: 'var(--color-accent-700)', textDecoration: 'none' }}>
+      <Link to={HOME_PATH} style={{ fontSize: 15.5, color: 'var(--color-accent-700)', textDecoration: 'none' }}>
         ← Back to My goals
       </Link>
 
@@ -86,7 +86,7 @@ export default function GoalDetail() {
         )}
         <div style={{
           display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-3)',
-          fontSize: 13, flexWrap: 'wrap',
+          fontSize: 15.5, flexWrap: 'wrap',
         }}>
           {meta('Owner', g.employeeName)}
           {meta('Weight', `${Number(g.weight)}%`)}
@@ -153,7 +153,7 @@ export default function GoalDetail() {
                   {t.measureName}{' '}
                   {/* Direction stated inline — several measures on one goal can
                       disagree, and assuming higher-is-better inverts the result. */}
-                  <span style={{ opacity: 0.5, fontSize: 11 }}>
+                  <span style={{ opacity: 0.5, fontSize: 15.5 }}>
                     {t.direction === 'lower_is_better' ? '↓ lower is better' : '↑ higher is better'}
                   </span>
                 </td>
@@ -162,12 +162,12 @@ export default function GoalDetail() {
                 <td className="tabular-nums">
                   {t.actualValue ?? '—'}{' '}
                   {t.actualAsOf && (
-                    <span style={{ opacity: 0.5, fontSize: 11 }}>as of {t.actualAsOf}</span>
+                    <span style={{ opacity: 0.5, fontSize: 15.5 }}>as of {t.actualAsOf}</span>
                   )}
                 </td>
                 <td>
                   {t.attainmentPct == null
-                    ? <span style={{ opacity: 0.5, fontSize: 12 }}>—</span>
+                    ? <span style={{ opacity: 0.5, fontSize: 15 }}>—</span>
                     : <Bar pct={Number(t.attainmentPct)}
                            tone={t.direction === 'lower_is_better' ? 'deep' : 'accent'} />}
                 </td>
@@ -195,7 +195,7 @@ export default function GoalDetail() {
               }}>
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  gap: 'var(--space-3)', fontSize: 13, flexWrap: 'wrap',
+                  gap: 'var(--space-3)', fontSize: 15.5, flexWrap: 'wrap',
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <CheckinStatus status={c.statusFlag} />
@@ -211,11 +211,11 @@ export default function GoalDetail() {
                   <span style={{ opacity: 0.6 }}>Logged {c.createdAt.slice(0, 10)}</span>
                 </div>
                 {c.comment && (
-                  <p style={{ fontSize: 13, margin: '6px 0 0', opacity: 0.85 }}>{c.comment}</p>
+                  <p style={{ fontSize: 15.5, margin: '6px 0 0', opacity: 0.85 }}>{c.comment}</p>
                 )}
                 {c.evidenceUrl && (
                   <a href={c.evidenceUrl} target="_blank" rel="noreferrer noopener"
-                     style={{ fontSize: 12 }}>
+                     style={{ fontSize: 15 }}>
                     Evidence
                   </a>
                 )}
@@ -305,7 +305,7 @@ function CheckinForm({ goalId, targets, onDone }: {
         </div>
 
         <label style={{
-          gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14,
+          gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, fontSize: 15,
         }}>
           <input type="checkbox" checked={updateActual}
                  onChange={(e) => setUpdateActual(e.target.checked)}
@@ -319,7 +319,7 @@ function CheckinForm({ goalId, targets, onDone }: {
           <Btn type="submit" variant="primary" disabled={submit.isPending}>
             {submit.isPending ? 'Saving…' : 'Log check-in'}
           </Btn>
-          <span className="text-muted" style={{ fontSize: 12 }}>
+          <span className="text-muted" style={{ fontSize: 15 }}>
             Check-ins are permanent and cannot be edited or deleted.
           </span>
         </div>

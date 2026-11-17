@@ -87,7 +87,7 @@ export default function UnitDashboard() {
     <Section>
       <PageHead
         title="My unit"
-        meta={<span style={{ fontSize: 14, opacity: 0.7 }}>{period.name}</span>}
+        meta={<span style={{ fontSize: 15, opacity: 0.7 }}>{period.name}</span>}
       />
 
       <Card
@@ -202,7 +202,7 @@ export default function UnitDashboard() {
         </Card>
       )}
 
-      <p className="text-muted" style={{ fontSize: 13 }}>
+      <p className="text-muted" style={{ fontSize: 15.5 }}>
         Every figure here is scoped to what you may see. <Link to="/team">Team</Link>{' '}
         shows the people reporting to you directly.
       </p>

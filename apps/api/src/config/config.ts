@@ -74,6 +74,10 @@ const schema = z.object({
   REMINDER_DAYS_AHEAD: z.coerce.number().int().positive().max(90).default(7),
   /** Clock skew tolerance for token exp/nbf, in seconds. */
   OIDC_CLOCK_TOLERANCE: z.coerce.number().int().nonnegative().default(30),
+
+  /** Secret key for signing and verifying native SaaS JWT tokens */
+  JWT_SECRET: z.string().default('dev-saas-jwt-secret-key-at-least-32-chars-long-1234567890'),
+  SUPERADMIN_SECRET: z.string().default('dev-superadmin-secret-key-at-least-32-chars-long'),
 });
 
 export type Config = z.infer<typeof schema>;
@@ -101,20 +105,17 @@ export const config: Config = load();
  */
 export function requireServerConfig(): {
   DATABASE_URL: string;
-  OIDC_ISSUER_URL: string;
-  OIDC_AUDIENCE: string;
+  OIDC_ISSUER_URL?: string | undefined;
+  OIDC_AUDIENCE?: string | undefined;
+  JWT_SECRET: string;
 } {
-  const missing = (['DATABASE_URL', 'OIDC_ISSUER_URL', 'OIDC_AUDIENCE'] as const).filter(
-    (k) => !config[k],
-  );
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required configuration for the API server: ${missing.join(', ')}`,
-    );
+  if (!config.DATABASE_URL) {
+    throw new Error('Missing required configuration for the API server: DATABASE_URL');
   }
   return {
-    DATABASE_URL: config.DATABASE_URL!,
-    OIDC_ISSUER_URL: config.OIDC_ISSUER_URL!,
-    OIDC_AUDIENCE: config.OIDC_AUDIENCE!,
+    DATABASE_URL: config.DATABASE_URL,
+    OIDC_ISSUER_URL: config.OIDC_ISSUER_URL,
+    OIDC_AUDIENCE: config.OIDC_AUDIENCE,
+    JWT_SECRET: config.JWT_SECRET,
   };
 }

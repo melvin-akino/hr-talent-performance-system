@@ -11,8 +11,10 @@
  * test/help-content.spec.ts.
  */
 import {
-  AUDIENCES, SECTIONS, type Audience, type HelpArticle, type Section,
+  AUDIENCES, FEATURE_KEYS, SECTIONS,
+  type Audience, type FeatureKey, type HelpArticle, type Section,
 } from './schema';
+import type { TenantFeatures } from '../types';
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -75,6 +77,17 @@ export function toArticle(source: string, file: string): HelpArticle {
     }
   }
 
+  let features: FeatureKey[] | undefined;
+  if (fields['features'] !== undefined) {
+    const rawFeatures = list(fields, 'features', file);
+    for (const f of rawFeatures) {
+      if (!(FEATURE_KEYS as readonly string[]).includes(f)) {
+        throw new Error(`${file}: unknown feature "${f}"`);
+      }
+    }
+    features = rawFeatures as FeatureKey[];
+  }
+
   const order = Number(str(fields, 'order', file));
   if (!Number.isFinite(order)) throw new Error(`${file}: "order" must be a number`);
 
@@ -89,6 +102,7 @@ export function toArticle(source: string, file: string): HelpArticle {
     routes: list(fields, 'routes', file),
     keywords: list(fields, 'keywords', file),
     order,
+    ...(features ? { features } : {}),
     body,
     origin: 'product',
   };
@@ -147,14 +161,75 @@ export function loadArticles(): HelpArticle[] {
 }
 
 /**
- * Articles a holder of these roles should be offered.
+ * Maps a route prefix to the feature flags that enable it, so HR-authored
+ * company articles (which do not store explicit feature flags in the DB) are
+ * also hidden when the module they document is turned off.
+ */
+function routeRequiredFeatures(route: string): FeatureKey[] | null {
+  if (route === '/home' || route.startsWith('/goals') || route.endsWith('/goals') ||
+      route === '/monitoring' || route === '/unit' || route === '/hr' || route === '/evaluations') {
+    return ['feature_performance', 'feature_kpis'];
+  }
+  if (route === '/kpis' || route === '/metrics') {
+    return ['feature_kpis'];
+  }
+  if (route.startsWith('/reviews') || route === '/review-admin') {
+    return ['feature_performance'];
+  }
+  if (route === '/competencies' || route === '/pips') {
+    return ['feature_competencies_pip'];
+  }
+  if (route === '/development') {
+    return ['feature_competencies_pip', 'feature_performance'];
+  }
+  if (route === '/feedback') {
+    return ['feature_peer_reviews'];
+  }
+  if (route === '/analytics' || route === '/requests') {
+    return ['feature_performance', 'feature_kpis', 'feature_peer_reviews', 'feature_competencies_pip'];
+  }
+  if (route === '/attendance' || route === '/kiosk') {
+    return ['feature_time_attendance'];
+  }
+  if (route === '/leaves') {
+    return ['feature_leave_management'];
+  }
+  if (route === '/payroll' || route === '/my-payslips') {
+    return ['feature_ph_payroll'];
+  }
+  return null;
+}
+
+function isArticleEnabledForFeatures(article: HelpArticle, features?: TenantFeatures): boolean {
+  if (!features) return true;
+  if (article.features && article.features.length > 0) {
+    return article.features.some((f) => !!features[f]);
+  }
+  // For company articles without explicit `features`, infer from routes if all
+  // routes belong to feature-gated modules.
+  if (article.origin === 'company' && article.routes.length > 0) {
+    const reqs = article.routes.map(routeRequiredFeatures);
+    if (reqs.every((r) => r !== null)) {
+      return reqs.some((r) => r!.some((f) => !!features[f]));
+    }
+  }
+  return true;
+}
+
+/**
+ * Articles a holder of these roles (and tenant features) should be offered.
  *
  * Filtering is about relevance, not secrecy — help that describes an action the
  * reader cannot perform, on a screen they cannot open, is worse than no help.
  */
-export function articlesFor(articles: HelpArticle[], roles: string[]): HelpArticle[] {
+export function articlesFor(
+  articles: HelpArticle[],
+  roles: string[],
+  features?: TenantFeatures,
+): HelpArticle[] {
   return articles.filter((a) =>
-    a.audience.includes('everyone') || a.audience.some((r) => roles.includes(r)));
+    (a.audience.includes('everyone') || a.audience.some((r) => roles.includes(r))) &&
+    isArticleEnabledForFeatures(a, features));
 }
 
 /** Articles relevant to a route, most specific match first. */

@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </p>
           <pre style={{
             margin: 'var(--space-3) 0 0', padding: 'var(--space-2)',
-            overflowX: 'auto', fontSize: 12,
+            overflowX: 'auto', fontSize: 15,
             background: 'color-mix(in srgb, var(--color-text) 5%, transparent)',
           }}>
             {this.state.error.message}

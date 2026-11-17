@@ -21,14 +21,14 @@ export function Field({ label, hint, error, children }: {
       <span>{label}</span>
       {children}
       {hint && !error && (
-        <span className="text-muted" style={{ display: 'block', fontSize: 12, marginTop: 4 }}>
+        <span className="text-muted" style={{ display: 'block', fontSize: 15, marginTop: 4 }}>
           {hint}
         </span>
       )}
       {/* A field error is stated in words, next to the field. The system has no
           error hue, and inventing one here would be the first crack in that. */}
       {error && (
-        <span style={{ display: 'block', fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+        <span style={{ display: 'block', fontSize: 15, marginTop: 4, fontWeight: 600 }}>
           {error}
         </span>
       )}

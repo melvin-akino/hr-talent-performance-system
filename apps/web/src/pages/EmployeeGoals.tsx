@@ -42,7 +42,7 @@ export default function EmployeeGoals() {
       <PageHead
         title={`${employee.data?.firstName ?? ''} ${employee.data?.lastName ?? ''}`.trim()
           || 'Employee goals'}
-        meta={period && <span style={{ fontSize: 14, opacity: 0.7 }}>{period.name}</span>}
+        meta={period && <span style={{ fontSize: 15, opacity: 0.7 }}>{period.name}</span>}
       >
         {/* Weights that do not total 100% block approval, so the two cases must
             not read the same. Settled is quiet text; anything else is a tag that

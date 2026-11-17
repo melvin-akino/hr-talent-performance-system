@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards,
+  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
@@ -112,5 +112,17 @@ export class ReferenceDataController {
     @Body() body: unknown,
   ) {
     return this.ref.updatePosition(req.auth, id, updatePosition.parse(body));
+  }
+
+  // --- Comprehensive Enterprise HR Settings --------------------------------
+
+  @Get('admin/settings')
+  getHrSettings(@Req() req: AuthenticatedRequest) {
+    return this.ref.getHrSettings(req.auth);
+  }
+
+  @Put('admin/settings')
+  updateHrSettings(@Req() req: AuthenticatedRequest, @Body() body: any) {
+    return this.ref.updateHrSettings(req.auth, body);
   }
 }

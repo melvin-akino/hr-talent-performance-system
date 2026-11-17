@@ -6,7 +6,8 @@ section: administering
 audience: [hr_admin, hr_partner]
 routes: ["/review-admin", "/hr"]
 keywords: [cycle, launch, generate, open, calibration, close, sign off, completion, chase, HR]
-order: 50
+order: 50
+features: [feature_performance]
 ---
 
 A cycle moves **draft → open → calibration → closed**, and the transitions are

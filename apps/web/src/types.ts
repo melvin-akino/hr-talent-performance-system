@@ -6,6 +6,28 @@
  * rounding. Parse at the point of display; never store the parsed value back.
  */
 
+export interface TenantFeatures {
+  feature_core_hr: boolean;
+  feature_performance: boolean;
+  feature_kpis: boolean;
+  feature_peer_reviews: boolean;
+  feature_competencies_pip: boolean;
+  feature_leave_management: boolean;
+  feature_time_attendance: boolean;
+  feature_ph_payroll: boolean;
+  feature_bank_disbursement: boolean;
+  feature_bir_statutory_gen: boolean;
+}
+
+export interface OrganizationInfo {
+  id: string;
+  name: string;
+  code: string;
+  slug: string;
+  status: 'active' | 'trial' | 'suspended';
+  planTier: 'starter' | 'professional' | 'enterprise';
+}
+
 export interface Employee {
   id: string;
   employeeNo: string;
@@ -20,6 +42,30 @@ export interface Employee {
    * authorization check, which is RLS's job on the server.
    */
   roles?: string[];
+  features?: TenantFeatures;
+  organization?: OrganizationInfo;
+}
+
+export interface EmployeeSummary {
+  id: string;
+  employeeNo: string;
+  firstName: string;
+  lastName: string;
+  workEmail: string | null;
+  status: string;
+  positionTitle: string | null;
+  departmentName: string | null;
+  departmentId?: string | null;
+  branchName?: string | null;
+  branchId?: string | null;
+  supervisorName?: string | null;
+  monthlyRate?: number | null;
+  hiredOn?: string | null;
+  regularizedOn?: string | null;
+  lastPromotedOn?: string | null;
+  roles?: string[];
+  features?: TenantFeatures;
+  organization?: OrganizationInfo;
 }
 
 export type GoalState =

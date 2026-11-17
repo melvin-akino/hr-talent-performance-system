@@ -7,6 +7,7 @@ audience: [everyone]
 routes: ["/reviews", "/reviews/:id"]
 keywords: [review, self review, self-assessment, rating, appraisal, evaluation, calibration, sign off, acknowledge]
 order: 20
+features: [feature_performance]
 ---
 
 ## How a cycle runs

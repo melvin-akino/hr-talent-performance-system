@@ -7,6 +7,7 @@ audience: [everyone]
 routes: ["/goals/new", "/home", "/goals/:id"]
 keywords: [goal, KPI, target, SMART, weight, objective, kra, measure, baseline]
 order: 10
+features: [feature_performance, feature_kpis]
 ---
 
 A goal in this system has a **target you can measure**, not just an intention.

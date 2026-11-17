@@ -24,6 +24,20 @@ export const SECTIONS = [
 ] as const;
 export type Section = (typeof SECTIONS)[number];
 
+export const FEATURE_KEYS = [
+  'feature_core_hr',
+  'feature_performance',
+  'feature_kpis',
+  'feature_peer_reviews',
+  'feature_competencies_pip',
+  'feature_leave_management',
+  'feature_time_attendance',
+  'feature_ph_payroll',
+  'feature_bank_disbursement',
+  'feature_bir_statutory_gen',
+] as const;
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
+
 export interface HelpArticle {
   /** Stable kebab-case identifier. Used in deep links, so it must not change. */
   id: string;
@@ -46,6 +60,11 @@ export interface HelpArticle {
   keywords: string[];
   /** Sort order within a section. */
   order: number;
+  /**
+   * Optional tenant feature flags required for this article to be shown.
+   * Visible if ANY listed flag is enabled; omitted/empty means always visible.
+   */
+  features?: FeatureKey[];
   /** Markdown body, frontmatter stripped. */
   body: string;
   /**
@@ -94,7 +113,16 @@ export const APP_ROUTES = [
   '/metrics',
   '/evaluations',
   '/unit',
+  '/employees',
+  '/executive-dashboard',
+  '/ess',
+  '/offboarding',
   '/employees/:employeeId/history',
   '/reports',
   '/requests',
+  '/attendance',
+  '/kiosk',
+  '/leaves',
+  '/payroll',
+  '/my-payslips',
 ] as const;

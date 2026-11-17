@@ -6,7 +6,8 @@ section: administering
 audience: [manager, hr_admin, hr_partner]
 routes: ["/analytics"]
 keywords: [analytics, nine-box, ninebox, distribution, rater, bias, trend, calibration movement, funnel, talent]
-order: 53
+order: 53
+features: [feature_performance, feature_kpis, feature_peer_reviews, feature_competencies_pip]
 ---
 
 Every chart here runs under your own permissions. A manager sees their subtree

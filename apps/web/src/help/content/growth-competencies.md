@@ -6,7 +6,8 @@ section: growth
 audience: [everyone]
 routes: ["/competencies"]
 keywords: [competency, skill, level, gap, behavioural, assessment, framework, promotion]
-order: 30
+order: 30
+features: [feature_competencies_pip]
 ---
 
 Goals measure **what** you delivered. Competencies describe **how** you work —

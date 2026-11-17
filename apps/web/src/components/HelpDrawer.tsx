@@ -9,6 +9,7 @@ import type { HelpArticle } from '../help/schema';
 import { SECTIONS } from '../help/schema';
 import { renderMarkdown } from '../help/markdown';
 import { Icon, Tag, paths } from './ds';
+import type { TenantFeatures } from '../types';
 
 /**
  * The help drawer.
@@ -78,7 +79,7 @@ function matches(article: HelpArticle, query: string): boolean {
 }
 
 export function HelpDrawer(
-  { open, onClose, roles }: { open: boolean; onClose: () => void; roles: string[] },
+  { open, onClose, roles, features }: { open: boolean; onClose: () => void; roles: string[]; features?: TenantFeatures | undefined },
 ) {
   const { pathname } = useLocation();
   const [query, setQuery] = useState('');
@@ -98,8 +99,8 @@ export function HelpDrawer(
   });
 
   const available = useMemo(
-    () => articlesFor([...ALL, ...fromCompany(company.data ?? [])], roles),
-    [roles, company.data],
+    () => articlesFor([...ALL, ...fromCompany(company.data ?? [])], roles, features),
+    [roles, features, company.data],
   );
   const contextual = useMemo(
     () => articlesForRoute(available, pathname), [available, pathname],
@@ -138,7 +139,7 @@ export function HelpDrawer(
         {a.title}
         {a.origin === 'company' && <Tag tone="outline">company</Tag>}
       </span>
-      <span className="text-muted" style={{ fontSize: 12 }}>{a.summary}</span>
+      <span className="text-muted" style={{ fontSize: 15 }}>{a.summary}</span>
     </button>
   ));
 
@@ -168,7 +169,7 @@ export function HelpDrawer(
                 software behaves.
               </p>
             )}
-            <p className="text-muted" style={{ fontSize: 13 }}>{article.summary}</p>
+            <p className="text-muted" style={{ fontSize: 15.5 }}>{article.summary}</p>
             {renderMarkdown(article.body)}
           </div>
         ) : (

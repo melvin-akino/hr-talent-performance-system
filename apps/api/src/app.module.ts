@@ -41,10 +41,27 @@ import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
 import { ChangeRequestsController } from './requests/change-requests.controller';
 import { ChangeRequestsService } from './requests/change-requests.service';
+import { AuthController } from './auth/auth.controller';
+import { AuthService } from './auth/auth.service';
+import { SuperadminController } from './superadmin/superadmin.controller';
+import { SuperadminService } from './superadmin/superadmin.service';
+import { SuperadminGuard } from './superadmin/superadmin.guard';
+import { FeatureGuard } from './common/guards/feature.guard';
+import { PayrollController } from './payroll/payroll.controller';
+import { PayrollService } from './payroll/payroll.service';
+import { AttendanceController } from './attendance/attendance.controller';
+import { AttendanceService } from './attendance/attendance.service';
+import { LeavesController } from './leaves/leaves.controller';
+import { LeavesService } from './leaves/leaves.service';
+import { EssController, OffboardingController } from './ess/ess.controller';
+import { EssService } from './ess/ess.service';
 
 @Global()
 @Module({
   controllers: [
+    AuthController, SuperadminController, PayrollController,
+    AttendanceController, LeavesController,
+    EssController, OffboardingController,
     EmployeesController, HealthController, GoalsController, PipController,
     ReviewsController, CompetenciesController, ReferenceDataController,
     ImportController,
@@ -53,7 +70,9 @@ import { ChangeRequestsService } from './requests/change-requests.service';
     ReportsController, ChangeRequestsController,
   ],
   providers: [
-    DbService, AuthGuard, EmployeesService, EmployeeImportService,
+    DbService, AuthGuard, AuthService, SuperadminGuard, SuperadminService, FeatureGuard,
+    PayrollService, AttendanceService, LeavesService, EssService,
+    EmployeesService, EmployeeImportService,
     GoalsService, KpiService, DashboardService,
     PipService, MonitoringService,
     ReviewsService, FormsService, EvaluationDefinitionsService,
@@ -63,6 +82,6 @@ import { ChangeRequestsService } from './requests/change-requests.service';
     DevelopmentService, AnalyticsService, HelpService, MetricsService,
     EvaluationsService, ReportsService, ChangeRequestsService,
   ],
-  exports: [DbService],
+  exports: [DbService, AuthService, FeatureGuard],
 })
 export class AppModule {}

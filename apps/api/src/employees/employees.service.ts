@@ -11,11 +11,29 @@ export interface EmployeeSummary {
   positionTitle: string | null;
   departmentName: string | null;
   departmentId: string | null;
+  branchName?: string | null;
+  branchId?: string | null;
+  supervisorName?: string | null;
+  monthlyRate?: number | null;
+  hiredOn?: string | null;
+  regularizedOn?: string | null;
+  lastPromotedOn?: string | null;
   /**
    * Role codes the caller currently holds. Populated only by me(); listing
    * other people does not disclose their grants.
    */
-  roles?: string[];
+  roles?: string[] | undefined;
+  features?: Record<string, boolean> | undefined;
+  organization?:
+    | {
+        id: string;
+        name: string;
+        code: string;
+        slug: string;
+        status: string;
+        planTier: string;
+      }
+    | undefined;
 }
 
 export interface TimelineEvent {
@@ -55,6 +73,10 @@ export class EmployeesService {
            p.title          AS "positionTitle",
            d.name           AS "departmentName",
            d.id             AS "departmentId",
+           b.name           AS "branchName",
+           b.id             AS "branchId",
+           sup.first_name || ' ' || sup.last_name AS "supervisorName",
+           ec.monthly_rate  AS "monthlyRate",
            -- The three dates the client's 201 sheet asks for, read from the
            -- employment history rather than stored beside it (migration 0029).
            m.hired_on::text        AS "hiredOn",
@@ -67,6 +89,14 @@ export class EmployeesService {
        AND (em.effective_to IS NULL OR $1::date < em.effective_to)
       LEFT JOIN position p ON p.id = em.position_id
       LEFT JOIN department d ON d.id = em.department_id
+      LEFT JOIN employee_compensation ec ON ec.employee_id = e.id
+      LEFT JOIN branch b ON b.id = ec.branch_id
+      LEFT JOIN reporting_line rl_sup
+        ON rl_sup.employee_id = e.id
+       AND rl_sup.line_type = 'primary'
+       AND rl_sup.effective_from <= $1::date
+       AND (rl_sup.effective_to IS NULL OR $1::date < rl_sup.effective_to)
+      LEFT JOIN employee sup ON sup.id = rl_sup.supervisor_employee_id
       LEFT JOIN LATERAL app.employment_milestones(e.id) m ON TRUE`;
 
   /** The requesting employee's own record. */
@@ -99,7 +129,37 @@ export class EmployeesService {
           ORDER BY r.code`,
         [ctx.employeeId, asOf],
       );
-      return [{ ...res.rows[0], roles: roles.rows.map((r) => r.code) }];
+
+      const orgRes = await client.query<{
+        id: string;
+        name: string;
+        code: string;
+        slug: string;
+        status: string;
+        plan_tier: string;
+      }>(
+        `SELECT o.id, o.name, o.code, o.slug, o.status, o.plan_tier
+           FROM organization o
+          WHERE o.id = app.current_org_id()`,
+      );
+
+      const featRes = await client.query<{ features: any }>(
+        `SELECT app.current_employee_features() AS features`,
+      );
+
+      return [{
+        ...res.rows[0],
+        roles: roles.rows.map((r) => r.code),
+        organization: orgRes.rows[0] ? {
+          id: orgRes.rows[0].id,
+          name: orgRes.rows[0].name,
+          code: orgRes.rows[0].code,
+          slug: orgRes.rows[0].slug,
+          status: orgRes.rows[0].status,
+          planTier: orgRes.rows[0].plan_tier,
+        } : undefined,
+        features: featRes.rows[0]?.features ?? undefined,
+      }];
     });
     if (!rows[0]) throw new NotFoundException('Employee record not found');
     return rows[0];
@@ -197,5 +257,103 @@ export class EmployeesService {
     // that is the correct behaviour: a 403 would confirm the record exists.
     if (!rows[0]) throw new NotFoundException('Employee not found');
     return rows[0];
+  }
+
+  // ---------------------------------------------------------------------------
+  // 201 Digital Document Vault
+  // ---------------------------------------------------------------------------
+
+  async uploadDocument(
+    ctx: RequestContext,
+    dto: { employeeId: string; docType: string; title: string; fileUrl: string; fileName: string; fileSizeBytes?: number },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `INSERT INTO employee_document (
+           org_id, employee_id, doc_type, title, file_url, file_name, file_size_bytes, uploaded_by
+         ) VALUES (app.current_org_id(), $1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          dto.employeeId,
+          dto.docType,
+          dto.title,
+          dto.fileUrl,
+          dto.fileName,
+          dto.fileSizeBytes || 0,
+          ctx.employeeId,
+        ],
+      );
+      return res.rows[0];
+    });
+  }
+
+  async listDocuments(ctx: RequestContext, employeeId: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT ed.*,
+                up.first_name || ' ' || up.last_name AS "uploadedByName"
+           FROM employee_document ed
+           LEFT JOIN employee up ON up.id = ed.uploaded_by
+          WHERE ed.org_id = app.current_org_id()
+            AND ed.employee_id = $1
+          ORDER BY ed.uploaded_at DESC`,
+        [employeeId],
+      );
+      return res.rows;
+    });
+  }
+
+  async deleteDocument(ctx: RequestContext, docId: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `DELETE FROM employee_document
+          WHERE id = $1 AND org_id = app.current_org_id()
+          RETURNING id`,
+        [docId],
+      );
+      if (res.rowCount === 0) throw new NotFoundException('Document not found');
+      return { success: true };
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // 201 Merits, Commendations & Certifications
+  // ---------------------------------------------------------------------------
+
+  async recordMeritAward(
+    ctx: RequestContext,
+    dto: { employeeId: string; awardTitle: string; awardType: string; awardedOn?: string; issuer: string; description?: string; certificateUrl?: string },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `INSERT INTO employee_merit_award (
+           org_id, employee_id, award_title, award_type, awarded_on, issuer, description, certificate_url
+         ) VALUES (app.current_org_id(), $1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          dto.employeeId,
+          dto.awardTitle,
+          dto.awardType,
+          dto.awardedOn || new Date().toISOString().slice(0, 10),
+          dto.issuer,
+          dto.description || null,
+          dto.certificateUrl || null,
+        ],
+      );
+      return res.rows[0];
+    });
+  }
+
+  async listMeritAwards(ctx: RequestContext, employeeId: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT * FROM employee_merit_award
+          WHERE org_id = app.current_org_id()
+            AND employee_id = $1
+          ORDER BY awarded_on DESC`,
+        [employeeId],
+      );
+      return res.rows;
+    });
   }
 }

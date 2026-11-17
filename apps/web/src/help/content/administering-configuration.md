@@ -6,7 +6,8 @@ section: administering
 audience: [hr_admin]
 routes: ["/setup", "/kpis", "/competencies"]
 keywords: [form, template, builder, rating scale, version, publish, competency framework, KPI, library, configuration]
-order: 51
+order: 51
+features: [feature_performance, feature_kpis, feature_competencies_pip]
 ---
 
 One principle runs through all of this: **definitions are versioned, and

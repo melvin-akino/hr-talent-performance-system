@@ -6,7 +6,8 @@ section: managing
 audience: [manager, hr_admin, hr_partner]
 routes: ["/team", "/monitoring", "/employees/:employeeId/goals"]
 keywords: [approve, approval, team, direct reports, monitoring, escalation, overdue, off track, weights]
-order: 40
+order: 40
+features: [feature_performance, feature_kpis]
 ---
 
 You see everyone below you in the reporting line — your direct reports and

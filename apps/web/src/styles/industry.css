@@ -20,6 +20,7 @@
  */
 
 :root {
+  color-scheme: light;
   --color-bg: #f2f2f3;
   --color-surface: #e9e9ea;
   --color-text: #1d1f20;
@@ -114,6 +115,7 @@
    comment above always said it would do. */
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --color-bg: #17181a;
   --color-surface: #1f2123;
   --color-text: #e8e9ea;
@@ -222,24 +224,24 @@ h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: var(--font-headi
    ══════════════════════════════════════════════════════════════════════ */
 
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; font-size: 15px; line-height: 1.55; font-weight: 400; }
+body { margin: 0; font-size: 16.5px; line-height: 1.6; font-weight: 400; }
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
   line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 var(--space-2);
 }
-h1 { font-size: 42px; }
-h2 { font-size: 32px; }
-h3 { font-size: 25px; }
-h4 { font-size: 20px; }
-h5 { font-size: 16px; }
-h6 { font-size: 13px; }
+h1 { font-size: 44px; }
+h2 { font-size: 34px; }
+h3 { font-size: 27px; }
+h4 { font-size: 22px; }
+h5 { font-size: 18px; }
+h6 { font-size: 15px; }
 h6 { letter-spacing: 0.08em; text-transform: uppercase; }
 p { margin: 0 0 var(--space-3); }
 a { color: var(--color-accent); text-underline-offset: 3px; }
 img { display: block; max-width: 100%; }
 figure { margin: 0; }
 figcaption {
-  font-size: 11px; margin-top: var(--space-1);
+  font-size: 13px; margin-top: var(--space-1);
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
 .text-muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
@@ -258,7 +260,7 @@ figcaption {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   cursor: pointer; text-decoration: none;
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 14px; line-height: 1.2; color: var(--color-text); /* matches the .input's 14px —
+  font-size: 15px; line-height: 1.25; color: var(--color-text); /* matches the .input's 14px —
      the pair sits side by side in sign-up rows */
   background: transparent; border: 1px solid transparent;
   padding: var(--space-2) calc(var(--space-3) * 1.2);
@@ -303,7 +305,7 @@ figcaption {
   border-radius: var(--radius-md);
   padding: 4px var(--space-2);
   font: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 /* A button that reads as text — used where the control is a row title that
@@ -333,19 +335,30 @@ figcaption {
 
 /* — forms — */
 .field > label {
-  display: block; font-size: 12px; margin-bottom: 5px;
+  display: block; font-size: 14px; margin-bottom: 5px;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-.input {
-  width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
-  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+.input,
+.form-control,
+select {
+  width: 100%; min-height: 38px; padding: 7px 11px; font: inherit;
+  font-size: 15px; color: var(--color-text); caret-color: var(--color-accent);
   background: var(--color-surface);
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
-.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
-.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+.input:hover,
+.form-control:hover,
+select:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.input:focus-visible,
+.form-control:focus-visible,
+select:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+select option,
+select optgroup {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
 textarea.input { min-height: 90px; resize: vertical; }
-.radio { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+.radio { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 15px; }
 .radio input, .seg-opt input {
   position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
@@ -365,7 +378,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .seg-opt {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; font-size: 13px; cursor: pointer;
+  padding: 7px 12px; font-size: 14.5px; cursor: pointer;
 }
 .seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
 .seg-opt:has(input:checked) { background: var(--color-accent); color: var(--color-bg); }
@@ -377,14 +390,14 @@ textarea.input { min-height: 90px; resize: vertical; }
   display: flex; flex-direction: column; gap: var(--space-2);
   padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface);
 }
-.card-kicker { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
+.card-kicker { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
 .card-title {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 17px; line-height: 1.2;
+  font-size: 19px; line-height: 1.2;
 }
-.card-body { margin: 0; font-size: 13px; opacity: 0.8; flex: 1; }
+.card-body { margin: 0; font-size: 15px; opacity: 0.8; flex: 1; }
 .card-meta {
-  display: flex; align-items: center; gap: 6px; font-size: 11px;
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
   color: color-mix(in srgb, var(--color-text) 50%, transparent);
 }
 .elev-sm { box-shadow: var(--shadow-sm); }
@@ -393,8 +406,8 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* — tags — */
 .tag {
-  display: inline-flex; align-items: center; font-size: 11px;
-  letter-spacing: 0.02em; padding: 3px 10px;
+  display: inline-flex; align-items: center; font-size: 12.5px;
+  letter-spacing: 0.02em; padding: 4px 10px;
   border-radius: calc(var(--radius-md) * 0.75);
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
@@ -410,15 +423,15 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .nav-brand {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 18px; margin-right: auto;
+  font-size: 20px; margin-right: auto;
 }
-.nav a { color: inherit; text-decoration: none; font-size: 14px; }
+.nav a { color: inherit; text-decoration: none; font-size: 15px; }
 .nav a:hover, .nav a[aria-current='page'] { color: var(--color-accent); }
 
 /* — tables — */
-.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .table th {
-  text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: left; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
   color: color-mix(in srgb, var(--color-text) 60%, transparent);
   padding: var(--space-2); border-bottom: 1px solid var(--color-divider);
 }
@@ -441,9 +454,9 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .dialog-title {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 20px;
+  font-size: 22px;
 }
-.dialog-body { font-size: 14px; opacity: 0.85; }
+.dialog-body { font-size: 15px; opacity: 0.85; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
 
 /* — blueprint frame: components are wireframe objects (see .blueprint
@@ -462,7 +475,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 .hr-app {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 256px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -485,14 +498,14 @@ textarea.input { min-height: 90px; resize: vertical; }
 .hr-brand {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
-  font-size: 18px;
+  font-size: 20px;
   padding: 0 10px var(--space-2);
 }
 
 .hr-navgroup { display: flex; flex-direction: column; gap: 2px; }
 
 .hr-navgroup-title {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.55;
@@ -508,13 +521,83 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: var(--radius-md);
   text-decoration: none;
   color: inherit;
-  font-size: 14px;
+  font-size: 15px;
 }
 .hr-navlink:hover { background: var(--color-accent-100); color: var(--color-accent-800); }
 .hr-navlink.is-active {
   background: var(--color-accent-100);
   color: var(--color-accent-800);
   font-weight: 600;
+}
+
+.hr-nav-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.hr-nav-group-header:hover {
+  background: var(--color-accent-100);
+}
+.hr-nav-group-header.has-active-child {
+  color: var(--color-accent);
+}
+.hr-nav-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hr-nav-badge {
+  font-size: 11.5px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  font-weight: 600;
+}
+.hr-nav-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 17px;
+  padding-left: 10px;
+  border-left: 1.5px solid var(--color-divider);
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+.hr-navsublink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  font-size: 14.5px;
+  opacity: 0.92;
+  transition: all 0.12s ease;
+}
+.hr-navsublink:hover {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  opacity: 1;
+}
+.hr-navsublink.is-active {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .hr-main { min-width: 0; padding: var(--space-6); }
@@ -558,7 +641,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
   border: 1px solid var(--color-divider);
   padding: var(--space-2) var(--space-3);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -621,8 +704,8 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* Article prose is narrower than the drawer so lines stay readable. */
 .hr-help-body h3, .hr-help-body h4, .hr-help-body h5 { font-family: var(--font-heading); }
-.hr-help-body p, .hr-help-body li { font-size: 14px; }
-.hr-help-body table { font-size: 13px; }
+.hr-help-body p, .hr-help-body li { font-size: 15px; }
+.hr-help-body table { font-size: 14.5px; }
 
 /* ── the visual layer of the help centre ───────────────────────────────────
    Diagrams, step strips and callouts. Every colour is a token, so the same
@@ -646,7 +729,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .hr-help-figure svg { min-width: 520px; }
 .hr-help-figure figcaption {
   margin-top: var(--space-2);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-neutral-600);
   line-height: 1.45;
 }
@@ -665,7 +748,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   display: flex;
   gap: var(--space-3);
   align-items: baseline;
-  font-size: 14px;
+  font-size: 15px;
 }
 .hr-help-step-no {
   flex: 0 0 22px;
@@ -674,7 +757,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-bg);
   background: var(--color-accent-800);
@@ -692,7 +775,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .hr-help-callout > div > :last-child { margin-bottom: 0; }
 .hr-help-callout-kind {
   display: block;
-  font-size: 10px;
+  font-size: 11.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-neutral-600);
@@ -708,7 +791,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* Loud on purpose. A missing diagram is a content bug and the build already
    fails on it — this is the belt to that pair of braces. */
 .hr-help-missing {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-neutral-600);
   border: 1px dashed var(--color-divider);
   padding: var(--space-2);
@@ -735,7 +818,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   cursor: pointer;
 }
 .hr-anchor:hover:not(:disabled) { background: var(--color-accent-100); }
@@ -749,13 +832,13 @@ textarea.input { min-height: 90px; resize: vertical; }
 .hr-anchor:disabled { cursor: not-allowed; }
 .hr-anchor:disabled:not(.is-on) { opacity: 0.55; }
 .hr-anchor-value {
-  flex: 0 0 22px;
-  height: 22px;
+  flex: 0 0 24px;
+  height: 24px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid var(--color-divider);
 }
