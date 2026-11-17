@@ -134,12 +134,14 @@ export function buildGroups(
   // 4. Core HR & Personnel
   const coreHrItems: Item[] = [
     { to: '/ess', label: 'Self-Service & Bulletin', icon: icons.inbox },
+    { to: '/operations', label: 'Expenses, Training & Assets', icon: icons.clipboard },
   ];
   if (isHr || isManager) {
     coreHrItems.push({ to: '/executive-dashboard', label: 'Executive Outflow', icon: icons.chart });
   }
   if (isHr) {
     coreHrItems.push({ to: '/employees', label: 'Employee Directory', icon: icons.users });
+    coreHrItems.push({ to: '/recruitment', label: 'Recruitment & Audit Trail', icon: icons.checklist });
     coreHrItems.push({ to: '/offboarding', label: 'Offboarding & Final Pay', icon: icons.briefcase });
     if (hasGoals) {
       coreHrItems.push({ to: '/hr', label: 'HR Console & Directory', icon: icons.briefcase });

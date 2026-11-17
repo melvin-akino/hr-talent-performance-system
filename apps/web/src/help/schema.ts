@@ -117,6 +117,8 @@ export const APP_ROUTES = [
   '/executive-dashboard',
   '/ess',
   '/offboarding',
+  '/operations',
+  '/recruitment',
   '/employees/:employeeId/history',
   '/reports',
   '/requests',

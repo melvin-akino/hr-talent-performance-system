@@ -19,6 +19,8 @@ import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import EmployeeDirectory from './pages/EmployeeDirectory';
 import EssPortal from './pages/EssPortal';
 import OffboardingDashboard from './pages/OffboardingDashboard';
+import OperationsHub from './pages/OperationsHub';
+import RecruitmentAndAudit from './pages/RecruitmentAndAudit';
 
 import MyGoals from './pages/MyGoals';
 import GoalDetail from './pages/GoalDetail';
@@ -212,6 +214,8 @@ function Shell() {
           <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
           <Route path="/ess" element={<EssPortal />} />
           <Route path="/offboarding" element={<OffboardingDashboard />} />
+          <Route path="/operations" element={<OperationsHub />} />
+          <Route path="/recruitment" element={<RecruitmentAndAudit />} />
           <Route path="/employees/:employeeId/goals" element={<EmployeeGoals />} />
           <Route path="/employees/:employeeId/history" element={<EmployeeHistory />} />
           <Route path="/team" element={<Team />} />

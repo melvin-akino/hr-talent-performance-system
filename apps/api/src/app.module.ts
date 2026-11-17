@@ -55,13 +55,15 @@ import { LeavesController } from './leaves/leaves.controller';
 import { LeavesService } from './leaves/leaves.service';
 import { EssController, OffboardingController } from './ess/ess.controller';
 import { EssService } from './ess/ess.service';
+import { OperationsController } from './operations/operations.controller';
+import { OperationsService } from './operations/operations.service';
 
 @Global()
 @Module({
   controllers: [
     AuthController, SuperadminController, PayrollController,
     AttendanceController, LeavesController,
-    EssController, OffboardingController,
+    EssController, OffboardingController, OperationsController,
     EmployeesController, HealthController, GoalsController, PipController,
     ReviewsController, CompetenciesController, ReferenceDataController,
     ImportController,
@@ -71,7 +73,7 @@ import { EssService } from './ess/ess.service';
   ],
   providers: [
     DbService, AuthGuard, AuthService, SuperadminGuard, SuperadminService, FeatureGuard,
-    PayrollService, AttendanceService, LeavesService, EssService,
+    PayrollService, AttendanceService, LeavesService, EssService, OperationsService,
     EmployeesService, EmployeeImportService,
     GoalsService, KpiService, DashboardService,
     PipService, MonitoringService,
