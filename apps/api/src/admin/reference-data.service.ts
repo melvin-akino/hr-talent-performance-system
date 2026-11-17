@@ -40,6 +40,7 @@ export const closeDepartment = z.object({
 });
 
 export const updateEmploymentType = z.object({
+  code: z.string().trim().min(1).max(16).regex(/^[A-Z0-9_-]+$/).optional(),
   name: z.string().trim().min(1).optional(),
   isEligibleForReview: z.boolean().optional(),
   isActive: z.boolean().optional(),
@@ -237,12 +238,13 @@ export class ReferenceDataService {
     return this.db.withContext(ctx, async (client) => {
       const res = await this.wrap(() => client.query<{ id: string }>(
         `UPDATE employment_type
-            SET name = COALESCE($2, name),
+            SET code = COALESCE($5, code),
+                name = COALESCE($2, name),
                 is_eligible_for_review = COALESCE($3, is_eligible_for_review),
                 is_active = COALESCE($4, is_active)
           WHERE id = $1 RETURNING id`,
         [id, patch.name ?? null, patch.isEligibleForReview ?? null,
-         patch.isActive ?? null]));
+         patch.isActive ?? null, patch.code ?? null]));
       if (!res.rows[0]) {
         throw new NotFoundException('Employment type not found or not permitted');
       }
@@ -468,6 +470,7 @@ export class ReferenceDataService {
         'service_charge_enabled',
         'service_charge_staff_share_pct',
         'default_currency',
+        'enforce_payroll_maker_checker',
       ];
 
       for (const key of allowedKeys) {
@@ -492,6 +495,426 @@ export class ReferenceDataService {
         values,
       );
       return res.rows[0];
+    });
+  }
+
+  // --- Extended Full CRUD for System Setup --------------------------------
+
+  async deleteEmploymentType(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const check = await client.query<{ cnt: number }>(
+        `SELECT count(*)::int AS cnt FROM employment WHERE employment_type_id = $1 AND effective_to IS NULL`,
+        [id],
+      );
+      if ((check.rows[0]?.cnt ?? 0) > 0) {
+        throw new BadRequestException('Cannot delete an employment type that active employees hold. Deactivate it instead.');
+      }
+      const res = await client.query(`DELETE FROM employment_type WHERE id = $1 RETURNING id`, [id]);
+      if (!res.rows[0]) throw new NotFoundException('Employment type not found');
+      return { deleted: true };
+    });
+  }
+
+  async updateRank(
+    ctx: RequestContext,
+    id: string,
+    input: { code?: string; name?: string; rankNo?: number },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      if (input.code !== undefined) { vals.push(input.code.trim().toUpperCase()); sets.push(`code = $${vals.length}`); }
+      if (input.name !== undefined) { vals.push(input.name.trim()); sets.push(`name = $${vals.length}`); }
+      if (input.rankNo !== undefined) { vals.push(input.rankNo); sets.push(`rank_no = $${vals.length}`); }
+      if (sets.length === 0) throw new BadRequestException('Nothing to update');
+      vals.push(id);
+      const res = await this.wrap(() => client.query(
+        `UPDATE job_rank SET ${sets.join(', ')}, updated_at = now() WHERE id = $${vals.length} RETURNING id`,
+        vals,
+      ));
+      if (!res.rows[0]) throw new NotFoundException('Rank not found');
+      return { id };
+    });
+  }
+
+  async deleteRank(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const check = await client.query<{ cnt: number }>(
+        `SELECT count(*)::int AS cnt FROM position WHERE rank_id = $1`,
+        [id],
+      );
+      if ((check.rows[0]?.cnt ?? 0) > 0) {
+        throw new BadRequestException('Cannot delete a rank still assigned to positions.');
+      }
+      const res = await client.query(`DELETE FROM job_rank WHERE id = $1 RETURNING id`, [id]);
+      if (!res.rows[0]) throw new NotFoundException('Rank not found');
+      return { deleted: true };
+    });
+  }
+
+  async deletePosition(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const check = await client.query<{ cnt: number }>(
+        `SELECT count(*)::int AS cnt FROM employment WHERE position_id = $1 AND effective_to IS NULL`,
+        [id],
+      );
+      if ((check.rows[0]?.cnt ?? 0) > 0) {
+        throw new BadRequestException('Cannot delete a position held by active employees.');
+      }
+      const res = await client.query(`DELETE FROM position WHERE id = $1 RETURNING id`, [id]);
+      if (!res.rows[0]) throw new NotFoundException('Position not found');
+      return { deleted: true };
+    });
+  }
+
+  // --- Branches / Regional Hubs CRUD ---------------------------------------
+
+  async listBranches(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT b.*,
+                (SELECT count(*)::int
+                   FROM employee_compensation ec
+                   JOIN employee e ON e.id = ec.employee_id
+                  WHERE ec.branch_id = b.id
+                    AND e.deleted_at IS NULL
+                    AND e.status <> 'separated') AS headcount
+           FROM branch b
+          WHERE b.org_id = app.current_org_id()
+          ORDER BY b.code ASC`,
+      );
+      return res.rows;
+    });
+  }
+
+  async createBranch(
+    ctx: RequestContext,
+    dto: {
+      code: string;
+      name: string;
+      region?: string;
+      address?: string;
+      birRdoCode?: string;
+      sssBranchCode?: string;
+      philhealthEmployerNo?: string;
+      pagibigEmployerNo?: string;
+    },
+  ) {
+    if (!dto.code?.trim() || !dto.name?.trim()) {
+      throw new BadRequestException('Branch code and name are required');
+    }
+    return this.db.withContext(ctx, async (client) => {
+      const res = await this.wrap(() => client.query(
+        `INSERT INTO branch (
+           org_id, code, name, region, address, bir_rdo_code,
+           sss_branch_code, philhealth_employer_no, pagibig_employer_no
+         ) VALUES (app.current_org_id(), $1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          dto.code.trim().toUpperCase(),
+          dto.name.trim(),
+          dto.region || 'NCR',
+          dto.address || null,
+          dto.birRdoCode || null,
+          dto.sssBranchCode || null,
+          dto.philhealthEmployerNo || null,
+          dto.pagibigEmployerNo || null,
+        ],
+      ));
+      return res.rows[0];
+    });
+  }
+
+  async updateBranch(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      code?: string;
+      name?: string;
+      region?: string;
+      address?: string | null;
+      birRdoCode?: string | null;
+      sssBranchCode?: string | null;
+      philhealthEmployerNo?: string | null;
+      pagibigEmployerNo?: string | null;
+      isHeadOffice?: boolean;
+    },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await this.wrap(() => client.query(
+        `UPDATE branch
+            SET code = COALESCE($1, code),
+                name = COALESCE($2, name),
+                region = COALESCE($3, region),
+                address = COALESCE($4, address),
+                bir_rdo_code = COALESCE($5, bir_rdo_code),
+                sss_branch_code = COALESCE($6, sss_branch_code),
+                philhealth_employer_no = COALESCE($7, philhealth_employer_no),
+                pagibig_employer_no = COALESCE($8, pagibig_employer_no),
+                is_head_office = COALESCE($9, is_head_office),
+                updated_at = now()
+          WHERE id = $10 AND org_id = app.current_org_id()
+          RETURNING *`,
+        [
+          dto.code ? dto.code.trim().toUpperCase() : null,
+          dto.name ? dto.name.trim() : null,
+          dto.region ?? null,
+          dto.address ?? null,
+          dto.birRdoCode ?? null,
+          dto.sssBranchCode ?? null,
+          dto.philhealthEmployerNo ?? null,
+          dto.pagibigEmployerNo ?? null,
+          dto.isHeadOffice ?? null,
+          id,
+        ],
+      ));
+      if (!res.rows[0]) throw new NotFoundException('Branch not found');
+      return res.rows[0];
+    });
+  }
+
+  async deleteBranch(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const check = await client.query<{ cnt: number }>(
+        `SELECT count(*)::int AS cnt FROM employee_compensation WHERE branch_id = $1`,
+        [id],
+      );
+      if ((check.rows[0]?.cnt ?? 0) > 0) {
+        throw new BadRequestException('Cannot delete a branch with assigned employees.');
+      }
+      const res = await client.query(
+        `DELETE FROM branch WHERE id = $1 AND org_id = app.current_org_id() RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Branch not found');
+      return { deleted: true };
+    });
+  }
+
+  // --- Role Assignments CRUD -----------------------------------------------
+
+  async listRoleAssignments(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT ra.id,
+                ra.employee_id AS "employeeId",
+                e.employee_no AS "employeeNo",
+                e.first_name || ' ' || e.last_name AS "employeeName",
+                ra.role_id AS "roleId",
+                r.code AS "roleCode",
+                r.name AS "roleName",
+                ra.effective_from::text AS "effectiveFrom"
+           FROM role_assignment ra
+           JOIN employee e ON e.id = ra.employee_id
+           JOIN app_role r ON r.id = ra.role_id
+          WHERE ra.org_id = app.current_org_id()
+            AND (ra.effective_to IS NULL OR CURRENT_DATE < ra.effective_to)
+            AND e.deleted_at IS NULL
+          ORDER BY r.code ASC, e.last_name ASC`,
+      );
+      return res.rows;
+    });
+  }
+
+  async assignRole(ctx: RequestContext, dto: { employeeId: string; roleId: string }) {
+    return this.db.withContext(ctx, async (client) => {
+      const existing = await client.query(
+        `SELECT id FROM role_assignment
+          WHERE org_id = app.current_org_id()
+            AND employee_id = $1 AND role_id = $2
+            AND (effective_to IS NULL OR CURRENT_DATE < effective_to)`,
+        [dto.employeeId, dto.roleId],
+      );
+      if (existing.rows[0]) return existing.rows[0];
+      const res = await this.wrap(() => client.query(
+        `INSERT INTO role_assignment (org_id, employee_id, role_id, effective_from)
+         VALUES (app.current_org_id(), $1, $2, CURRENT_DATE)
+         RETURNING id`,
+        [dto.employeeId, dto.roleId],
+      ));
+      return res.rows[0];
+    });
+  }
+
+  async revokeRoleAssignment(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `UPDATE role_assignment
+            SET effective_to = CURRENT_DATE
+          WHERE id = $1 AND org_id = app.current_org_id()
+          RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Role assignment not found');
+      return { revoked: true };
+    });
+  }
+
+  // --- Shifts, Leave Types & Salary Matrices Update / Delete ---------------
+
+  async updateShift(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      code?: string;
+      name?: string;
+      startTime?: string;
+      endTime?: string;
+      breakMinutes?: number;
+      gracePeriodMins?: number;
+      isNightShift?: boolean;
+      isActive?: boolean;
+    },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await this.wrap(() => client.query(
+        `UPDATE attendance_shift
+            SET code = COALESCE($1, code),
+                name = COALESCE($2, name),
+                start_time = COALESCE($3::time, start_time),
+                end_time = COALESCE($4::time, end_time),
+                break_minutes = COALESCE($5, break_minutes),
+                grace_period_mins = COALESCE($6, grace_period_mins),
+                is_night_shift = COALESCE($7, is_night_shift),
+                is_active = COALESCE($8, is_active),
+                updated_at = now()
+          WHERE id = $9 AND org_id = app.current_org_id()
+          RETURNING *`,
+        [
+          dto.code ? dto.code.trim().toUpperCase() : null,
+          dto.name ? dto.name.trim() : null,
+          dto.startTime ?? null,
+          dto.endTime ?? null,
+          dto.breakMinutes ?? null,
+          dto.gracePeriodMins ?? null,
+          dto.isNightShift ?? null,
+          dto.isActive ?? null,
+          id,
+        ],
+      ));
+      if (!res.rows[0]) throw new NotFoundException('Shift not found');
+      return res.rows[0];
+    });
+  }
+
+  async deleteShift(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `DELETE FROM attendance_shift WHERE id = $1 AND org_id = app.current_org_id() RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Shift not found');
+      return { deleted: true };
+    });
+  }
+
+  async updateLeaveType(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      name?: string;
+      defaultDaysPerYear?: number;
+      isPaid?: boolean;
+      canCashConvert?: boolean;
+      canCarryOver?: boolean;
+      maxCarryOverDays?: number;
+      isActive?: boolean;
+    },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await this.wrap(() => client.query(
+        `UPDATE leave_type
+            SET name = COALESCE($1, name),
+                default_days_per_year = COALESCE($2, default_days_per_year),
+                is_paid = COALESCE($3, is_paid),
+                can_cash_convert = COALESCE($4, can_cash_convert),
+                can_carry_over = COALESCE($5, can_carry_over),
+                max_carry_over_days = COALESCE($6, max_carry_over_days),
+                is_active = COALESCE($7, is_active),
+                updated_at = now()
+          WHERE id = $8 AND org_id = app.current_org_id()
+          RETURNING *`,
+        [
+          dto.name ? dto.name.trim() : null,
+          dto.defaultDaysPerYear ?? null,
+          dto.isPaid ?? null,
+          dto.canCashConvert ?? null,
+          dto.canCarryOver ?? null,
+          dto.maxCarryOverDays ?? null,
+          dto.isActive ?? null,
+          id,
+        ],
+      ));
+      if (!res.rows[0]) throw new NotFoundException('Leave type not found');
+      return res.rows[0];
+    });
+  }
+
+  async deleteLeaveType(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const check = await client.query<{ cnt: number }>(
+        `SELECT count(*)::int AS cnt FROM leave_request WHERE leave_type_id = $1`,
+        [id],
+      );
+      if ((check.rows[0]?.cnt ?? 0) > 0) {
+        throw new BadRequestException('Cannot delete a leave type that has filed requests. Deactivate it instead.');
+      }
+      const res = await client.query(
+        `DELETE FROM leave_type WHERE id = $1 AND org_id = app.current_org_id() RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Leave type not found');
+      return { deleted: true };
+    });
+  }
+
+  async updateSalaryMatrix(
+    ctx: RequestContext,
+    id: string,
+    dto: {
+      gradeCode?: string;
+      gradeName?: string;
+      minMonthlyRate?: number;
+      maxMonthlyRate?: number;
+      industryType?: string;
+      region?: string;
+    },
+  ) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await this.wrap(() => client.query(
+        `UPDATE salary_grade_matrix
+            SET grade_code = COALESCE($1, grade_code),
+                grade_name = COALESCE($2, grade_name),
+                min_monthly_rate = COALESCE($3, min_monthly_rate),
+                max_monthly_rate = COALESCE($4, max_monthly_rate),
+                industry_type = COALESCE($5, industry_type),
+                region = COALESCE($6, region),
+                updated_at = now()
+          WHERE id = $7 AND org_id = app.current_org_id()
+          RETURNING *`,
+        [
+          dto.gradeCode ? dto.gradeCode.trim().toUpperCase() : null,
+          dto.gradeName ? dto.gradeName.trim() : null,
+          dto.minMonthlyRate ?? null,
+          dto.maxMonthlyRate ?? null,
+          dto.industryType ?? null,
+          dto.region ?? null,
+          id,
+        ],
+      ));
+      if (!res.rows[0]) throw new NotFoundException('Salary matrix grade not found');
+      return res.rows[0];
+    });
+  }
+
+  async deleteSalaryMatrix(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `DELETE FROM salary_grade_matrix WHERE id = $1 AND org_id = app.current_org_id() RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Salary matrix grade not found');
+      return { deleted: true };
     });
   }
 

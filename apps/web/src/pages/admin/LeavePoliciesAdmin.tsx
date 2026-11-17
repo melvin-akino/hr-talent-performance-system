@@ -74,6 +74,17 @@ export default function LeavePoliciesAdmin() {
     },
   });
 
+  const updateLeaveMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api(`/admin/leave-types/${id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leave-types'] }),
+  });
+
+  const deleteLeaveMutation = useMutation({
+    mutationFn: (id: string) => api(`/admin/leave-types/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leave-types'] }),
+  });
+
   if (isLoading) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading leave policies…</div>;
   }
@@ -132,11 +143,12 @@ export default function LeavePoliciesAdmin() {
                 <th>Default Days / Year</th>
                 <th>Cash Convertibility</th>
                 <th>Gender Scope</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {(types || []).map((t) => (
-                <tr key={t.id}>
+                <tr key={t.id} style={t.is_active ? undefined : { opacity: 0.55 }}>
                   <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.code}</td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{t.name}</div>
@@ -166,6 +178,22 @@ export default function LeavePoliciesAdmin() {
                   </td>
                   <td>
                     <span style={{ textTransform: 'capitalize' }}>{t.gender_restriction || 'All'}</span>
+                  </td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateLeaveMutation.mutate({ id: t.id, data: { isActive: !t.is_active } })}
+                    >
+                      {t.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    {!t.is_statutory && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => deleteLeaveMutation.mutate(t.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

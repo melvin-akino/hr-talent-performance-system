@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards,
+  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
@@ -124,5 +124,142 @@ export class ReferenceDataController {
   @Put('admin/settings')
   updateHrSettings(@Req() req: AuthenticatedRequest, @Body() body: any) {
     return this.ref.updateHrSettings(req.auth, body);
+  }
+
+  // --- Extended Full CRUD for System Setup --------------------------------
+
+  @Delete('employment-types/:id')
+  deleteEmploymentType(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteEmploymentType(req.auth, id);
+  }
+
+  @Patch('ranks/:id')
+  updateRank(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { code?: string; name?: string; rankNo?: number },
+  ) {
+    return this.ref.updateRank(req.auth, id, body);
+  }
+
+  @Delete('ranks/:id')
+  deleteRank(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteRank(req.auth, id);
+  }
+
+  @Delete('positions/:id')
+  deletePosition(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deletePosition(req.auth, id);
+  }
+
+  // Branches / Regional Hubs
+  @Get('branches')
+  listBranches(@Req() req: AuthenticatedRequest) {
+    return this.ref.listBranches(req.auth);
+  }
+
+  @Post('branches')
+  createBranch(@Req() req: AuthenticatedRequest, @Body() body: any) {
+    return this.ref.createBranch(req.auth, body);
+  }
+
+  @Patch('branches/:id')
+  updateBranch(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    return this.ref.updateBranch(req.auth, id, body);
+  }
+
+  @Delete('branches/:id')
+  deleteBranch(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteBranch(req.auth, id);
+  }
+
+  // Role Assignments
+  @Get('admin/role-assignments')
+  listRoleAssignments(@Req() req: AuthenticatedRequest) {
+    return this.ref.listRoleAssignments(req.auth);
+  }
+
+  @Post('admin/role-assignments')
+  assignRole(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { employeeId: string; roleId: string },
+  ) {
+    return this.ref.assignRole(req.auth, body);
+  }
+
+  @Delete('admin/role-assignments/:id')
+  revokeRoleAssignment(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.revokeRoleAssignment(req.auth, id);
+  }
+
+  // Shifts, Leave Types & Salary Matrices Update / Delete
+  @Patch('admin/shifts/:id')
+  updateShift(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    return this.ref.updateShift(req.auth, id, body);
+  }
+
+  @Delete('admin/shifts/:id')
+  deleteShift(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteShift(req.auth, id);
+  }
+
+  @Patch('admin/leave-types/:id')
+  updateLeaveType(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    return this.ref.updateLeaveType(req.auth, id, body);
+  }
+
+  @Delete('admin/leave-types/:id')
+  deleteLeaveType(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteLeaveType(req.auth, id);
+  }
+
+  @Patch('admin/salary-matrices/:id')
+  updateSalaryMatrix(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    return this.ref.updateSalaryMatrix(req.auth, id, body);
+  }
+
+  @Delete('admin/salary-matrices/:id')
+  deleteSalaryMatrix(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ref.deleteSalaryMatrix(req.auth, id);
   }
 }

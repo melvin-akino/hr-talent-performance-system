@@ -9,8 +9,11 @@ import HrSettingsAdmin from './admin/HrSettingsAdmin';
 import LeavePoliciesAdmin from './admin/LeavePoliciesAdmin';
 import AttendancePoliciesAdmin from './admin/AttendancePoliciesAdmin';
 import PayrollPoliciesAdmin from './admin/PayrollPoliciesAdmin';
+import BranchesAdmin from './admin/BranchesAdmin';
+import RolesAdmin from './admin/RolesAdmin';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../auth';
+import type { Employee } from '../types';
 import { ErrorNote, Field, Spinner, inputClass } from '../components/ui';
 import { Btn, Card, PageHead } from '../components/ds';
 
@@ -94,9 +97,11 @@ const DOMAINS: DomainConfig[] = [
     defaultTab: 'hr_settings',
     tabs: [
       { id: 'hr_settings', label: 'Company Profile & 201 Rules' },
+      { id: 'branches', label: 'Branches & Regional Hubs' },
       { id: 'departments', label: 'Departments & Org Tree' },
       { id: 'types', label: 'Employment Types' },
       { id: 'positions', label: 'Positions & Rank Ladder' },
+      { id: 'roles', label: 'User Roles & Access' },
       { id: 'import', label: '201 Staff Bulk Import' },
     ],
   },
@@ -142,11 +147,30 @@ export default function Setup() {
   const [domain, setDomain] = useState<SetupDomain>('core');
   const [tab, setTab] = useState<string>('hr_settings');
 
-  const currentDomainConfig = DOMAINS.find((d) => d.id === domain) ?? DOMAINS[0]!;
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api<Employee>('/employees/me') });
+  const features = me.data?.features;
+  const visibleDomains = DOMAINS.filter((d) => {
+    if (!features) return true;
+    if (d.id === 'attendance') return !!features.feature_time_attendance;
+    if (d.id === 'leaves') return !!features.feature_leave_management;
+    if (d.id === 'payroll') return !!features.feature_ph_payroll;
+    if (d.id === 'performance') {
+      return !!(
+        features.feature_performance ||
+        features.feature_kpis ||
+        features.feature_peer_reviews ||
+        features.feature_competencies_pip
+      );
+    }
+    return true;
+  });
+
+  const currentDomainConfig =
+    visibleDomains.find((d) => d.id === domain) ?? visibleDomains[0] ?? DOMAINS[0]!;
 
   const handleDomainChange = (newDomain: SetupDomain) => {
     setDomain(newDomain);
-    const conf = DOMAINS.find((d) => d.id === newDomain);
+    const conf = visibleDomains.find((d) => d.id === newDomain);
     if (conf) {
       setTab(conf.defaultTab);
     }
@@ -158,7 +182,7 @@ export default function Setup() {
 
       {/* Top Domain Switcher */}
       <nav className="seg no-print" aria-label="Setup domain" style={{ flexWrap: 'wrap' }}>
-        {DOMAINS.map((d) => (
+        {visibleDomains.map((d) => (
           <label key={d.id} className="seg-opt">
             <input
               type="radio"
@@ -189,9 +213,11 @@ export default function Setup() {
 
       {/* Active Tab Content */}
       {tab === 'hr_settings' && <HrSettingsAdmin />}
+      {tab === 'branches' && <BranchesAdmin />}
       {tab === 'departments' && <Departments />}
       {tab === 'types' && <EmploymentTypes />}
       {tab === 'positions' && <Positions />}
+      {tab === 'roles' && <RolesAdmin />}
       {tab === 'import' && <ImportStaff />}
 
       {tab === 'attendance_shifts' && <AttendancePoliciesAdmin />}
@@ -448,14 +474,42 @@ function NewDepartment({ departments, onDone }: {
 
 function EmploymentTypes() {
   const qc = useQueryClient();
+  const [newCode, setNewCode] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newEligible, setNewEligible] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState('');
+  const [editName, setEditName] = useState('');
+
   const q = useQuery({
     queryKey: ['employment-types'],
     queryFn: () => api<EmploymentType[]>('/employment-types'),
   });
 
+  const create = useMutation({
+    mutationFn: () =>
+      api('/employment-types', {
+        method: 'POST',
+        body: { code: newCode.trim().toUpperCase(), name: newName.trim(), isEligibleForReview: newEligible },
+      }),
+    onSuccess: () => {
+      setNewCode('');
+      setNewName('');
+      void qc.invalidateQueries({ queryKey: ['employment-types'] });
+    },
+  });
+
   const update = useMutation({
-    mutationFn: (input: { id: string; isEligibleForReview?: boolean; isActive?: boolean }) =>
+    mutationFn: (input: { id: string; code?: string; name?: string; isEligibleForReview?: boolean; isActive?: boolean }) =>
       api(`/employment-types/${input.id}`, { method: 'PATCH', body: input }),
+    onSuccess: () => {
+      setEditingId(null);
+      void qc.invalidateQueries({ queryKey: ['employment-types'] });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api(`/employment-types/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['employment-types'] }),
   });
 
@@ -477,13 +531,35 @@ function EmploymentTypes() {
               <th>Headcount</th>
               <th>Review eligible</th>
               <th>Active</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {q.data?.map((t) => (
               <tr key={t.id} style={t.isActive ? undefined : { opacity: 0.55 }}>
-                <td style={{ fontFamily: 'monospace', fontSize: 15 }}>{t.code}</td>
-                <td>{t.name}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: 15 }}>
+                  {editingId === t.id ? (
+                    <input
+                      className="input-sm"
+                      style={{ width: '7rem' }}
+                      value={editCode}
+                      onChange={(e) => setEditCode(e.target.value.toUpperCase())}
+                    />
+                  ) : (
+                    t.code
+                  )}
+                </td>
+                <td>
+                  {editingId === t.id ? (
+                    <input
+                      className="input-sm"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                  ) : (
+                    t.name
+                  )}
+                </td>
                 <td className="tabular-nums">{t.headcount}</td>
                 <td>
                   <label className="flex items-center gap-2">
@@ -504,8 +580,6 @@ function EmploymentTypes() {
                     type="checkbox"
                     aria-label={`${t.name} active`}
                     checked={t.isActive}
-                    // Deactivating a type people still hold is refused by the
-                    // database; disable rather than surface a raw error.
                     disabled={update.isPending || (t.isActive && t.headcount > 0)}
                     title={t.isActive && t.headcount > 0
                       ? `${t.headcount} employee(s) currently hold this type`
@@ -513,36 +587,113 @@ function EmploymentTypes() {
                     onChange={(e) => update.mutate({ id: t.id, isActive: e.target.checked })}
                   />
                 </td>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {editingId === t.id ? (
+                    <>
+                      <Btn
+                        variant="primary"
+                        disabled={update.isPending}
+                        onClick={() => update.mutate({ id: t.id, code: editCode, name: editName })}
+                      >
+                        Save
+                      </Btn>{' '}
+                      <Btn variant="ghost" onClick={() => setEditingId(null)}>Cancel</Btn>
+                    </>
+                  ) : (
+                    <>
+                      <Btn
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(t.id);
+                          setEditCode(t.code);
+                          setEditName(t.name);
+                        }}
+                      >
+                        Edit
+                      </Btn>
+                      {t.headcount === 0 && (
+                        <Btn variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate(t.id)}>
+                          Delete
+                        </Btn>
+                      )}
+                    </>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <ErrorNote error={update.error} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--color-divider)' }}>
+        <Field label="Code">
+          <input className="input" style={{ width: '8rem' }} placeholder="PROB" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} />
+        </Field>
+        <Field label="Name">
+          <input className="input" placeholder="Probationary" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        </Field>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <input type="checkbox" checked={newEligible} onChange={(e) => setNewEligible(e.target.checked)} />
+          Review eligible
+        </label>
+        <Btn variant="primary" disabled={!newCode.trim() || !newName.trim() || create.isPending} onClick={() => create.mutate()}>
+          + Add Type
+        </Btn>
+      </div>
+      <ErrorNote error={update.error || create.error || remove.error} />
     </Card>
   );
 }
 
 function Positions() {
   const qc = useQueryClient();
+  const [newTitle, setNewTitle] = useState('');
+  const [newRankCode, setNewRankCode] = useState('');
+  const [newRankName, setNewRankName] = useState('');
+  const [newRankNo, setNewRankNo] = useState('1');
+
   const q = useQuery({
     queryKey: ['positions'],
     queryFn: () => api<Position[]>('/positions'),
   });
-  // The ladder is small and changes rarely; loading it here keeps the row
-  // component free of its own request per row.
   const ranks = useQuery({
     queryKey: ['ranks'],
     queryFn: () => api<Rank[]>('/ranks'),
   });
 
+  const createRank = useMutation({
+    mutationFn: () =>
+      api('/ranks', {
+        method: 'POST',
+        body: { code: newRankCode.trim().toUpperCase(), name: newRankName.trim(), rankNo: Number(newRankNo || 1) },
+      }),
+    onSuccess: () => {
+      setNewRankCode('');
+      setNewRankName('');
+      void qc.invalidateQueries({ queryKey: ['ranks'] });
+    },
+  });
+
+  const deleteRank = useMutation({
+    mutationFn: (id: string) => api(`/ranks/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ranks'] }),
+  });
+
+  const createPos = useMutation({
+    mutationFn: () => api('/positions', { method: 'POST', body: { title: newTitle.trim() } }),
+    onSuccess: () => {
+      setNewTitle('');
+      void qc.invalidateQueries({ queryKey: ['positions'] });
+    },
+  });
+
   const update = useMutation({
     mutationFn: (input: {
-      id: string; jobFamily: string; jobLevel: string; rankId: string | null;
+      id: string; title?: string; jobFamily: string; jobLevel: string; rankId: string | null;
     }) =>
       api(`/positions/${input.id}`, {
         method: 'PATCH',
         body: {
+          title: input.title,
           jobFamily: input.jobFamily || null,
           jobLevel: input.jobLevel || null,
           rankId: input.rankId,
@@ -554,68 +705,128 @@ function Positions() {
     },
   });
 
+  const deletePos = useMutation({
+    mutationFn: (id: string) => api(`/positions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['positions'] }),
+  });
+
   if (q.isLoading) return <Spinner />;
   if (q.error) return <ErrorNote error={q.error} />;
 
   return (
-    <Card kicker="Positions">
-      <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
-        Job family groups positions for the competency gap report; a blank family
-        means those positions are absent from it. <strong>Rank</strong> is the
-        ladder — it is what "one rank above" means when evaluators are chosen, so
-        an unranked position cannot take part in those rules.
-      </p>
-      <div className="overflow-x-auto">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Department</th>
-              <th>Headcount</th>
-              <th>Job family</th>
-              <th>Rank</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody>
-            {q.data?.map((p) => (
-              <PositionRow key={p.id} position={p} ranks={ranks.data ?? []}
-                           onSave={(family, level, rankId) =>
-                             update.mutate({ id: p.id, jobFamily: family, jobLevel: level, rankId })}
-                           pending={update.isPending} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <ErrorNote error={update.error} />
-    </Card>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <Card kicker="Rank Ladder">
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr><th>Code</th><th>Rank Name</th><th>Level No.</th><th>Positions</th><th /></tr>
+            </thead>
+            <tbody>
+              {(ranks.data ?? []).map((r) => (
+                <tr key={r.id}>
+                  <td><code>{r.code}</code></td>
+                  <td><strong>{r.name}</strong></td>
+                  <td className="tabular-nums">{r.rankNo}</td>
+                  <td className="tabular-nums">{r.positionCount}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {r.positionCount === 0 && (
+                      <Btn variant="ghost" disabled={deleteRank.isPending} onClick={() => deleteRank.mutate(r.id)}>
+                        Delete
+                      </Btn>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 12 }}>
+          <Field label="Code"><input className="input" style={{ width: '7rem' }} placeholder="MGR" value={newRankCode} onChange={(e) => setNewRankCode(e.target.value.toUpperCase())} /></Field>
+          <Field label="Name"><input className="input" placeholder="Manager" value={newRankName} onChange={(e) => setNewRankName(e.target.value)} /></Field>
+          <Field label="Rank No."><input type="number" className="input" style={{ width: '5rem' }} value={newRankNo} onChange={(e) => setNewRankNo(e.target.value)} /></Field>
+          <Btn variant="primary" disabled={!newRankCode.trim() || !newRankName.trim() || createRank.isPending} onClick={() => createRank.mutate()}>+ Add Rank</Btn>
+        </div>
+        <ErrorNote error={createRank.error || deleteRank.error} />
+      </Card>
+
+      <Card kicker="Positions">
+        <p style={{ marginTop: 0, fontSize: 15, opacity: 0.7 }}>
+          Job family groups positions for the competency gap report; a blank family
+          means those positions are absent from it. <strong>Rank</strong> is the
+          ladder — it is what "one rank above" means when evaluators are chosen, so
+          an unranked position cannot take part in those rules.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Department</th>
+                <th>Headcount</th>
+                <th>Rank</th>
+                <th>Job family</th>
+                <th>Level</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {q.data?.map((p) => (
+                <PositionRow key={p.id} position={p} ranks={ranks.data ?? []}
+                             onSave={(title, family, level, rankId) =>
+                               update.mutate({ id: p.id, title, jobFamily: family, jobLevel: level, rankId })}
+                             onDelete={() => deletePos.mutate(p.id)}
+                             pending={update.isPending || deletePos.isPending} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-divider)' }}>
+          <Field label="New Position Title">
+            <input className="input" placeholder="e.g., Fleet Supervisor" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+          </Field>
+          <Btn variant="primary" disabled={!newTitle.trim() || createPos.isPending} onClick={() => createPos.mutate()}>
+            + Add Position
+          </Btn>
+        </div>
+        <ErrorNote error={update.error || createPos.error || deletePos.error} />
+      </Card>
+    </div>
   );
 }
 
-function PositionRow({ position, ranks, onSave, pending }: {
+function PositionRow({ position, ranks, onSave, onDelete, pending }: {
   position: Position;
   ranks: Rank[];
-  onSave: (family: string, level: string, rankId: string | null) => void;
+  onSave: (title: string, family: string, level: string, rankId: string | null) => void;
+  onDelete: () => void;
   pending: boolean;
 }) {
+  const [title, setTitle] = useState(position.title);
   const [family, setFamily] = useState(position.jobFamily ?? '');
   const [level, setLevel] = useState(position.jobLevel ?? '');
-  const dirty = family !== (position.jobFamily ?? '') || level !== (position.jobLevel ?? '');
+  const dirty = title !== position.title || family !== (position.jobFamily ?? '') || level !== (position.jobLevel ?? '');
 
   return (
     <tr>
-      <td style={{ fontWeight: 500 }}>{position.title}</td>
+      <td>
+        <input
+          className={inputClass}
+          style={{ width: '13rem', fontWeight: 500 }}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => { if (dirty && title.trim()) onSave(title.trim(), family, level, position.rankId); }}
+          disabled={pending}
+        />
+      </td>
       <td style={{ fontSize: 15 }}>{position.departmentName ?? '—'}</td>
       <td className="tabular-nums">{position.headcount}</td>
       <td>
-        {/* Saves on change rather than on blur: it is one choice from a short
-            list, so there is nothing to finish typing. */}
         <select
           className={inputClass} style={{ width: '11rem', fontSize: 15 }}
           aria-label={`Rank for ${position.title}`}
           value={position.rankId ?? ''}
           disabled={pending || ranks.length === 0}
-          onChange={(e) => onSave(family, level, e.target.value || null)}
+          onChange={(e) => onSave(title.trim() || position.title, family, level, e.target.value || null)}
         >
           <option value="">— unranked —</option>
           {ranks.map((r) => (
@@ -629,7 +840,7 @@ function PositionRow({ position, ranks, onSave, pending }: {
           aria-label={`Job family for ${position.title}`}
           value={family} placeholder="e.g. Engineering"
           onChange={(e) => setFamily(e.target.value)}
-          onBlur={() => { if (dirty) onSave(family, level, position.rankId); }}
+          onBlur={() => { if (dirty) onSave(title.trim() || position.title, family, level, position.rankId); }}
           disabled={pending}
         />
       </td>
@@ -639,9 +850,16 @@ function PositionRow({ position, ranks, onSave, pending }: {
           aria-label={`Job level for ${position.title}`}
           value={level} placeholder="L4"
           onChange={(e) => setLevel(e.target.value)}
-          onBlur={() => { if (dirty) onSave(family, level, position.rankId); }}
+          onBlur={() => { if (dirty) onSave(title.trim() || position.title, family, level, position.rankId); }}
           disabled={pending}
         />
+      </td>
+      <td style={{ textAlign: 'right' }}>
+        {position.headcount === 0 && (
+          <Btn variant="ghost" disabled={pending} onClick={onDelete}>
+            Delete
+          </Btn>
+        )}
       </td>
     </tr>
   );

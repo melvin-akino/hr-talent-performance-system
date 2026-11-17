@@ -51,6 +51,11 @@ export default function PayrollPoliciesAdmin() {
     },
   });
 
+  const deleteMatrixMutation = useMutation({
+    mutationFn: (id: string) => api(`/admin/salary-matrices/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['salary-matrices'] }),
+  });
+
   if (isLoading) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading payroll policies…</div>;
   }
@@ -85,6 +90,7 @@ export default function PayrollPoliciesAdmin() {
                 <th>Industry Type</th>
                 <th>Minimum Monthly Rate</th>
                 <th>Maximum Monthly Rate</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -99,6 +105,14 @@ export default function PayrollPoliciesAdmin() {
                   </td>
                   <td style={{ fontWeight: 600, color: '#4ade80' }}>
                     ₱{Number(m.max_monthly_rate).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => deleteMatrixMutation.mutate(m.id)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}

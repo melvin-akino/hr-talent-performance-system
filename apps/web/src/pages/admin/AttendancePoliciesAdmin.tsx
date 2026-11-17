@@ -55,6 +55,17 @@ export default function AttendancePoliciesAdmin() {
     },
   });
 
+  const updateShiftMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api(`/admin/shifts/${id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance-shifts'] }),
+  });
+
+  const deleteShiftMutation = useMutation({
+    mutationFn: (id: string) => api(`/admin/shifts/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance-shifts'] }),
+  });
+
   if (isLoading) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading attendance shift policies…</div>;
   }
@@ -89,6 +100,7 @@ export default function AttendancePoliciesAdmin() {
                 <th>Grace Period</th>
                 <th>Night Shift</th>
                 <th>Status</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -110,6 +122,20 @@ export default function AttendancePoliciesAdmin() {
                     <Tag tone={s.is_active ? 'accent' : 'neutral'}>
                       {s.is_active ? 'Active' : 'Inactive'}
                     </Tag>
+                  </td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => updateShiftMutation.mutate({ id: s.id, data: { isActive: !s.is_active } })}
+                    >
+                      {s.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => deleteShiftMutation.mutate(s.id)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
