@@ -232,7 +232,7 @@ export default function SuperadminDashboard() {
       </header>
 
       {/* Main Body */}
-      <main style={{ padding: '32px', maxWidth: '1400px', margin: '0 auto' }}>
+      <main style={{ padding: '20px 24px', width: '100%' }}>
         {actionSuccessMessage && (
           <div style={{
             padding: '12px 18px',

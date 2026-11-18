@@ -475,7 +475,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 .hr-app {
   display: grid;
-  grid-template-columns: 256px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -600,13 +600,13 @@ textarea.input { min-height: 90px; resize: vertical; }
   opacity: 1;
 }
 
-.hr-main { min-width: 0; padding: var(--space-6); }
+.hr-main { min-width: 0; width: 100%; padding: var(--space-4); }
 
 .hr-topbar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 .hr-topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
 

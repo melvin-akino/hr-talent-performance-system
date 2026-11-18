@@ -405,7 +405,7 @@ export default function PayrollDashboard() {
   const lineItems = runDetailQuery.data?.lineItems || [];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ width: '100%' }}>
       {/* Top Header */}
       <div style={{
         display: 'flex',
