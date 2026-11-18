@@ -344,7 +344,7 @@ export default function PayrollDashboard() {
   };
 
   if (me.isLoading) {
-    return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading payroll workspaceâ€¦</div>;
+    return <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Loading payroll workspace…</div>;
   }
 
   // Graceful degradation when Philippine Payroll is not enabled for this tenant
@@ -472,10 +472,10 @@ export default function PayrollDashboard() {
             BIR TRAIN Withholding
           </div>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-fg)', marginTop: '4px' }}>
-            2023â€“2026 Tax Table
+            2023–2026 Tax Table
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            0% below â‚±20,833/mo Â· Graduated 15%â€“35%
+            0% below ₱20,833/mo · Graduated 15%–35%
           </div>
         </div>
 
@@ -492,7 +492,7 @@ export default function PayrollDashboard() {
             14% Contribution Rate
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            EE: 4.5% Â· ER: 9.5% Â· MSC Cap â‚±35,000
+            EE: 4.5% · ER: 9.5% · MSC Cap ₱35,000
           </div>
         </div>
 
@@ -509,7 +509,7 @@ export default function PayrollDashboard() {
             5.0% Premium Rate
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            EE: 2.5% Â· ER: 2.5% Â· Floor â‚±10k, Ceiling â‚±100k
+            EE: 2.5% · ER: 2.5% · Floor ₱10k, Ceiling ₱100k
           </div>
         </div>
 
@@ -523,10 +523,10 @@ export default function PayrollDashboard() {
             Pag-IBIG / HDMF
           </div>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-fg)', marginTop: '4px' }}>
-            â‚±200 EE / â‚±200 ER
+            ₱200 EE / ₱200 ER
           </div>
           <div style={{ fontSize: '14.5px', color: 'var(--color-muted)', marginTop: '2px' }}>
-            Circular 460 Â· MFS Cap â‚±10,000
+            Circular 460 · MFS Cap ₱10,000
           </div>
         </div>
       </div>
@@ -552,7 +552,7 @@ export default function PayrollDashboard() {
           >
             {runs.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.title} ({r.code}) â€” {r.status.toUpperCase()}
+                {r.title} ({r.code}) — {r.status.toUpperCase()}
               </option>
             ))}
           </select>
@@ -609,7 +609,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Gross Payroll (PHP)</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    â‚± {Number(selectedRun.totalGross || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    ₱ {Number(selectedRun.totalGross || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>
                     {selectedRun.employeeCount} Employees ({selectedRun.runType})
@@ -619,7 +619,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">BIR Withholding Tax</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    â‚± {Number(selectedRun.totalWithholdingTax || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    ₱ {Number(selectedRun.totalWithholdingTax || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>TRAIN Law Withholding</div>
                 </Card>
@@ -627,7 +627,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Statutory Deductions (EE)</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px' }}>
-                    â‚± {(
+                    ₱ {(
                       Number(selectedRun.totalSssEe || 0) +
                       Number(selectedRun.totalPhilhealthEe || 0) +
                       Number(selectedRun.totalPagibigEe || 0)
@@ -639,7 +639,7 @@ export default function PayrollDashboard() {
                 <Card>
                   <div className="card-kicker">Total Net Pay Disbursable</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, marginTop: '4px', color: '#38bdf8' }}>
-                    â‚± {Number(selectedRun.totalNetPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    ₱ {Number(selectedRun.totalNetPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="text-muted" style={{ fontSize: '14.5px' }}>Payout Date: {selectedRun.payoutDate}</div>
                 </Card>
@@ -733,15 +733,15 @@ export default function PayrollDashboard() {
                           <td style={{ padding: '12px 16px', fontWeight: 600 }}>{row.employeeNo}</td>
                           <td style={{ padding: '12px 16px' }}>{row.lastName}, {row.firstName}</td>
                           <td style={{ padding: '12px 16px', color: 'var(--color-muted)' }}>{row.branchName || 'Head Office'}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.basic_pay).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.de_minimis_allowances).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.gross_pay).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.sss_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.philhealth_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.pagibig_ee).toFixed(2)}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>â‚± {Number(row.withholding_tax).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.basic_pay).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.de_minimis_allowances).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.gross_pay).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.sss_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.philhealth_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.pagibig_ee).toFixed(2)}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>₱ {Number(row.withholding_tax).toFixed(2)}</td>
                           <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#38bdf8' }}>
-                            â‚± {Number(row.net_pay).toFixed(2)}
+                            ₱ {Number(row.net_pay).toFixed(2)}
                           </td>
                           <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                             <Tag tone={row.disbursement_status === 'paid' ? 'accent' : 'neutral'}>
@@ -776,7 +776,7 @@ export default function PayrollDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           <Card kicker="Social Security System" title="Monthly SSS R-3 Contribution Report">
             <p className="card-body" style={{ fontSize: '14.5px' }}>
-              Includes Employee (4.5%) and Employer (9.5%) shares plus WISP mandatory provident fund for salaries exceeding â‚±20,000.
+              Includes Employee (4.5%) and Employer (9.5%) shares plus WISP mandatory provident fund for salaries exceeding ₱20,000.
             </p>
             <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
               <button
@@ -877,10 +877,10 @@ export default function PayrollDashboard() {
                     <td style={{ padding: '12px 14px' }}>
                       <span style={{ textTransform: 'capitalize' }}>{l.loan_type.replace(/_/g, ' ')}</span>
                     </td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>{l.reference_number || 'â€”'}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(l.principal_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#f87171' }}>â‚±{Number(l.monthly_amortization).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>â‚±{Number(l.balance_remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>{l.reference_number || '—'}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(l.principal_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#f87171' }}>₱{Number(l.monthly_amortization).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(l.balance_remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                       <Tag tone={l.status === 'active' ? 'accent' : 'neutral'}>
                         {l.status.toUpperCase()}
@@ -965,10 +965,10 @@ export default function PayrollDashboard() {
                 serviceChargeQuery.data.map((sc) => (
                   <tr key={sc.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{sc.pool_period}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sc.total_collected_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>â‚±{Number(sc.distributed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sc.total_collected_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', color: '#10b981', fontWeight: 600 }}>₱{Number(sc.distributed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>{sc.eligible_employee_count} staff</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>â‚±{Number(sc.amount_per_employee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#38bdf8' }}>₱{Number(sc.amount_per_employee).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: '12px 14px' }}>{sc.distribution_date}</td>
                   </tr>
                 ))
@@ -1018,9 +1018,9 @@ export default function PayrollDashboard() {
                     <td style={{ padding: '12px 14px' }}>{sm.industry_type}</td>
                     <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{sm.rank_level}</td>
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>SG-{sm.salary_grade}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sm.min_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>â‚±{Number(sm.max_base_salary).toLocaleString()}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>â‚±{Number(sm.standard_daily_rate).toFixed(2)}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.min_base_salary).toLocaleString()}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>₱{Number(sm.max_base_salary).toLocaleString()}</td>
+                    <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>₱{Number(sm.standard_daily_rate).toFixed(2)}</td>
                     <td style={{ padding: '12px 14px' }}>{sm.effective_date}</td>
                   </tr>
                 ))
@@ -1081,11 +1081,11 @@ export default function PayrollDashboard() {
                       <td style={{ padding: '12px 14px', fontWeight: 600 }}>{adj.last_name}, {adj.first_name}</td>
                       <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>{adj.adjustment_type.replace(/_/g, ' ')}</td>
                       <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600, color: Number(adj.amount) >= 0 ? '#10b981' : '#f87171' }}>
-                        â‚±{Number(adj.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ₱{Number(adj.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>{adj.is_taxable ? 'Yes' : 'No (Tax-Exempt)'}</td>
                       <td style={{ padding: '12px 14px' }}>{adj.effective_date}</td>
-                      <td style={{ padding: '12px 14px', color: 'var(--color-muted)' }}>{adj.remarks || 'â€”'}</td>
+                      <td style={{ padding: '12px 14px', color: 'var(--color-muted)' }}>{adj.remarks || '—'}</td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <Tag tone={adj.status === 'applied' ? 'accent' : 'neutral'}>
                           {adj.status.toUpperCase()}
@@ -1184,7 +1184,7 @@ export default function PayrollDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Principal Amount (â‚±)
+                    Principal Amount (₱)
                   </label>
                   <input
                     type="number"
@@ -1196,7 +1196,7 @@ export default function PayrollDashboard() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                    Monthly Amortization (â‚±)
+                    Monthly Amortization (₱)
                   </label>
                   <input
                     type="number"
@@ -1260,7 +1260,7 @@ export default function PayrollDashboard() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>
-                  Total Collected Service Charge from Guests (â‚±)
+                  Total Collected Service Charge from Guests (₱)
                 </label>
                 <input
                   type="number"
@@ -1271,8 +1271,8 @@ export default function PayrollDashboard() {
                 />
               </div>
               <div style={{ padding: '10px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '6px', fontSize: '15px' }}>
-                <div>â€¢ <strong>85% Covered Worker Share:</strong> â‚±{(Number(serviceChargeForm.totalCollectedAmount) * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                <div style={{ color: 'var(--color-muted)', marginTop: '2px' }}>â€¢ 15% Management / Breakage Reserve: â‚±{(Number(serviceChargeForm.totalCollectedAmount) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div>• <strong>85% Covered Worker Share:</strong> ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div style={{ color: 'var(--color-muted)', marginTop: '2px' }}>• 15% Management / Breakage Reserve: ₱{(Number(serviceChargeForm.totalCollectedAmount) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
@@ -1342,7 +1342,7 @@ export default function PayrollDashboard() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Old Monthly Rate (â‚±)</label>
+                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>Old Monthly Rate (₱)</label>
                   <input
                     type="number"
                     className="input"
@@ -1352,7 +1352,7 @@ export default function PayrollDashboard() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>New Monthly Rate (â‚±)</label>
+                  <label style={{ display: 'block', fontSize: '15px', color: 'var(--color-muted)', marginBottom: '4px' }}>New Monthly Rate (₱)</label>
                   <input
                     type="number"
                     className="input"
@@ -1365,7 +1365,7 @@ export default function PayrollDashboard() {
 
               {retroResult && (
                 <div style={{ padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: '8px', border: '1px solid #10b981', marginTop: '8px' }}>
-                  <div style={{ fontWeight: 600, color: '#10b981', fontSize: '15px' }}>Computed Backpay: â‚±{Number(retroResult.totalRetroPay).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontWeight: 600, color: '#10b981', fontSize: '15px' }}>Computed Backpay: ₱{Number(retroResult.totalRetroPay).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                   <div style={{ fontSize: '15px', color: 'var(--color-fg)', marginTop: '2px' }}>Across {retroResult.cutoffsAffected} previous payroll cut-off period(s). Adjustment queued!</div>
                 </div>
               )}
