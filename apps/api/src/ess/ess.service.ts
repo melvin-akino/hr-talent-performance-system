@@ -377,10 +377,10 @@ export class EssService {
       await this.requireRole(client, ctx, ['hr_admin', 'hr_partner', 'manager']);
       const res = await client.query(
         `UPDATE offboarding_clearance_item
-            SET status = $1,
+            SET status = $1::text,
                 notes = COALESCE($2, notes),
-                cleared_by = CASE WHEN $1 IN ('cleared', 'waived') THEN $3 ELSE NULL END,
-                cleared_at = CASE WHEN $1 IN ('cleared', 'waived') THEN now() ELSE NULL END
+                cleared_by = CASE WHEN $1::text IN ('cleared', 'waived') THEN $3::uuid ELSE NULL END,
+                cleared_at = CASE WHEN $1::text IN ('cleared', 'waived') THEN now() ELSE NULL END
           WHERE id = $4 AND org_id = app.current_org_id()
           RETURNING *`,
         [dto.status, dto.notes || null, ctx.employeeId, itemId],

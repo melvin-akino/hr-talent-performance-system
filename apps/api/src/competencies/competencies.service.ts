@@ -62,6 +62,19 @@ export class CompetenciesService {
 
   // --- Frameworks ----------------------------------------------------------
 
+  async listCompetencies(ctx: RequestContext) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT c.id, c.code, c.name, c.category, f.name AS "frameworkName"
+           FROM competency c
+           JOIN competency_framework f ON f.id = c.framework_id
+          WHERE f.is_active
+          ORDER BY c.name`,
+      );
+      return res.rows;
+    });
+  }
+
   async listFrameworks(ctx: RequestContext, includeRetired = false) {
     return this.db.withContext(ctx, async (client) => {
       const res = await client.query(

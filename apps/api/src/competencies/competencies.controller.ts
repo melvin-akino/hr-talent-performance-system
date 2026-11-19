@@ -13,6 +13,11 @@ export class CompetenciesController {
 
   // --- Frameworks ----------------------------------------------------------
 
+  @Get('competencies')
+  listCompetencies(@Req() req: AuthenticatedRequest) {
+    return this.competencies.listCompetencies(req.auth);
+  }
+
   @Get('competency-frameworks')
   list(@Req() req: AuthenticatedRequest, @Query('includeRetired') retired?: string) {
     return this.competencies.listFrameworks(req.auth, retired === 'true');
