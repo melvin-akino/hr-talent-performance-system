@@ -192,6 +192,46 @@ export class PayrollController {
     );
   }
 
+  @Get('13th-month/preview')
+  previewThirteenthMonth(
+    @Req() req: AuthenticatedRequest,
+    @Query('year') year?: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    const y = year ? parseInt(year, 10) : new Date().getFullYear();
+    return this.payroll.previewThirteenthMonth(req.auth, y, branchId);
+  }
+
+  @Post('runs/compute-13th-month')
+  computeThirteenthMonthRun(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { year: number; payoutDate?: string; branchId?: string },
+  ) {
+    return this.payroll.computeThirteenthMonthRun(req.auth, body);
+  }
+
+  @Get('year-end-tax')
+  getYearEndTaxReconciliation(
+    @Req() req: AuthenticatedRequest,
+    @Query('year') year?: string,
+  ) {
+    const y = year ? parseInt(year, 10) : new Date().getFullYear();
+    return this.payroll.getYearEndTaxReconciliation(req.auth, y);
+  }
+
+  @Get('bir-1604c/csv')
+  async exportBir1604cCsv(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+    @Query('year') year?: string,
+  ) {
+    const y = year ? parseInt(year, 10) : new Date().getFullYear();
+    const file = await this.payroll.exportBir1604cCsv(req.auth, y);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return res.send(file.csv);
+  }
+
   /**
    * Employee Loans & Amortization
    */

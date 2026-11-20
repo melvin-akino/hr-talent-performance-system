@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DbService, RequestContext } from '../db/db.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CreateLeaveTypeDto {
   code: string;
@@ -322,6 +323,13 @@ export class LeavesService {
         [leaveReq.total_days, leaveReq.employee_id, leaveReq.leave_type_id, year],
       );
 
+      await NotificationsService.tryEnqueue(client, leaveReq.employee_id, 'leave_approved', {
+        requestId,
+        startDate: leaveReq.start_date,
+        endDate: leaveReq.end_date,
+        totalDays: leaveReq.total_days,
+      });
+
       return updatedReq.rows[0];
     });
   }
@@ -344,6 +352,10 @@ export class LeavesService {
       if (!res.rows[0]) {
         throw new NotFoundException(`Leave request ${requestId} not found`);
       }
+      await NotificationsService.tryEnqueue(client, res.rows[0].employee_id, 'leave_rejected', {
+        requestId,
+        reason: reason || 'Rejected by approver',
+      });
       return res.rows[0];
     });
   }

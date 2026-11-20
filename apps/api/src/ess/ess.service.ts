@@ -545,4 +545,150 @@ export class EssService {
       return caseRes.rows[0];
     });
   }
+
+  // -------------------------------------------------------------------------
+  // 4. Digital 201 File Document Vault & Policy Acknowledgment
+  // -------------------------------------------------------------------------
+
+  async listDocuments(ctx: RequestContext, employeeId?: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const roles = await this.getCallerRoles(client, ctx);
+      const isHr = roles.some((r) => ['hr_admin', 'hr_partner'].includes(r));
+
+      const params: any[] = [];
+      let filter = '';
+      if (isHr && employeeId) {
+        params.push(employeeId);
+        filter = `AND (d.employee_id = $1 OR d.employee_id IS NULL)`;
+      } else if (!isHr) {
+        params.push(ctx.employeeId);
+        filter = `AND (d.employee_id = $1 OR d.employee_id IS NULL)`;
+      }
+
+      const res = await client.query(
+        `SELECT d.id,
+                d.employee_id AS "employeeId",
+                e.first_name || ' ' || e.last_name AS "employeeName",
+                e.employee_no AS "employeeNo",
+                d.doc_type AS "docType",
+                d.title,
+                d.file_name AS "fileName",
+                d.mime_type AS "mimeType",
+                d.file_size_bytes AS "fileSizeBytes",
+                d.requires_ack AS "requiresAck",
+                d.acknowledged_at AS "acknowledgedAt",
+                d.uploaded_at AS "uploadedAt"
+           FROM employee_document d
+           LEFT JOIN employee e ON e.id = d.employee_id
+          WHERE d.org_id = app.current_org_id()
+            ${filter}
+          ORDER BY d.uploaded_at DESC`,
+        params,
+      );
+      return res.rows;
+    });
+  }
+
+  async uploadDocument(
+    ctx: RequestContext,
+    dto: {
+      employeeId?: string | null;
+      docType: string;
+      title: string;
+      fileName: string;
+      mimeType?: string;
+      fileDataBase64: string;
+      requiresAck?: boolean;
+    },
+  ) {
+    if (!dto.title?.trim() || !dto.fileName?.trim() || !dto.fileDataBase64) {
+      throw new BadRequestException('Title, fileName, and file content are required');
+    }
+    const raw =
+      (dto.fileDataBase64.includes(',')
+        ? dto.fileDataBase64.split(',')[1]
+        : dto.fileDataBase64) ?? '';
+    const sizeBytes = Buffer.byteLength(raw, 'base64');
+    if (sizeBytes > 2 * 1024 * 1024) {
+      throw new BadRequestException('File exceeds maximum 2MB limit');
+    }
+
+    return this.db.withContext(ctx, async (client) => {
+      const roles = await this.getCallerRoles(client, ctx);
+      const isHr = roles.some((r) => ['hr_admin', 'hr_partner'].includes(r));
+      const targetEmpId = isHr ? (dto.employeeId || null) : ctx.employeeId;
+
+      const res = await client.query(
+        `INSERT INTO employee_document (
+           org_id, employee_id, doc_type, title, file_name, mime_type,
+           file_size_bytes, file_data_base64, file_url, requires_ack, uploaded_by
+         ) VALUES (
+           app.current_org_id(), $1, $2, $3, $4, $5, $6, $7, '', $8, $9
+         )
+         RETURNING id, employee_id AS "employeeId", doc_type AS "docType",
+                   title, file_name AS "fileName", mime_type AS "mimeType",
+                   file_size_bytes AS "fileSizeBytes", requires_ack AS "requiresAck",
+                   uploaded_at AS "uploadedAt"`,
+        [
+          targetEmpId,
+          dto.docType || 'other',
+          dto.title.trim(),
+          dto.fileName.trim(),
+          dto.mimeType || 'application/octet-stream',
+          sizeBytes,
+          raw,
+          Boolean(dto.requiresAck),
+          ctx.employeeId,
+        ],
+      );
+      return res.rows[0];
+    });
+  }
+
+  async getDocumentContent(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `SELECT id, employee_id, file_name, mime_type, file_data_base64
+           FROM employee_document
+          WHERE id = $1 AND org_id = app.current_org_id()`,
+        [id],
+      );
+      const doc = res.rows[0];
+      if (!doc) throw new NotFoundException('Document not found');
+      const roles = await this.getCallerRoles(client, ctx);
+      const isHr = roles.some((r) => ['hr_admin', 'hr_partner'].includes(r));
+      if (!isHr && doc.employee_id && doc.employee_id !== ctx.employeeId) {
+        throw new ForbiddenException('Not authorized to access this document');
+      }
+      return doc;
+    });
+  }
+
+  async acknowledgeDocument(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      const res = await client.query(
+        `UPDATE employee_document
+            SET acknowledged_at = now(),
+                acknowledged_by = $1
+          WHERE id = $2 AND org_id = app.current_org_id()
+            AND (employee_id = $1 OR employee_id IS NULL)
+          RETURNING id, acknowledged_at AS "acknowledgedAt"`,
+        [ctx.employeeId, id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Document not found');
+      return res.rows[0];
+    });
+  }
+
+  async deleteDocument(ctx: RequestContext, id: string) {
+    return this.db.withContext(ctx, async (client) => {
+      await this.requireRole(client, ctx, ['hr_admin', 'hr_partner']);
+      const res = await client.query(
+        `DELETE FROM employee_document WHERE id = $1 AND org_id = app.current_org_id() RETURNING id`,
+        [id],
+      );
+      if (!res.rows[0]) throw new NotFoundException('Document not found');
+      return { deleted: true };
+    });
+  }
 }

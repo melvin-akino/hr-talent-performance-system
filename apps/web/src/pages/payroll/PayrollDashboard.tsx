@@ -115,7 +115,7 @@ interface PayrollAdjustment {
   status: string;
 }
 
-type PayrollTab = 'run' | 'statutory' | 'disbursement' | 'loans' | 'service-charge' | 'salary-matrix' | 'adjustments';
+type PayrollTab = 'run' | 'compensation' | 'year-end' | 'statutory' | 'disbursement' | 'loans' | 'service-charge' | 'salary-matrix' | 'adjustments';
 
 export default function PayrollDashboard() {
   const queryClient = useQueryClient();
@@ -127,6 +127,9 @@ export default function PayrollDashboard() {
   const [showServiceChargeModal, setShowServiceChargeModal] = useState(false);
   const [showRetroModal, setShowRetroModal] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [yearEndYear, setYearEndYear] = useState<number>(new Date().getFullYear());
+  const [compSearch, setCompSearch] = useState('');
+  const [editingComp, setEditingComp] = useState<any | null>(null);
 
   // Form state for Loan Modal
   const [loanForm, setLoanForm] = useState({
@@ -222,6 +225,75 @@ export default function PayrollDashboard() {
     queryFn: () => api<PayrollAdjustment[]>('/payroll/adjustments'),
     enabled: phPayrollEnabled && activeTab === 'adjustments',
   });
+
+  // 8. Fetch Compensation Profiles
+  const compensationQuery = useQuery({
+    queryKey: ['payroll-compensation', selectedBranch],
+    queryFn: () =>
+      api<any[]>(
+        `/payroll/compensation${selectedBranch !== 'all' ? `?branchId=${selectedBranch}` : ''}`,
+      ),
+    enabled: phPayrollEnabled && activeTab === 'compensation',
+  });
+
+  // 9. Fetch 13th Month Preview & Year-End Tax Reconciliation
+  const thirteenthPreviewQuery = useQuery({
+    queryKey: ['payroll-13th-preview', yearEndYear, selectedBranch],
+    queryFn: () =>
+      api<any[]>(
+        `/payroll/13th-month/preview?year=${yearEndYear}${selectedBranch !== 'all' ? `&branchId=${selectedBranch}` : ''}`,
+      ),
+    enabled: phPayrollEnabled && activeTab === 'year-end',
+  });
+
+  const yearEndTaxQuery = useQuery({
+    queryKey: ['payroll-year-end-tax', yearEndYear],
+    queryFn: () => api<any>(`/payroll/year-end-tax?year=${yearEndYear}`),
+    enabled: phPayrollEnabled && activeTab === 'year-end',
+  });
+
+  const upsertCompensationMutation = useMutation({
+    mutationFn: ({ employeeId, body }: { employeeId: string; body: any }) =>
+      api(`/payroll/compensation/${employeeId}`, { method: 'PUT', body }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-compensation'] });
+      setEditingComp(null);
+    },
+  });
+
+  const compute13thMutation = useMutation({
+    mutationFn: () =>
+      api<PayrollRun>('/payroll/runs/compute-13th-month', {
+        method: 'POST',
+        body: {
+          year: yearEndYear,
+          payoutDate: `${yearEndYear}-12-15`,
+          branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+        },
+      }),
+    onSuccess: (newRun) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
+      setActiveRunId(newRun.id);
+      setActiveTab('run');
+    },
+  });
+
+  const downloadBir1604c = async () => {
+    try {
+      const token = getSaasToken();
+      const response = await fetch(resolveApiPath(`/payroll/bir-1604c/csv?year=${yearEndYear}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BIR_1604C_Alphalist_${yearEndYear}.csv`;
+      a.click();
+    } catch (e) {
+      console.error('Failed to download BIR 1604-C CSV', e);
+    }
+  };
 
   // Mutations
   const computeMutation = useMutation({
@@ -568,8 +640,10 @@ export default function PayrollDashboard() {
       <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--color-border)', marginBottom: '24px', overflowX: 'auto' }}>
         {[
           { id: 'run', label: 'Payroll Register Summary' },
+          { id: 'compensation', label: 'Compensation & Bank Profiles' },
+          { id: 'year-end', label: '13th Month & Year-End Tax' },
           { id: 'statutory', label: 'Statutory Remittances (SSS, PHIC, HDMF, BIR)' },
-          { id: 'disbursement', label: 'Bank Disbursement & 13th Month' },
+          { id: 'disbursement', label: 'Bank Disbursement' },
           { id: 'loans', label: 'SSS / Pag-IBIG Loans' },
           { id: 'service-charge', label: 'Service Charge Pool (RA 11360)' },
           { id: 'salary-matrix', label: 'Salary Matrices & Regional Rates' },
@@ -1382,6 +1456,365 @@ export default function PayrollDashboard() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab: Compensation & Bank Profiles */}
+      {activeTab === 'compensation' && (
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Employee Compensation, Statutory IDs &amp; Bank Profiles</h2>
+              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
+                Configure monthly base rates, de minimis allowances, MWE status, TIN/SSS/PhilHealth/Pag-IBIG IDs, and payroll bank accounts.
+              </p>
+            </div>
+            <input
+              type="text"
+              placeholder="Search employee or ID..."
+              value={compSearch}
+              onChange={(e) => setCompSearch(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)', minWidth: '240px' }}
+            />
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <th style={{ padding: '10px 12px' }}>Emp No</th>
+                  <th style={{ padding: '10px 12px' }}>Employee</th>
+                  <th style={{ padding: '10px 12px' }}>Branch</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Monthly Rate</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>De Minimis</th>
+                  <th style={{ padding: '10px 12px' }}>Bank &amp; Account</th>
+                  <th style={{ padding: '10px 12px' }}>TIN</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(compensationQuery.data ?? [])
+                  .filter((c) => {
+                    const q = compSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return `${c.firstName} ${c.lastName} ${c.employeeNo}`.toLowerCase().includes(q);
+                  })
+                  .map((c) => {
+                    const totalDm = Number(c.riceSubsidy || 0) + Number(c.clothingAllowance || 0) + Number(c.laundryAllowance || 0) + Number(c.medicalAllowance || 0);
+                    return (
+                      <tr key={c.employeeId} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{c.employeeNo}</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 600 }}>
+                          {c.lastName}, {c.firstName}{' '}
+                          {c.isMinimumWage && <Tag tone="accent">MWE</Tag>}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>{c.branchName || 'Unassigned'}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600 }}>
+                          ₱{Number(c.monthlyRate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          ₱{totalDm.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>
+                          {c.bankName} · {c.bankAccountNo || '—'}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{c.tin || '—'}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setEditingComp({
+                              employeeId: c.employeeId,
+                              name: `${c.firstName} ${c.lastName}`,
+                              branchId: c.branchId || '',
+                              monthlyRate: Number(c.monthlyRate || 0),
+                              payType: c.payType || 'monthly',
+                              payFrequency: c.payFrequency || 'semi_monthly',
+                              isMinimumWage: Boolean(c.isMinimumWage),
+                              riceSubsidy: Number(c.riceSubsidy || 0),
+                              clothingAllowance: Number(c.clothingAllowance || 0),
+                              laundryAllowance: Number(c.laundryAllowance || 0),
+                              medicalAllowance: Number(c.medicalAllowance || 0),
+                              taxableAllowance: Number(c.taxableAllowance || 0),
+                              bankName: c.bankName || 'BPI',
+                              bankAccountNo: c.bankAccountNo || '',
+                              tin: c.tin || '',
+                              sssNo: c.sssNo || '',
+                              philhealthNo: c.philhealthNo || '',
+                              pagibigNo: c.pagibigNo || '',
+                            })}
+                          >
+                            Edit Pay Profile
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+
+          {editingComp && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '12px',
+                padding: '24px',
+                width: '100%',
+                maxWidth: '640px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+              }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
+                  Edit Compensation Profile — {editingComp.name}
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Monthly Rate (₱)</label>
+                    <input type="number" step="0.01" value={editingComp.monthlyRate}
+                      onChange={(e) => setEditingComp({ ...editingComp, monthlyRate: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Branch</label>
+                    <select value={editingComp.branchId}
+                      onChange={(e) => setEditingComp({ ...editingComp, branchId: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                      <option value="">Unassigned</option>
+                      {(branchesQuery.data ?? []).map((b) => (
+                        <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Rice Subsidy (₱/mo)</label>
+                    <input type="number" step="0.01" value={editingComp.riceSubsidy}
+                      onChange={(e) => setEditingComp({ ...editingComp, riceSubsidy: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Clothing Allowance (₱/mo)</label>
+                    <input type="number" step="0.01" value={editingComp.clothingAllowance}
+                      onChange={(e) => setEditingComp({ ...editingComp, clothingAllowance: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Laundry Allowance (₱/mo)</label>
+                    <input type="number" step="0.01" value={editingComp.laundryAllowance}
+                      onChange={(e) => setEditingComp({ ...editingComp, laundryAllowance: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Medical Allowance (₱/mo)</label>
+                    <input type="number" step="0.01" value={editingComp.medicalAllowance}
+                      onChange={(e) => setEditingComp({ ...editingComp, medicalAllowance: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Bank Name</label>
+                    <select value={editingComp.bankName}
+                      onChange={(e) => setEditingComp({ ...editingComp, bankName: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                      <option value="BPI">BPI</option>
+                      <option value="BDO">BDO</option>
+                      <option value="Metrobank">Metrobank</option>
+                      <option value="UnionBank">UnionBank</option>
+                      <option value="Security Bank">Security Bank</option>
+                      <option value="GCash">GCash</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Bank Account No.</label>
+                    <input type="text" value={editingComp.bankAccountNo}
+                      onChange={(e) => setEditingComp({ ...editingComp, bankAccountNo: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>TIN</label>
+                    <input type="text" value={editingComp.tin}
+                      onChange={(e) => setEditingComp({ ...editingComp, tin: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>SSS No.</label>
+                    <input type="text" value={editingComp.sssNo}
+                      onChange={(e) => setEditingComp({ ...editingComp, sssNo: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>PhilHealth No.</label>
+                    <input type="text" value={editingComp.philhealthNo}
+                      onChange={(e) => setEditingComp({ ...editingComp, philhealthNo: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Pag-IBIG MID No.</label>
+                    <input type="text" value={editingComp.pagibigNo}
+                      onChange={(e) => setEditingComp({ ...editingComp, pagibigNo: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                  </div>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', fontSize: '14.5px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={editingComp.isMinimumWage}
+                    onChange={(e) => setEditingComp({ ...editingComp, isMinimumWage: e.target.checked })} />
+                  Minimum Wage Earner (MWE — Statutory Withholding Tax Exempt under TRAIN Law)
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                  <button className="btn btn-secondary" onClick={() => setEditingComp(null)}>Cancel</button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={upsertCompensationMutation.isPending}
+                    onClick={() => upsertCompensationMutation.mutate({ employeeId: editingComp.employeeId, body: editingComp })}
+                  >
+                    {upsertCompensationMutation.isPending ? 'Saving...' : 'Save Compensation Profile'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: 13th Month Pay & Annualized Year-End Tax Reconciliation */}
+      {activeTab === 'year-end' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label style={{ fontSize: '14.5px', fontWeight: 600 }}>Fiscal Year:</label>
+              <select
+                value={yearEndYear}
+                onChange={(e) => setYearEndYear(Number(e.target.value))}
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }}
+              >
+                {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button className="btn btn-secondary" onClick={downloadBir1604c}>
+                Export BIR 1604-C Alphalist (.csv)
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={compute13thMutation.isPending}
+                onClick={() => compute13thMutation.mutate()}
+              >
+                {compute13thMutation.isPending ? 'Generating...' : `+ Generate ${yearEndYear} 13th Month Payroll Run`}
+              </button>
+            </div>
+          </div>
+
+          {/* 13th Month Pay Preview */}
+          <Card title={`${yearEndYear} 13th Month Pay Preview (PD 851 — ₱90,000 Tax-Exempt Ceiling)`}>
+            <div style={{ overflowX: 'auto', marginTop: '8px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                    <th style={{ padding: '10px 12px' }}>Emp No</th>
+                    <th style={{ padding: '10px 12px' }}>Employee</th>
+                    <th style={{ padding: '10px 12px' }}>Basis</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>YTD Basic Pay</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>13th Month Pay</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Non-Taxable (≤₱90k)</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Taxable Excess</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(thirteenthPreviewQuery.data ?? []).map((p) => (
+                    <tr key={p.employeeId} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{p.employeeNo}</td>
+                      <td style={{ padding: '10px 12px', fontWeight: 600 }}>{p.employeeName}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <Tag tone={p.source === 'actual_runs' ? 'accent' : 'neutral'}>
+                          {p.source === 'actual_runs' ? 'Posted Runs' : 'Salary Estimate'}
+                        </Tag>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(p.ytdBasicPay).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#38bdf8' }}>
+                        ₱{Number(p.thirteenthMonthPay).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(p.nonTaxablePart).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: p.taxableExcess > 0 ? '#f59e0b' : 'var(--color-muted)' }}>
+                        ₱{Number(p.taxableExcess).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Annualized Year-End Tax Reconciliation */}
+          <Card title={`${yearEndYear} Annualized Year-End TRAIN Law Tax Reconciliation (BIR 1604-C)`}>
+            {yearEndTaxQuery.data?.summary && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', margin: '10px 0 16px' }}>
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-muted)' }}>Annual Tax Due</div>
+                  <div style={{ fontSize: '20px', fontWeight: 600 }}>₱{Number(yearEndTaxQuery.data.summary.totalTaxDue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-muted)' }}>YTD Tax Withheld</div>
+                  <div style={{ fontSize: '20px', fontWeight: 600 }}>₱{Number(yearEndTaxQuery.data.summary.totalTaxWithheld).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-muted)' }}>Total Employee Refund</div>
+                  <div style={{ fontSize: '20px', fontWeight: 600, color: '#10b981' }}>₱{Number(yearEndTaxQuery.data.summary.totalRefund).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-muted)' }}>Total Tax Still Due</div>
+                  <div style={{ fontSize: '20px', fontWeight: 600, color: '#f59e0b' }}>₱{Number(yearEndTaxQuery.data.summary.totalStillDue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+            )}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                    <th style={{ padding: '10px 12px' }}>Employee</th>
+                    <th style={{ padding: '10px 12px' }}>TIN</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Gross</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Taxable Income</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Annual Tax Due</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Tax Withheld</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Adjustment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(yearEndTaxQuery.data?.employees ?? []).map((e: any) => (
+                    <tr key={e.employeeId} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600 }}>{e.employeeName}</td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{e.tin || '—'}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(e.totalGross).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(e.annualTaxableIncome).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(e.annualTaxDue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>₱{Number(e.ytdTaxWithheld).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: e.variance < 0 ? '#10b981' : e.variance > 0 ? '#f59e0b' : 'var(--color-muted)' }}>
+                        {e.variance < 0
+                          ? `Refund ₱${Math.abs(e.variance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                          : e.variance > 0
+                            ? `Due ₱${e.variance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                            : 'Balanced'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       )}
 

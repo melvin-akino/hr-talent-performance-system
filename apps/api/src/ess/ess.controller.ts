@@ -9,8 +9,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
 import { EssService } from './ess.service';
 
@@ -94,6 +96,57 @@ export class EssController {
     @Body() body: { note?: string },
   ) {
     return this.ess.reviewProfileRequest(req.auth, id, 'rejected', body?.note);
+  }
+
+  @Get('documents')
+  listDocuments(@Req() req: AuthenticatedRequest, @Query('employeeId') employeeId?: string) {
+    return this.ess.listDocuments(req.auth, employeeId);
+  }
+
+  @Post('documents')
+  uploadDocument(
+    @Req() req: AuthenticatedRequest,
+    @Body()
+    body: {
+      employeeId?: string | null;
+      docType: string;
+      title: string;
+      fileName: string;
+      mimeType?: string;
+      fileDataBase64: string;
+      requiresAck?: boolean;
+    },
+  ) {
+    return this.ess.uploadDocument(req.auth, body);
+  }
+
+  @Get('documents/:id/download')
+  async downloadDocument(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const doc = await this.ess.getDocumentContent(req.auth, id);
+    const buf = Buffer.from(doc.file_data_base64 || '', 'base64');
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.file_name}"`);
+    return res.send(buf);
+  }
+
+  @Post('documents/:id/acknowledge')
+  acknowledgeDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ess.acknowledgeDocument(req.auth, id);
+  }
+
+  @Delete('documents/:id')
+  deleteDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ess.deleteDocument(req.auth, id);
   }
 }
 

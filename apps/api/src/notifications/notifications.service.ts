@@ -42,6 +42,28 @@ export class NotificationsService {
     return res.rows[0]?.id ?? null;
   }
 
+  /**
+   * Best-effort notification enqueue wrapped in a SAVEPOINT so missing templates
+   * or disabled preferences never roll back a business transaction.
+   */
+  static async tryEnqueue(
+    client: PoolClient,
+    recipientEmployeeId: string,
+    templateCode: string,
+    payload: Record<string, unknown> = {},
+    dedupeKey?: string,
+  ): Promise<string | null> {
+    await client.query('SAVEPOINT notif_try');
+    try {
+      const id = await NotificationsService.enqueue(client, recipientEmployeeId, templateCode, payload, dedupeKey);
+      await client.query('RELEASE SAVEPOINT notif_try');
+      return id;
+    } catch {
+      await client.query('ROLLBACK TO SAVEPOINT notif_try');
+      return null;
+    }
+  }
+
   async myPreferences(ctx: RequestContext) {
     return this.db.withContext(ctx, async (client) => {
       const res = await client.query(

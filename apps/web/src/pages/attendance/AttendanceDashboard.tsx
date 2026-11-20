@@ -108,6 +108,8 @@ interface MealVoucher {
 
 type TabType =
   | 'dtr'
+  | 'roster'
+  | 'adjustments'
   | 'kiosk-enrollment'
   | 'shifts'
   | 'swaps'
@@ -155,6 +157,36 @@ export default function AttendanceDashboard() {
     name: '',
     holidayDate: new Date().toISOString().slice(0, 10),
     holidayType: 'regular_holiday',
+  });
+
+  // Manual DTR Modal state
+  const [showManualDtrModal, setShowManualDtrModal] = useState(false);
+  const [manualDtrForm, setManualDtrForm] = useState({
+    employeeId: '',
+    workDate: new Date().toISOString().slice(0, 10),
+    clockIn: '08:00',
+    clockOut: '17:00',
+    notes: '',
+  });
+
+  // Batch Roster Modal state
+  const [showRosterModal, setShowRosterModal] = useState(false);
+  const [rosterForm, setRosterForm] = useState({
+    employeeIds: [] as string[],
+    shiftId: '',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10),
+    notes: '',
+  });
+
+  // OT / Timesheet Adjustment Modal state
+  const [showAdjModal, setShowAdjModal] = useState(false);
+  const [adjForm, setAdjForm] = useState({
+    workDate: new Date().toISOString().slice(0, 10),
+    adjustmentType: 'overtime',
+    requestedClockIn: '08:00',
+    requestedClockOut: '19:00',
+    reason: '',
   });
 
   const attendanceEnabled = me.data?.features?.feature_time_attendance ?? false;
@@ -225,6 +257,84 @@ export default function AttendanceDashboard() {
     queryKey: ['meal-vouchers'],
     queryFn: () => api<MealVoucher[]>('/attendance/meal-vouchers'),
     enabled: attendanceEnabled && activeTab === 'meal-vouchers',
+  });
+
+  // 9. Fetch Employees (for Manual DTR & Batch Roster)
+  const employeesQuery = useQuery({
+    queryKey: ['attendance-employees'],
+    queryFn: () => api<{ id: string; employeeNumber: string; firstName: string; lastName: string }[]>('/employees?limit=200'),
+    enabled: attendanceEnabled && (showManualDtrModal || showRosterModal),
+  });
+
+  // 10. Fetch Shift Roster
+  const rosterEndStr = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const rosterQuery = useQuery({
+    queryKey: ['attendance-roster', todayStr, rosterEndStr],
+    queryFn: () => api<any[]>(`/attendance/roster?startDate=${todayStr}&endDate=${rosterEndStr}`),
+    enabled: attendanceEnabled && activeTab === 'roster',
+  });
+
+  // 11. Fetch Timesheet / OT Adjustments
+  const adjustmentsQuery = useQuery({
+    queryKey: ['attendance-adjustments'],
+    queryFn: () => api<any[]>('/attendance/adjustments'),
+    enabled: attendanceEnabled && activeTab === 'adjustments',
+  });
+
+  const manualDtrMutation = useMutation({
+    mutationFn: (data: typeof manualDtrForm) =>
+      api('/attendance/records/manual', {
+        method: 'POST',
+        body: {
+          employeeId: data.employeeId,
+          workDate: data.workDate,
+          clockIn: `${data.workDate}T${data.clockIn}:00`,
+          clockOut: `${data.workDate}T${data.clockOut}:00`,
+          notes: data.notes,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      setShowManualDtrModal(false);
+    },
+  });
+
+  const batchRosterMutation = useMutation({
+    mutationFn: (data: typeof rosterForm) =>
+      api('/attendance/roster/batch', {
+        method: 'POST',
+        body: { ...data, restDays: [0, 6] },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-roster'] });
+      setShowRosterModal(false);
+    },
+  });
+
+  const requestAdjustmentMutation = useMutation({
+    mutationFn: (data: typeof adjForm) =>
+      api('/attendance/adjustments', {
+        method: 'POST',
+        body: {
+          workDate: data.workDate,
+          adjustmentType: data.adjustmentType,
+          requestedClockIn: `${data.workDate}T${data.requestedClockIn}:00`,
+          requestedClockOut: `${data.workDate}T${data.requestedClockOut}:00`,
+          reason: data.reason,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-adjustments'] });
+      setShowAdjModal(false);
+    },
+  });
+
+  const approveAdjustmentMutation = useMutation({
+    mutationFn: (id: string) => api(`/attendance/adjustments/${id}/approve`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-adjustments'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+    },
   });
 
   // Clock In / Out Mutation
@@ -508,6 +618,8 @@ export default function AttendanceDashboard() {
       }}>
         {[
           { id: 'dtr', label: 'Daily Time Records (DTR)' },
+          { id: 'roster', label: 'Shift Roster' },
+          { id: 'adjustments', label: 'OT & Adjustments' },
           { id: 'kiosk-enrollment', label: 'Biometrics & Kiosk Enrollment' },
           { id: 'shifts', label: 'Work Shifts & Schedules' },
           { id: 'swaps', label: 'Shift Swapping & Comp-Off' },
@@ -544,9 +656,14 @@ export default function AttendanceDashboard() {
           borderRadius: '8px',
           overflow: 'hidden',
         }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Attendance & Overtime Ledger ({currentMonthStart} to {todayStr})</span>
-            <span style={{ fontSize: '15px', color: 'var(--color-muted)', fontWeight: 400 }}>Auto-calculated per DOLE Omnibus Rules</span>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span>Attendance &amp; Overtime Ledger ({currentMonthStart} to {todayStr})</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '14px', color: 'var(--color-muted)', fontWeight: 400 }}>Auto-calculated per DOLE Omnibus Rules</span>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowManualDtrModal(true)}>
+                + Manual DTR Entry
+              </button>
+            </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px', textAlign: 'left' }}>
@@ -617,6 +734,282 @@ export default function AttendanceDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Shift Roster */}
+      {activeTab === 'roster' && (
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Shift Roster Schedule (Next 14 Days)</h2>
+              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
+                Assign work shifts across employees and date ranges with automatic Sat/Sun rest-day mapping.
+              </p>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowRosterModal(true)}>
+              + Assign Batch Roster
+            </button>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                  <th style={{ padding: '10px 12px' }}>Date</th>
+                  <th style={{ padding: '10px 12px' }}>Employee</th>
+                  <th style={{ padding: '10px 12px' }}>Assigned Shift</th>
+                  <th style={{ padding: '10px 12px' }}>Schedule</th>
+                  <th style={{ padding: '10px 12px' }}>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(rosterQuery.data ?? []).length > 0 ? (
+                  (rosterQuery.data ?? []).map((r) => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600 }}>{String(r.roster_date).slice(0, 10)}</td>
+                      <td style={{ padding: '10px 12px' }}>{r.lastName}, {r.firstName} ({r.employeeNo})</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        {r.is_rest_day ? <Tag tone="neutral">REST DAY</Tag> : <Tag tone="accent">{r.shiftName || r.shiftCode || 'Assigned'}</Tag>}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>{r.is_rest_day ? '—' : `${r.startTime ?? ''} – ${r.endTime ?? ''}`}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{r.notes || '—'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                      No roster entries scheduled for the next 14 days. Click '+ Assign Batch Roster' to schedule shifts.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: OT & Timesheet Adjustments */}
+      {activeTab === 'adjustments' && (
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Overtime Pre-Approval &amp; Timesheet Adjustments</h2>
+              <p style={{ fontSize: '14.5px', color: 'var(--color-muted)', margin: '4px 0 0 0' }}>
+                File missed-punch corrections or overtime pre-approvals; approved entries update the DTR ledger automatically.
+              </p>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAdjModal(true)}>
+              + File OT / Adjustment
+            </button>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                  <th style={{ padding: '10px 12px' }}>Work Date</th>
+                  <th style={{ padding: '10px 12px' }}>Employee</th>
+                  <th style={{ padding: '10px 12px' }}>Type</th>
+                  <th style={{ padding: '10px 12px' }}>Requested Window</th>
+                  <th style={{ padding: '10px 12px' }}>Reason</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(adjustmentsQuery.data ?? []).length > 0 ? (
+                  (adjustmentsQuery.data ?? []).map((a) => (
+                    <tr key={a.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600 }}>{String(a.work_date).slice(0, 10)}</td>
+                      <td style={{ padding: '10px 12px' }}>{a.employeeName || `${a.last_name ?? ''}, ${a.first_name ?? ''}`}</td>
+                      <td style={{ padding: '10px 12px', textTransform: 'capitalize' }}>{String(a.adjustment_type || 'overtime').replace(/_/g, ' ')}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        {a.requested_clock_in ? new Date(a.requested_clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {' – '}
+                        {a.requested_clock_out ? new Date(a.requested_clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{a.reason}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <Tag tone={a.status === 'approved' ? 'accent' : 'neutral'}>{String(a.status).toUpperCase()}</Tag>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        {a.status === 'pending' && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={approveAdjustmentMutation.isPending}
+                            onClick={() => approveAdjustmentMutation.mutate(a.id)}
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-muted)' }}>
+                      No overtime or timesheet adjustment requests filed.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modals for Manual DTR, Batch Roster, and OT Adjustment */}
+      {showManualDtrModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '460px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0' }}>Manual DTR Entry</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Employee</label>
+                <select value={manualDtrForm.employeeId} onChange={(e) => setManualDtrForm({ ...manualDtrForm, employeeId: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                  <option value="">Select employee...</option>
+                  {(employeesQuery.data ?? []).map((emp) => (
+                    <option key={emp.id} value={emp.id}>{emp.lastName}, {emp.firstName} ({emp.employeeNumber})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Work Date</label>
+                <input type="date" value={manualDtrForm.workDate} onChange={(e) => setManualDtrForm({ ...manualDtrForm, workDate: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Clock In</label>
+                  <input type="time" value={manualDtrForm.clockIn} onChange={(e) => setManualDtrForm({ ...manualDtrForm, clockIn: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Clock Out</label>
+                  <input type="time" value={manualDtrForm.clockOut} onChange={(e) => setManualDtrForm({ ...manualDtrForm, clockOut: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Notes</label>
+                <input type="text" value={manualDtrForm.notes} onChange={(e) => setManualDtrForm({ ...manualDtrForm, notes: e.target.value })} placeholder="Optional remarks"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+              <button className="btn btn-ghost" onClick={() => setShowManualDtrModal(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={!manualDtrForm.employeeId || manualDtrMutation.isPending} onClick={() => manualDtrMutation.mutate(manualDtrForm)}>
+                {manualDtrMutation.isPending ? 'Saving...' : 'Save DTR'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRosterModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '500px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0' }}>Assign Batch Shift Roster</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Work Shift</label>
+                <select value={rosterForm.shiftId} onChange={(e) => setRosterForm({ ...rosterForm, shiftId: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                  <option value="">Select shift...</option>
+                  {(shiftsQuery.data ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Start Date</label>
+                  <input type="date" value={rosterForm.startDate} onChange={(e) => setRosterForm({ ...rosterForm, startDate: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>End Date</label>
+                  <input type="date" value={rosterForm.endDate} onChange={(e) => setRosterForm({ ...rosterForm, endDate: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Employees ({rosterForm.employeeIds.length} selected)</label>
+                <select multiple size={6} value={rosterForm.employeeIds}
+                  onChange={(e) => setRosterForm({ ...rosterForm, employeeIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
+                  style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                  {(employeesQuery.data ?? []).map((emp) => (
+                    <option key={emp.id} value={emp.id}>{emp.lastName}, {emp.firstName} ({emp.employeeNumber})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+              <button className="btn btn-ghost" onClick={() => setShowRosterModal(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={!rosterForm.shiftId || rosterForm.employeeIds.length === 0 || batchRosterMutation.isPending}
+                onClick={() => batchRosterMutation.mutate(rosterForm)}>
+                {batchRosterMutation.isPending ? 'Assigning...' : 'Assign Roster'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdjModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '460px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0' }}>File OT / Timesheet Adjustment</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Type</label>
+                <select value={adjForm.adjustmentType} onChange={(e) => setAdjForm({ ...adjForm, adjustmentType: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                  <option value="overtime">Overtime Pre-Approval / Claim</option>
+                  <option value="missed_punch">Missed Clock-In / Clock-Out</option>
+                  <option value="time_correction">Time Correction</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Work Date</label>
+                <input type="date" value={adjForm.workDate} onChange={(e) => setAdjForm({ ...adjForm, workDate: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Requested In</label>
+                  <input type="time" value={adjForm.requestedClockIn} onChange={(e) => setAdjForm({ ...adjForm, requestedClockIn: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Requested Out</label>
+                  <input type="time" value={adjForm.requestedClockOut} onChange={(e) => setAdjForm({ ...adjForm, requestedClockOut: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Reason</label>
+                <input type="text" value={adjForm.reason} onChange={(e) => setAdjForm({ ...adjForm, reason: e.target.value })} placeholder="Reason for OT or correction"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+              <button className="btn btn-ghost" onClick={() => setShowAdjModal(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={!adjForm.reason.trim() || requestAdjustmentMutation.isPending}
+                onClick={() => requestAdjustmentMutation.mutate(adjForm)}>
+                {requestAdjustmentMutation.isPending ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DbService, RequestContext } from '../db/db.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { calculatePhilippineAttendancePay } from './calculators/ph-overtime.calculator';
 import { hashPassword, verifyPassword } from '../common/crypto';
 
@@ -792,6 +793,11 @@ export class AttendanceService {
           dto.responseDueDate,
         ],
       );
+      await NotificationsService.tryEnqueue(client, dto.employeeId, 'disciplinary_memo_issued', {
+        memoNumber: memoNum,
+        memoType: dto.memoType,
+        responseDueDate: dto.responseDueDate,
+      });
       return res.rows[0];
     });
   }

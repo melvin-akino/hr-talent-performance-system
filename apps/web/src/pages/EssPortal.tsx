@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../auth';
+import { api, getSaasToken, resolveApiPath } from '../auth';
 import type { Employee } from '../types';
 import { ErrorNote, Spinner } from '../components/ui';
 import { Btn, Card, EmptyState, PageHead, Section, Tag } from '../components/ds';
@@ -75,7 +75,18 @@ interface CoeData {
 
 export default function EssPortal() {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'bulletins' | 'profile' | 'coe'>('bulletins');
+  const [activeTab, setActiveTab] = useState<'bulletins' | 'profile' | 'coe' | 'documents'>('bulletins');
+
+  // 201 File Vault upload state
+  const [docForm, setDocForm] = useState({
+    employeeId: '',
+    docType: 'policy',
+    title: '',
+    fileName: '',
+    mimeType: 'application/pdf',
+    fileDataBase64: '',
+    requiresAck: true,
+  });
 
   // Announcement form state
   const [showPostForm, setShowPostForm] = useState(false);
@@ -119,6 +130,64 @@ export default function EssPortal() {
     queryFn: () => api<CoeData>(`/ess/coe?includeCompensation=${includeComp}`),
     enabled: activeTab === 'coe',
   });
+
+  const documents = useQuery({
+    queryKey: ['ess', 'documents'],
+    queryFn: () => api<any[]>('/ess/documents'),
+    enabled: activeTab === 'documents',
+  });
+
+  const employeesForDocs = useQuery({
+    queryKey: ['ess', 'employees-docs'],
+    queryFn: () => api<{ id: string; employeeNumber: string; firstName: string; lastName: string }[]>('/employees?limit=200'),
+    enabled: activeTab === 'documents' && isHr,
+  });
+
+  const uploadDoc = useMutation({
+    mutationFn: () =>
+      api('/ess/documents', {
+        method: 'POST',
+        body: {
+          ...docForm,
+          employeeId: docForm.employeeId || null,
+        },
+      }),
+    onSuccess: () => {
+      setDocForm({
+        employeeId: '',
+        docType: 'policy',
+        title: '',
+        fileName: '',
+        mimeType: 'application/pdf',
+        fileDataBase64: '',
+        requiresAck: true,
+      });
+      void qc.invalidateQueries({ queryKey: ['ess', 'documents'] });
+    },
+  });
+
+  const ackDoc = useMutation({
+    mutationFn: (id: string) => api(`/ess/documents/${id}/acknowledge`, { method: 'POST', body: {} }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ess', 'documents'] }),
+  });
+
+  const deleteDoc = useMutation({
+    mutationFn: (id: string) => api(`/ess/documents/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['ess', 'documents'] }),
+  });
+
+  const downloadDoc = async (id: string, fileName: string) => {
+    const token = getSaasToken();
+    const res = await fetch(resolveApiPath(`/ess/documents/${id}/download`), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+  };
 
   const postAnn = useMutation({
     mutationFn: (payload: typeof annForm) =>
@@ -178,6 +247,9 @@ export default function EssPortal() {
         </Btn>
         <Btn variant={activeTab === 'coe' ? 'primary' : 'secondary'} onClick={() => setActiveTab('coe')}>
           Certificate of Employment (COE)
+        </Btn>
+        <Btn variant={activeTab === 'documents' ? 'primary' : 'secondary'} onClick={() => setActiveTab('documents')}>
+          201 File &amp; Policy Vault
         </Btn>
       </PageHead>
 
@@ -563,6 +635,140 @@ export default function EssPortal() {
               </div>
             </Card>
           ) : null}
+        </div>
+      )}
+
+      {/* TAB 4: 201 File Document Vault & Policy Acknowledgment */}
+      {activeTab === 'documents' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Card kicker="Upload 201 Document or Company Policy">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 8 }}>
+              <input
+                className="input"
+                placeholder="Document Title (e.g., 2026 Employee Handbook)"
+                value={docForm.title}
+                onChange={(e) => setDocForm({ ...docForm, title: e.target.value })}
+              />
+              <select
+                className="input"
+                value={docForm.docType}
+                onChange={(e) => setDocForm({ ...docForm, docType: e.target.value })}
+              >
+                <option value="policy">Company Policy / Handbook</option>
+                <option value="contract">Employment Contract</option>
+                <option value="nbi_clearance">NBI / Police Clearance</option>
+                <option value="bir_2316">BIR Form 2316</option>
+                <option value="gov_id">Government ID</option>
+                <option value="nte_memo">Signed NTE / Memo</option>
+                <option value="other">Other 201 Document</option>
+              </select>
+              {isHr && (
+                <select
+                  className="input"
+                  value={docForm.employeeId}
+                  onChange={(e) => setDocForm({ ...docForm, employeeId: e.target.value })}
+                >
+                  <option value="">All Employees (Org-Wide Policy)</option>
+                  {(employeesForDocs.data ?? []).map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.lastName}, {emp.firstName} ({emp.employeeNumber})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                type="file"
+                className="input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setDocForm((prev) => ({
+                      ...prev,
+                      fileName: file.name,
+                      mimeType: file.type || 'application/octet-stream',
+                      fileDataBase64: String(reader.result || ''),
+                    }));
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, flexWrap: 'wrap', gap: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem' }}>
+                <input
+                  type="checkbox"
+                  checked={docForm.requiresAck}
+                  onChange={(e) => setDocForm({ ...docForm, requiresAck: e.target.checked })}
+                />
+                Require employee policy/document acknowledgment
+              </label>
+              <Btn
+                variant="primary"
+                disabled={!docForm.title.trim() || !docForm.fileDataBase64 || uploadDoc.isPending}
+                onClick={() => uploadDoc.mutate()}
+              >
+                {uploadDoc.isPending ? 'Uploading...' : 'Upload to 201 Vault'}
+              </Btn>
+            </div>
+            <ErrorNote error={uploadDoc.error || ackDoc.error || deleteDoc.error} />
+          </Card>
+
+          <Card kicker="201 File & Policy Ledger">
+            {(documents.data ?? []).length === 0 ? (
+              <EmptyState title="No documents in vault yet" />
+            ) : (
+              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Type</th>
+                      <th>Scope / Employee</th>
+                      <th>File</th>
+                      <th>Acknowledgment</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(documents.data ?? []).map((d) => (
+                      <tr key={d.id}>
+                        <td style={{ fontWeight: 600 }}>{d.title}</td>
+                        <td><Tag tone="neutral">{String(d.docType).replace(/_/g, ' ').toUpperCase()}</Tag></td>
+                        <td>{d.employeeName ? `${d.employeeName} (${d.employeeNo})` : 'Org-Wide Policy'}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{d.fileName}</td>
+                        <td>
+                          {d.acknowledgedAt ? (
+                            <Tag tone="accent">Acknowledged {String(d.acknowledgedAt).slice(0, 10)}</Tag>
+                          ) : d.requiresAck ? (
+                            <Tag tone="outline">Pending Ack</Tag>
+                          ) : (
+                            <span style={{ color: 'var(--color-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <Btn variant="secondary" onClick={() => void downloadDoc(d.id, d.fileName)}>
+                            Download
+                          </Btn>{' '}
+                          {d.requiresAck && !d.acknowledgedAt && (
+                            <Btn variant="primary" disabled={ackDoc.isPending} onClick={() => ackDoc.mutate(d.id)}>
+                              Acknowledge
+                            </Btn>
+                          )}{' '}
+                          {isHr && (
+                            <Btn variant="ghost" disabled={deleteDoc.isPending} onClick={() => deleteDoc.mutate(d.id)}>
+                              Delete
+                            </Btn>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
       )}
     </Section>

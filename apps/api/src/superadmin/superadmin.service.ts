@@ -121,6 +121,11 @@ export class SuperadminService {
         `SELECT o.id, o.code, o.name, o.slug, o.status, o.plan_tier,
                 o.max_employees, o.trial_ends_at, o.subscription_expires_at, o.created_at,
                 (SELECT COUNT(*)::int FROM employee e WHERE e.org_id = o.id AND e.deleted_at IS NULL) AS employee_count,
+                (SELECT COUNT(*)::int FROM payroll_run pr WHERE pr.org_id = o.id) AS payroll_run_count,
+                (SELECT COUNT(*)::int FROM employee_document ed WHERE ed.org_id = o.id) AS document_count,
+                CASE WHEN o.max_employees > 0
+                     THEN ROUND(((SELECT COUNT(*) FROM employee e WHERE e.org_id = o.id AND e.deleted_at IS NULL)::numeric / o.max_employees) * 100, 1)
+                     ELSE 0 END AS seat_utilization_pct,
                 to_jsonb(tf) AS features
            FROM organization o
            LEFT JOIN app.tenant_features tf ON tf.org_id = o.id

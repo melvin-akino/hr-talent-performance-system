@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PoolClient } from 'pg';
 import { DbService, RequestContext } from '../db/db.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   calculateSssContribution,
   apportionSssQuindena,
@@ -978,6 +979,19 @@ export class PayrollService {
         }
       }
 
+      const disbursedEmps = await client.query<{ employee_id: string; net_pay: string }>(
+        `SELECT employee_id, net_pay FROM payroll_line_item WHERE payroll_run_id = $1`,
+        [runId],
+      );
+      for (const emp of disbursedEmps.rows) {
+        await NotificationsService.tryEnqueue(client, emp.employee_id, 'payslip_released', {
+          payrollRunId: runId,
+          code: res.rows[0].code,
+          title: res.rows[0].title,
+          netPay: emp.net_pay,
+        });
+      }
+
       return res.rows[0];
     });
   }
@@ -1879,5 +1893,302 @@ export class PayrollService {
         lines: res.rows[0] || {},
       };
     });
+  }
+
+  /**
+   * PD 851: 13th Month Pay Preview (YTD Basic Pay / 12, or pro-rata salary estimate)
+   */
+  async previewThirteenthMonth(ctx: RequestContext, year: number, branchId?: string) {
+    return this.db.withContext(ctx, async (client) => {
+      await this.requirePayrollRole(client, ctx, ['hr_admin', 'hr_partner', 'manager']);
+      const params: any[] = [year];
+      let branchFilter = '';
+      if (branchId) {
+        params.push(branchId);
+        branchFilter = `AND c.branch_id = $2`;
+      }
+
+      const res = await client.query(
+        `SELECT e.id AS "employeeId",
+                e.employee_no AS "employeeNo",
+                e.first_name || ' ' || e.last_name AS "employeeName",
+                e.hire_date::text AS "hireDate",
+                b.name AS "branchName",
+                c.branch_id AS "branchId",
+                COALESCE(c.monthly_rate, 0)::numeric(12,2) AS "monthlyRate",
+                COALESCE(c.is_minimum_wage, false) AS "isMinimumWage",
+                c.bank_name AS "bankName",
+                c.bank_account_no AS "bankAccountNo",
+                COALESCE((
+                  SELECT SUM(li.basic_pay)
+                    FROM payroll_line_item li
+                    JOIN payroll_run pr ON pr.id = li.payroll_run_id
+                   WHERE li.employee_id = e.id
+                     AND EXTRACT(YEAR FROM pr.period_end) = $1
+                     AND pr.run_type <> 'thirteenth_month'
+                     AND pr.status IN ('computed', 'approved', 'disbursed')
+                ), 0)::numeric(14,2) AS "ytdBasicPay"
+           FROM employee e
+           JOIN employee_compensation c ON c.employee_id = e.id
+           LEFT JOIN branch b ON b.id = c.branch_id
+          WHERE e.org_id = app.current_org_id()
+            AND e.status <> 'separated'
+            ${branchFilter}
+          ORDER BY e.last_name ASC, e.first_name ASC`,
+        params,
+      );
+
+      const now = new Date();
+      const monthsElapsed = now.getFullYear() === year ? now.getMonth() + 1 : 12;
+
+      return res.rows.map((r) => {
+        const ytdBasic = Number(r.ytdBasicPay);
+        const monthlyRate = Number(r.monthlyRate);
+        const fromActualRuns = ytdBasic > 0;
+        const thirteenthMonthPay = fromActualRuns
+          ? Math.round((ytdBasic / 12) * 100) / 100
+          : Math.round(((monthlyRate * monthsElapsed) / 12) * 100) / 100;
+        const nonTaxablePart = Math.min(thirteenthMonthPay, 90000);
+        const taxableExcess = Math.max(0, Math.round((thirteenthMonthPay - 90000) * 100) / 100);
+        return {
+          ...r,
+          ytdBasicPay: ytdBasic,
+          monthlyRate,
+          source: fromActualRuns ? 'actual_runs' : 'salary_estimate',
+          thirteenthMonthPay,
+          nonTaxablePart,
+          taxableExcess,
+        };
+      });
+    });
+  }
+
+  /**
+   * Generate 13th Month Payroll Run (PD 851)
+   */
+  async computeThirteenthMonthRun(
+    ctx: RequestContext,
+    dto: { year: number; payoutDate?: string; branchId?: string },
+  ) {
+    const year = dto.year || new Date().getFullYear();
+    const preview = await this.previewThirteenthMonth(ctx, year, dto.branchId);
+    const eligible = preview.filter((p) => p.thirteenthMonthPay > 0);
+    if (eligible.length === 0) {
+      throw new BadRequestException('No eligible employees with 13th month pay > 0 found.');
+    }
+
+    return this.db.withContext(ctx, async (client) => {
+      await this.requirePayrollRole(client, ctx, ['hr_admin', 'hr_partner', 'manager']);
+      const code = `13TH-${year}-${Date.now().toString().slice(-4)}`;
+      const title = `${year} 13th Month Pay (PD 851)`;
+      const payoutDate = dto.payoutDate || `${year}-12-15`;
+
+      let totalGross = 0;
+      let totalTaxable = 0;
+      let totalTax = 0;
+      let totalNet = 0;
+
+      const items = eligible.map((emp) => {
+        const gross = emp.thirteenthMonthPay;
+        const taxable = emp.isMinimumWage ? 0 : emp.taxableExcess;
+        const tax = taxable > 0 ? Math.round(taxable * 0.15 * 100) / 100 : 0;
+        const net = Math.round((gross - tax) * 100) / 100;
+        totalGross += gross;
+        totalTaxable += taxable;
+        totalTax += tax;
+        totalNet += net;
+        return { ...emp, gross, taxable, tax, net };
+      });
+
+      const runRes = await client.query(
+        `INSERT INTO payroll_run (
+           org_id, branch_id, code, title, period_start, period_end, payout_date,
+           run_type, status, total_gross, total_taxable, total_withholding_tax,
+           total_sss_ee, total_sss_er, total_philhealth_ee, total_philhealth_er,
+           total_pagibig_ee, total_pagibig_er, total_net_pay, employee_count,
+           computed_by
+         ) VALUES (
+           app.current_org_id(), $1, $2, $3, $4, $5, $6,
+           'thirteenth_month', 'computed', $7, $8, $9,
+           0, 0, 0, 0, 0, 0, $10, $11, $12
+         )
+         RETURNING *`,
+        [
+          dto.branchId || null,
+          code,
+          title,
+          `${year}-01-01`,
+          `${year}-12-31`,
+          payoutDate,
+          Math.round(totalGross * 100) / 100,
+          Math.round(totalTaxable * 100) / 100,
+          Math.round(totalTax * 100) / 100,
+          Math.round(totalNet * 100) / 100,
+          items.length,
+          ctx.employeeId,
+        ],
+      );
+
+      const run = runRes.rows[0];
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO payroll_line_item (
+             payroll_run_id, org_id, employee_id, branch_id,
+             basic_pay, gross_pay, taxable_income, withholding_tax,
+             total_deductions, net_pay, thirteenth_month_accrual,
+             bank_name, bank_account_no
+           ) VALUES (
+             $1, app.current_org_id(), $2, $3,
+             $4, $4, $5, $6, $6, $7, $4, $8, $9
+           )`,
+          [
+            run.id,
+            item.employeeId,
+            item.branchId || null,
+            item.gross,
+            item.taxable,
+            item.tax,
+            item.net,
+            item.bankName || null,
+            item.bankAccountNo || null,
+          ],
+        );
+      }
+      return run;
+    });
+  }
+
+  /**
+   * Annualized Year-End TRAIN Law Tax Reconciliation (BIR Form 1604-C / Alphalist)
+   */
+  async getYearEndTaxReconciliation(ctx: RequestContext, year: number) {
+    return this.db.withContext(ctx, async (client) => {
+      await this.requirePayrollRole(client, ctx, ['hr_admin', 'hr_partner', 'manager']);
+
+      const res = await client.query(
+        `SELECT e.id AS "employeeId",
+                e.employee_no AS "employeeNo",
+                e.first_name || ' ' || e.last_name AS "employeeName",
+                c.tin,
+                COALESCE(c.is_minimum_wage, false) AS "isMinimumWage",
+                COALESCE(SUM(CASE WHEN pr.run_type <> 'thirteenth_month' THEN li.gross_pay ELSE 0 END), 0)::numeric(14,2) AS "ytdRegularGross",
+                COALESCE(SUM(CASE WHEN pr.run_type = 'thirteenth_month' THEN li.gross_pay ELSE 0 END), 0)::numeric(14,2) AS "ytdThirteenthMonth",
+                COALESCE(SUM(li.de_minimis_allowances), 0)::numeric(14,2) AS "ytdDeMinimis",
+                COALESCE(SUM(li.sss_ee + li.sss_wisp_ee + li.philhealth_ee + li.pagibig_ee), 0)::numeric(14,2) AS "ytdEeContributions",
+                COALESCE(SUM(li.withholding_tax), 0)::numeric(14,2) AS "ytdTaxWithheld"
+           FROM employee e
+           LEFT JOIN employee_compensation c ON c.employee_id = e.id
+           LEFT JOIN payroll_line_item li ON li.employee_id = e.id
+           LEFT JOIN payroll_run pr ON pr.id = li.payroll_run_id
+                AND EXTRACT(YEAR FROM pr.period_end) = $1
+                AND pr.status IN ('computed', 'approved', 'disbursed')
+          WHERE e.org_id = app.current_org_id()
+            AND e.status <> 'separated'
+          GROUP BY e.id, e.employee_no, e.first_name, e.last_name, c.tin, c.is_minimum_wage
+          ORDER BY e.last_name ASC, e.first_name ASC`,
+        [year],
+      );
+
+      const computeAnnualTrainTax = (taxable: number) => {
+        if (taxable <= 250000) return 0;
+        if (taxable <= 400000) return (taxable - 250000) * 0.15;
+        if (taxable <= 800000) return 22500 + (taxable - 400000) * 0.2;
+        if (taxable <= 2000000) return 102500 + (taxable - 800000) * 0.25;
+        if (taxable <= 8000000) return 402500 + (taxable - 2000000) * 0.3;
+        return 2202500 + (taxable - 8000000) * 0.35;
+      };
+
+      let totalTaxDue = 0;
+      let totalTaxWithheld = 0;
+      let totalRefund = 0;
+      let totalStillDue = 0;
+
+      const employees = res.rows.map((r) => {
+        const ytdRegularGross = Number(r.ytdRegularGross);
+        const ytdThirteenthMonth = Number(r.ytdThirteenthMonth);
+        const ytdDeMinimis = Number(r.ytdDeMinimis);
+        const ytdEeContributions = Number(r.ytdEeContributions);
+        const ytdTaxWithheld = Number(r.ytdTaxWithheld);
+        const nonTaxable13th = Math.min(ytdThirteenthMonth, 90000);
+        const totalGross = Math.round((ytdRegularGross + ytdThirteenthMonth) * 100) / 100;
+        const annualTaxableIncome = r.isMinimumWage
+          ? 0
+          : Math.max(
+              0,
+              Math.round((totalGross - ytdDeMinimis - ytdEeContributions - nonTaxable13th) * 100) / 100,
+            );
+        const annualTaxDue = r.isMinimumWage
+          ? 0
+          : Math.round(computeAnnualTrainTax(annualTaxableIncome) * 100) / 100;
+        const variance = Math.round((annualTaxDue - ytdTaxWithheld) * 100) / 100;
+
+        totalTaxDue += annualTaxDue;
+        totalTaxWithheld += ytdTaxWithheld;
+        if (variance < 0) totalRefund += Math.abs(variance);
+        if (variance > 0) totalStillDue += variance;
+
+        return {
+          ...r,
+          ytdRegularGross,
+          ytdThirteenthMonth,
+          ytdDeMinimis,
+          ytdEeContributions,
+          ytdTaxWithheld,
+          nonTaxable13th,
+          totalGross,
+          annualTaxableIncome,
+          annualTaxDue,
+          variance,
+        };
+      });
+
+      return {
+        year,
+        summary: {
+          totalEmployees: employees.length,
+          totalTaxDue: Math.round(totalTaxDue * 100) / 100,
+          totalTaxWithheld: Math.round(totalTaxWithheld * 100) / 100,
+          totalRefund: Math.round(totalRefund * 100) / 100,
+          totalStillDue: Math.round(totalStillDue * 100) / 100,
+        },
+        employees,
+      };
+    });
+  }
+
+  async exportBir1604cCsv(ctx: RequestContext, year: number) {
+    const data = await this.getYearEndTaxReconciliation(ctx, year);
+    const header = [
+      'Employee No',
+      'Employee Name',
+      'TIN',
+      'MWE',
+      'Total Gross Compensation',
+      'Non-Taxable 13th Month',
+      'Non-Taxable De Minimis',
+      'Mandatory EE Contributions',
+      'Net Taxable Compensation',
+      'Annual Tax Due (TRAIN)',
+      'Total Tax Withheld',
+      'Year-End Adjustment (+Due / -Refund)',
+    ];
+    const rows = data.employees.map((e) => [
+      e.employeeNo,
+      `"${String(e.employeeName).replace(/"/g, '""')}"`,
+      e.tin || 'N/A',
+      e.isMinimumWage ? 'YES' : 'NO',
+      e.totalGross.toFixed(2),
+      e.nonTaxable13th.toFixed(2),
+      e.ytdDeMinimis.toFixed(2),
+      e.ytdEeContributions.toFixed(2),
+      e.annualTaxableIncome.toFixed(2),
+      e.annualTaxDue.toFixed(2),
+      e.ytdTaxWithheld.toFixed(2),
+      e.variance.toFixed(2),
+    ]);
+    return {
+      filename: `BIR_1604C_Alphalist_${year}.csv`,
+      csv: [header.join(','), ...rows.map((r) => r.join(','))].join('\n'),
+    };
   }
 }
