@@ -1912,7 +1912,7 @@ export class PayrollService {
         `SELECT e.id AS "employeeId",
                 e.employee_no AS "employeeNo",
                 e.first_name || ' ' || e.last_name AS "employeeName",
-                e.hire_date::text AS "hireDate",
+                e.hired_on::text AS "hireDate",
                 b.name AS "branchName",
                 c.branch_id AS "branchId",
                 COALESCE(c.monthly_rate, 0)::numeric(12,2) AS "monthlyRate",
